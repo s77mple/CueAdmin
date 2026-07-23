@@ -37,11 +37,12 @@ ROLE_PERMS = {
 
 # ====== 菜单定义 ======
 MENUS = [
-    ("dashboard", "仪表盘", "Odometer", "/dashboard"),
-    ("users", "用户管理", "UserFilled", "/users"),
-    ("roles", "角色管理", "Avatar", "/roles"),
-    ("menus", "菜单管理", "Menu", "/menus"),
-    ("permissions", "权限管理", "Lock", "/permissions"),
+    # (code, name, icon, path, parent_id, sort_order)
+    ("dashboard",    "仪表盘",   "Odometer",  "/dashboard",    None, 1),
+    ("users",        "用户管理", "UserFilled","/users",        None, 2),
+    ("roles",        "角色管理", "Avatar",    "/roles",        None, 3),
+    ("menus",        "菜单管理", "Menu",      "/menus",        None, 4),
+    ("permissions",  "权限管理", "Lock",      "/permissions",  None, 5),
 ]
 
 ROLE_MENUS = {
@@ -68,14 +69,16 @@ async def seed(db: AsyncSession):
     # 2. 菜单
     print("\n[2/5] 创建菜单...")
     menu_map: dict[str, Menu] = {}
-    for code, name, icon, path in MENUS:
+    for code, name, icon, path, parent_id, sort_order in MENUS:
         result = await db.execute(select(Menu).where(Menu.code == code))
         menu = result.scalars().first()
         if not menu:
-            menu = Menu(code=code, name=name, icon=icon, path=path)
+            menu = Menu(code=code, name=name, icon=icon,
+                        path=path, parent_id=parent_id, sort_order=sort_order)
             db.add(menu)
         else:
             menu.icon = icon
+            menu.sort_order = sort_order
         menu_map[code] = menu
     await db.flush()
     print(f"  -> 共 {len(menu_map)} 个菜单")

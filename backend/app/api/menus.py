@@ -27,11 +27,15 @@ async def list_menus(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
 ):
-    result = await db.execute(select(Menu).order_by(Menu.code.asc()))
+    result = await db.execute(select(Menu).order_by(Menu.sort_order, Menu.id))
     menus = result.scalars().all()
     return {
         "items": [
-            {"id": m.id, "code": m.code, "name": m.name, "icon": m.icon, "path": m.path}
+            {
+                "id": m.id, "code": m.code, "name": m.name,
+                "icon": m.icon, "path": m.path,
+                "parent_id": m.parent_id, "sort_order": m.sort_order,
+            }
             for m in menus
         ],
         "total": len(menus),
@@ -46,7 +50,10 @@ async def create_menu(
 ):
     if (await db.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
         raise ConflictException("菜单编码已存在")
-    menu = Menu(code=body.code, name=body.name, icon=body.icon, path=body.path)
+    menu = Menu(
+        code=body.code, name=body.name, icon=body.icon,
+        path=body.path, parent_id=body.parent_id, sort_order=body.sort_order,
+    )
     db.add(menu)
     await db.commit()
     await db.refresh(menu)
@@ -70,6 +77,10 @@ async def update_menu(
         menu.icon = body.icon
     if body.path is not None:
         menu.path = body.path
+    if body.parent_id is not None:
+        menu.parent_id = body.parent_id
+    if body.sort_order is not None:
+        menu.sort_order = body.sort_order
     await db.commit()
     return {"id": menu.id, "code": menu.code}
 

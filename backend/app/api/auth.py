@@ -69,7 +69,10 @@ async def me(user: CurrentUser):
         for m in role.menus:
             if m.code not in seen:
                 seen.add(m.code)
-                menus.append({"code": m.code, "name": m.name, "icon": m.icon, "path": m.path})
+                menus.append({
+                    "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
+                    "parent_id": m.parent_id, "sort_order": m.sort_order,
+                })
     return MeResponse(
         user=user,
         permissions=permissions,
