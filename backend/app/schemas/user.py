@@ -1,0 +1,47 @@
+"""用户 Schema"""
+
+from datetime import datetime
+from pydantic import BaseModel, field_validator
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    display_name: str
+    phone: str | None = None
+    role_ids: list[int] = []
+
+    @field_validator("username")
+    @classmethod
+    def username_min_length(cls, v: str) -> str:
+        if len(v.strip()) < 3:
+            raise ValueError("用户名至少 3 个字符")
+        return v.strip()
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("密码至少 6 个字符")
+        return v
+
+
+class UserUpdate(BaseModel):
+    username: str | None = None
+    password: str | None = None
+    display_name: str | None = None
+    phone: str | None = None
+    is_active: bool | None = None
+    role_ids: list[int] | None = None
+
+
+class UserRead(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    phone: str | None = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
