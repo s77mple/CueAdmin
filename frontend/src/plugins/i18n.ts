@@ -12,10 +12,12 @@ const siphonI18n = (function () {
   // 仅初始化一次国际化配置
   const cache = Object.fromEntries(
     Object.entries(
-      import.meta.glob("../../locales/*.{yaml,yml}", { eager: true })
+      import.meta.glob("../../locales/*.json", { eager: true })
     ).map(([key, value]: any) => {
       const matched = key.match(/([A-Za-z0-9-_]+)\./i)[1];
-      return [matched, value.default];
+      // Vite 8/rolldown 将 JSON 拆为命名导出（无 default），用 Object.assign 提取
+      const data = value.default ?? Object.assign({}, value);
+      return [matched, data];
     })
   );
   return (prefix = "zh-CN") => {
@@ -50,7 +52,7 @@ function getObjectKeys(obj) {
       if (obj[k] && isObject(obj[k])) {
         stack.push({ obj: obj[k], key: newKey });
       } else {
-        keys.add(key);
+        keys.add(newKey);
       }
     }
   }
