@@ -71,7 +71,9 @@ async def update_permission(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
 ):
-    result = await db.execute(select(Permission).where(Permission.id == perm_id))
+    result = await db.execute(
+        select(Permission).where(Permission.id == perm_id).with_for_update()
+    )
     perm = result.scalars().first()
     if not perm:
         raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")

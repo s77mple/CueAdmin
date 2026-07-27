@@ -14,6 +14,7 @@ class ErrorCode(IntEnum):
     AUTH_TOKEN_EXPIRED       = 11002   # 令牌过期
     AUTH_TOKEN_REVOKED       = 11003   # 令牌已作废（登出后）
     AUTH_NO_ROLES            = 11004   # 未分配角色
+    AUTH_TOKEN_INVALID       = 11005   # 令牌格式/签名无效
 
     # ====== 用户 (USER)  12001-12099 ======
     USER_NOT_FOUND             = 12001  # 用户不存在

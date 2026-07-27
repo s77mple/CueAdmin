@@ -1,14 +1,14 @@
 """权限 Schema"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PermissionCreate(BaseModel):
-    code: str
-    name: str
-    resource: str
-    action: str
-    description: str | None = None
+    code: str = Field(..., min_length=1, max_length=100)
+    name: str = Field(..., min_length=1, max_length=100)
+    resource: str = Field(..., min_length=1, max_length=50)
+    action: str = Field(..., min_length=1, max_length=50)
+    description: str | None = Field(None, max_length=200)
 
 
 class PermissionUpdate(BaseModel):

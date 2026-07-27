@@ -1,12 +1,12 @@
 """角色 Schema"""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RoleCreate(BaseModel):
-    code: str
-    name: str
-    description: str | None = None
+    code: str = Field(..., min_length=2, max_length=50)
+    name: str = Field(..., min_length=2, max_length=50)
+    description: str | None = Field(None, max_length=200)
     permission_codes: list[str] = []   # 权限 code 列表（如 "user:list"），非 ID
     menu_ids: list[int] = []           # 菜单 ID 列表
 

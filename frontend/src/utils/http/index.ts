@@ -40,9 +40,9 @@ class PureHttp {
   private httpInterceptorsRequest(): void {
     PureHttp.axiosInstance.interceptors.request.use(
       (config: PureHttpRequestConfig) => {
-        // 白名单：不需要 token 的接口
-        const whiteList = ["/login"];
-        const isWhite = whiteList.some(url => config.url?.includes(url));
+        // 白名单：不需要 token 的接口（精确匹配路径末尾）
+        const whiteList = ["/auth/login"];
+        const isWhite = whiteList.some(url => config.url?.endsWith(url));
 
         if (!isWhite) {
           const token = getToken();
@@ -63,7 +63,7 @@ class PureHttp {
         const res = response.data;
 
         // 未登录 → 跳登录页
-        if (res.code === 11002 || res.code === 11003) {
+        if (res.code === 11002 || res.code === 11003 || res.code === 11005) {
           message("登录已过期，请重新登录", { type: "warning" });
           removeToken();
           router.push("/login");
@@ -103,9 +103,7 @@ class PureHttp {
     axiosConfig?: PureHttpRequestConfig
   ): Promise<T> {
     const config = { method, url, ...param, ...axiosConfig } as PureHttpRequestConfig;
-    return new Promise((resolve, reject) => {
-      PureHttp.axiosInstance.request(config).then(resolve).catch(reject);
-    });
+    return PureHttp.axiosInstance.request(config) as Promise<T>;
   }
 
   public post<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {

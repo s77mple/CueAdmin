@@ -34,6 +34,13 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
     role_ids: list[int] | None = None
 
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) < 6:
+            raise ValueError("密码至少 6 个字符")
+        return v
+
 
 class UserRead(BaseModel):
     id: int

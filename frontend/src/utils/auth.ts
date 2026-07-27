@@ -19,8 +19,12 @@ export const multipleTabsKey = "multiple-tabs";
 
 /** 获取`token` */
 export function getToken(): DataInfo | null {
-  const cookie = Cookies.get(TokenKey);
-  if (cookie) return JSON.parse(cookie);
+  try {
+    const cookie = Cookies.get(TokenKey);
+    if (cookie) return JSON.parse(cookie);
+  } catch {
+    Cookies.remove(TokenKey);
+  }
   return storageLocal().getItem(userKey);
 }
 

@@ -25,7 +25,7 @@ async def paginate(
     """
     # 参数校验 — 防止非法输入
     page = max(1, page)
-    page_size = max(1, min(page_size, 1000))
+    page_size = max(1, min(page_size, 100))
 
     # COUNT — 套子查询，JOIN 时不会重复计数
     count_stmt = select(func.count()).select_from(stmt.subquery())

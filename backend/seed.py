@@ -4,6 +4,7 @@
 """
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
@@ -11,8 +12,8 @@ from app.core.database import Base
 from app.models import User, Role, Permission, Menu
 from app.core.security import _hash_password_sync
 
-# 种子脚本用同步引擎 — 不需要异步，避免 async 模式下 relationship.set 的 greenlet 陷阱
-_sync_url = settings.database_url.replace("+aiomysql", "+pymysql", 1)
+# 种子脚本用同步引擎 — 避免 async 模式下 relationship.set 的 greenlet 陷阱
+_sync_url = str(make_url(settings.database_url).set(drivername="mysql+pymysql"))
 _sync_engine = create_engine(_sync_url, echo=False)
 SyncSession = sessionmaker(_sync_engine, autoflush=False)
 

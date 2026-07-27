@@ -5,6 +5,7 @@ from typing import Annotated
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app.core.database import DbSession
@@ -68,15 +69,17 @@ async def create_role(
         )).scalars().all()
         if len(perms) != len(body.permission_codes):
             found = {p.code for p in perms}
-            logger.warning("创建角色时部分权限 code 无效，已忽略: {}",
-                           [c for c in body.permission_codes if c not in found])
+            invalid = [c for c in body.permission_codes if c not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"权限 code 不存在: {invalid}")
         role.permissions = perms
     if body.menu_ids:
         menus = (await db.execute(
             select(Menu).where(Menu.id.in_(body.menu_ids))
         )).scalars().all()
         if len(menus) != len(body.menu_ids):
-            logger.warning("创建角色时部分菜单 ID 无效，已忽略")
+            found = {m.id for m in menus}
+            invalid = [mid for mid in body.menu_ids if mid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
         role.menus = menus
     db.add(role)
     await db.commit()
@@ -92,10 +95,14 @@ async def update_role(
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    result = await db.execute(select(Role).where(Role.id == role_id))
+    result = await db.execute(
+        select(Role).where(Role.id == role_id).with_for_update()
+    )
     role = result.scalars().first()
     if not role:
         raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
+    if role.is_system and body.permission_codes is not None:
+        raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许修改系统角色的权限")
     if body.name is not None:
         role.name = body.name
     if body.description is not None:
@@ -106,15 +113,17 @@ async def update_role(
         )).scalars().all()
         if len(perms) != len(body.permission_codes):
             found = {p.code for p in perms}
-            logger.warning("更新角色时部分权限 code 无效，已忽略: {}",
-                           [c for c in body.permission_codes if c not in found])
+            invalid = [c for c in body.permission_codes if c not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"权限 code 不存在: {invalid}")
         role.permissions = perms
     if body.menu_ids is not None:
         menus = (await db.execute(
             select(Menu).where(Menu.id.in_(body.menu_ids))
         )).scalars().all()
         if len(menus) != len(body.menu_ids):
-            logger.warning("更新角色时部分菜单 ID 无效，已忽略")
+            found = {m.id for m in menus}
+            invalid = [mid for mid in body.menu_ids if mid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
         role.menus = menus
     await db.commit()
 
@@ -123,14 +132,15 @@ async def update_role(
             rows = (await db.execute(
                 select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
             )).all()
+        except SQLAlchemyError:
+            logger.warning("查询角色关联用户失败，跳过缓存清除")
+        else:
             for (uid,) in rows:
                 try:
                     await redis_client.delete(f"perm:{uid}")
                 except aioredis.RedisError:
                     pass
             logger.info("角色 [{}] 权限/菜单变更，已清除 {} 个用户缓存", role.code, len(rows))
-        except Exception as e:
-            logger.warning("清除用户缓存失败: {}", e)
 
     return ApiResponse.ok(data=role, message="更新成功")
 
@@ -140,6 +150,7 @@ async def delete_role(
     role_id: int,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.DELETE])],
+    redis_client: aioredis.Redis = Depends(get_redis),
 ):
     result = await db.execute(select(Role).where(Role.id == role_id))
     role = result.scalars().first()
@@ -147,6 +158,22 @@ async def delete_role(
         raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
     if role.is_system:
         raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许删除系统角色")
+    # 删除前查出关联用户，用于清除缓存
+    try:
+        rows = (await db.execute(
+            select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
+        )).all()
+    except SQLAlchemyError:
+        rows = []
+        logger.warning("查询角色关联用户失败，跳过缓存清除")
     await db.delete(role)
     await db.commit()
+    # 清除所有关联用户的权限缓存
+    for (uid,) in rows:
+        try:
+            await redis_client.delete(f"perm:{uid}")
+        except aioredis.RedisError:
+            pass
+    if rows:
+        logger.info("角色 [{}] 已删除，清除 {} 个用户缓存", role.code, len(rows))
     return ApiResponse.ok(message="删除成功")

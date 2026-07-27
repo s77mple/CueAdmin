@@ -40,7 +40,7 @@ export const useUserStore = defineStore("pure-user", {
               });
               resolve(res);
             } else {
-              reject(res.message);
+              reject(res.message || `登录失败 (code: ${res.code})`);
             }
           })
           .catch(error => {

@@ -8,12 +8,13 @@ FastAPI 依赖注入模块。
     user: CurrentUser
 """
 
-import threading
+import asyncio
 from typing import Annotated
 
 import redis.asyncio as aioredis
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, SecurityScopes
+from jose import JWTError, ExpiredSignatureError
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -24,20 +25,31 @@ from app.core.security import decode_token
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
 
+async def close_redis() -> None:
+    """关闭 Redis 连接池（应用关闭时调用）。"""
+    global _redis_pool
+    if _redis_pool is not None:
+        await _redis_pool.aclose()
+        _redis_pool = None
+
+
 security_scheme = HTTPBearer()
 
 _redis_pool: aioredis.Redis | None = None
-_redis_lock = threading.Lock()
+_redis_lock = asyncio.Lock()
 
 
 async def get_redis() -> aioredis.Redis:
-    """惰性初始化 Redis 异步连接，线程安全。"""
+    """惰性初始化 Redis 异步连接。"""
     global _redis_pool
     if _redis_pool is None:
-        with _redis_lock:
+        async with _redis_lock:
             if _redis_pool is None:
                 _redis_pool = aioredis.Redis.from_url(
-                    settings.redis_url, decode_responses=True
+                    settings.redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=3,
+                    socket_keepalive=True,
                 )
     return _redis_pool
 
@@ -57,8 +69,10 @@ async def get_current_user(
     token = credentials.credentials
     try:
         payload = decode_token(token)
-    except Exception:
-        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌无效")
+    except ExpiredSignatureError:
+        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌已过期，请重新登录")
+    except JWTError:
+        raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
     # ---- 2. Token 黑名单检查（Redis 故障时跳过）----
     jti = payload.get("jti")
@@ -72,11 +86,11 @@ async def get_current_user(
     # ---- 3. 解析用户 ID ----
     sub = payload.get("sub")
     if sub is None:
-        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌无效")
+        raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
     try:
         user_id = int(sub)
     except (ValueError, TypeError):
-        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌无效")
+        raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
     # ---- 4. 加载用户 ----
     stmt = (
@@ -90,8 +104,10 @@ async def get_current_user(
     result = await db.execute(stmt)
     user = result.scalars().first()
 
-    if user is None or not user.is_active:
-        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "用户已停用或不存在")
+    if user is None:
+        raise BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在")
+    if not user.is_active:
+        raise BusinessException(ErrorCode.USER_NOT_FOUND, "用户已被禁用")
     if not user.roles:
         raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色")
 

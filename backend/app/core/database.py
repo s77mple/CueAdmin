@@ -13,6 +13,8 @@ async_engine = create_async_engine(
     settings.database_url,      # 例: mysql+aiomysql://user:pass@host/db
     pool_size=10,               # 常驻连接数
     max_overflow=20,            # 临时额外连接上限（总上限 30）
+    # pool_pre_ping 与 aiomysql 不兼容（ping() 签名差异），用 pool_recycle 替代
+    pool_recycle=3600,          # 每小时回收连接，避免服务端主动断开
     echo=False,                 # 不打印 SQL（调试用 True）
 )
 

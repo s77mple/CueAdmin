@@ -165,7 +165,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.64.0",
     "unplugin-icons": "^23.0.1",
-    "vite": "^8.1.5",
+    "vite": "^7.2.0",
     "vite-plugin-cdn-import": "^1.0.1",
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-fake-server": "^2.2.4",

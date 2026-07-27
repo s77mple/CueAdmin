@@ -3,6 +3,7 @@
 import time
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Body, Depends
+from jose import JWTError
 
 from app.core.database import DbSession
 from app.core.dependencies import CurrentUser, get_redis, security_scheme
@@ -23,9 +24,9 @@ async def login(
 ):
     result = await AuthService(db).login(body.username, body.password, body.client)
     try:
-        await redis_client.delete(f"perm:{result.user.id}") #不读旧的缓存，请求接口重新计算
-    except Exception:
-        pass
+        await redis_client.delete(f"perm:{result.user.id}")
+    except aioredis.RedisError:
+        logger.warning("登录时清除权限缓存失败，跳过")
     logger.bind(username=body.username).info("用户登录成功")
     return ApiResponse.ok(data=result)
 
@@ -37,16 +38,21 @@ async def logout(
 ):
     try:
         payload = decode_token(credentials.credentials)
-        jti = payload.get("jti")
-        user_id = payload.get("sub")
-        exp = payload.get("exp")
-        ttl = max(int(exp - time.time()), 1) if exp else 86400
+    except JWTError:
+        # Token 无效（可能已过期），无需加入黑名单
+        return ApiResponse.ok(message="已登出")
+
+    jti = payload.get("jti")
+    user_id = payload.get("sub")
+    exp = payload.get("exp")
+    ttl = max(int(exp - time.time()), 1) if exp else 86400
+    try:
         if jti:
             await redis_client.setex(f"blacklist:{jti}", ttl, "1")
         if user_id:
             await redis_client.delete(f"perm:{user_id}")
-    except Exception as e:
-        logger.warning("登出清理失败: {}", e)
+    except aioredis.RedisError:
+        logger.warning("登出时 Redis 操作失败，跳过")
     return ApiResponse.ok(message="已登出")
 
 
@@ -54,7 +60,7 @@ async def logout(
 async def update_profile(
     db: DbSession,
     user: CurrentUser,
-    display_name: str = Body(..., embed=True),
+    display_name: str = Body(..., embed=True, max_length=50),
 ):
     user.display_name = display_name
     await db.commit()
@@ -74,6 +80,7 @@ async def me(user: CurrentUser):
                     "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
                     "parent_id": m.parent_id, "sort_order": m.sort_order,
                 })
+    menus.sort(key=lambda m: m["sort_order"])
     return ApiResponse.ok(data=MeResponse(
         user=user,
         permissions=permissions,

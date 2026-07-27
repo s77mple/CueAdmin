@@ -5,6 +5,7 @@ from typing import Annotated
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, Query, Security
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.core.database import DbSession
@@ -69,11 +70,20 @@ async def create_user(
         display_name=body.display_name, phone=body.phone,
     )
     if body.role_ids:
-        new_user.roles = (await db.execute(
+        roles = (await db.execute(
             select(Role).where(Role.id.in_(body.role_ids))
         )).scalars().all()
+        if len(roles) != len(body.role_ids):
+            found = {r.id for r in roles}
+            invalid = [rid for rid in body.role_ids if rid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
+        new_user.roles = roles
     db.add(new_user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
     await db.refresh(new_user)
     return ApiResponse.ok(data=new_user, message="创建成功")
 
@@ -86,7 +96,10 @@ async def update_user(
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    result = await db.execute(select(User).where(User.id == user_id))
+    # 行级锁：防止并发修改同一用户的角色
+    result = await db.execute(
+        select(User).where(User.id == user_id).with_for_update()
+    )
     target = result.scalars().first()
     if not target:
         raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
@@ -105,20 +118,32 @@ async def update_user(
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
         target.is_active = body.is_active
     if body.role_ids is not None:
+        # 验证所有角色 ID 存在
+        roles = (await db.execute(
+            select(Role).where(Role.id.in_(body.role_ids))
+        )).scalars().all()
+        if len(roles) != len(body.role_ids):
+            found = {r.id for r in roles}
+            invalid = [rid for rid in body.role_ids if rid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
         # 防止去掉最后一个 admin 的 admin 角色
-        admin_role = (await db.execute(select(Role).where(Role.code == "admin"))).scalars().first()
-        had_admin = admin_role and any(r.id == admin_role.id for r in target.roles)
-        will_lose_admin = admin_role and admin_role.id not in body.role_ids
-        if had_admin and will_lose_admin:
+        admin_role = next((r for r in roles if r.code == "admin"), None)
+        had_admin = any(r.code == "admin" for r in target.roles)
+        will_lose_admin = had_admin and admin_role is None
+        if will_lose_admin:
             admin_count = (await db.execute(
-                select(User).join(User.roles).where(Role.code == "admin", User.is_active == True)
+                select(User).join(User.roles).where(
+                    Role.code == "admin", User.is_active == True
+                )
             )).scalars().all()
             if len(admin_count) <= 1:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
-        target.roles = (await db.execute(
-            select(Role).where(Role.id.in_(body.role_ids))
-        )).scalars().all()
-    await db.commit()
+        target.roles = roles
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
     await db.refresh(target)
 
     if body.role_ids is not None:
@@ -144,6 +169,15 @@ async def delete_user(
         raise BusinessException(ErrorCode.CONFLICT, "不允许禁用自己的账号")
     if target.username == "admin":
         raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
+    # 防止禁用最后一个活跃管理员
+    if target.is_active and any(r.code == "admin" for r in target.roles):
+        admin_count = (await db.execute(
+            select(User).join(User.roles).where(
+                Role.code == "admin", User.is_active == True
+            )
+        )).scalars().all()
+        if len(admin_count) <= 1:
+            raise BusinessException(ErrorCode.CONFLICT, "不允许禁用最后一个管理员")
     target.is_active = False
     await db.commit()
     return ApiResponse.ok(message="已禁用")
