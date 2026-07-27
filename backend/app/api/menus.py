@@ -51,6 +51,10 @@ async def create_menu(
 ):
     if (await db.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
         raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
+    if body.parent_id is not None:
+        parent = (await db.execute(select(Menu).where(Menu.id == body.parent_id))).scalars().first()
+        if not parent:
+            raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
     menu = Menu(
         code=body.code, name=body.name, icon=body.icon,
         path=body.path, parent_id=body.parent_id, sort_order=body.sort_order,
@@ -79,6 +83,11 @@ async def update_menu(
     if body.path is not None:
         menu.path = body.path
     if body.parent_id is not None:
+        if body.parent_id == menu_id:
+            raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
+        parent = (await db.execute(select(Menu).where(Menu.id == body.parent_id))).scalars().first()
+        if not parent:
+            raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
         menu.parent_id = body.parent_id
     if body.sort_order is not None:
         menu.sort_order = body.sort_order
@@ -96,6 +105,15 @@ async def delete_menu(
     menu = result.scalars().first()
     if not menu:
         raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
+    # 检查子菜单：删父菜单后子菜单 parent_id 会被设 NULL（数据库 SET NULL）
+    children = (await db.execute(
+        select(Menu).where(Menu.parent_id == menu_id)
+    )).scalars().all()
+    if children:
+        logger.bind(menu_id=menu_id).warning(
+            "删除父菜单 [{}]，{} 个子菜单将变为顶级菜单",
+            menu.code, len(children)
+        )
     await db.delete(menu)
     await db.commit()
     return ApiResponse.ok(message="删除成功")

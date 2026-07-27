@@ -75,7 +75,9 @@ async def update_permission(
     perm = result.scalars().first()
     if not perm:
         raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
-    if body.code is not None:
+    if body.code is not None and body.code != perm.code:
+        if (await db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
+            raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
         perm.code = body.code
     if body.name is not None:
         perm.name = body.name

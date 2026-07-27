@@ -9,6 +9,8 @@ export interface DataInfo {
   username?: string;
   /** 按钮级别权限 */
   permissions?: Array<string>;
+  /** 角色 */
+  roles?: Array<string>;
 }
 
 export const userKey = "user-info";
@@ -27,8 +29,9 @@ export function setToken(data: {
   accessToken: string;
   username?: string;
   permissions?: Array<string>;
+  roles?: Array<string>;
 }) {
-  const { accessToken, username, permissions } = data;
+  const { accessToken, username, permissions, roles } = data;
 
   // token 存 cookie
   Cookies.set(TokenKey, JSON.stringify({ accessToken }));
@@ -40,8 +43,7 @@ export function setToken(data: {
   if (username) useUserStoreHook().SET_USERNAME(username);
   if (permissions) useUserStoreHook().SET_PERMS(permissions);
   storageLocal().setItem(userKey, {
-    accessToken, username, permissions,
-    roles: ["admin"],   // CueAdmin: 登录用户都是 admin 角色
+    accessToken, username, permissions, roles: roles ?? [],
   });
 }
 

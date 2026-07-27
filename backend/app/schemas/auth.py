@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 
 from app.schemas.response import ApiResponse
+from app.schemas.role import RoleBrief
 from app.schemas.user import UserRead
 
 
@@ -16,6 +17,7 @@ class LoginResponse(BaseModel):
     access_token: str
     user: "UserRead"
     permissions: list[str]
+    roles: list[RoleBrief] = []
     menus: list[dict] = []
 
     model_config = {"from_attributes": True}
@@ -24,7 +26,7 @@ class LoginResponse(BaseModel):
 class MeResponse(BaseModel):
     user: "UserRead"
     permissions: list[str]
-    roles: list[dict]
+    roles: list[RoleBrief]
     menus: list[dict]
 
     model_config = {"from_attributes": True}

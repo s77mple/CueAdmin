@@ -23,7 +23,7 @@ async def login(
 ):
     result = await AuthService(db).login(body.username, body.password, body.client)
     try:
-        await redis_client.delete(f"perm:{result.user.id}")
+        await redis_client.delete(f"perm:{result.user.id}") #不读旧的缓存，请求接口重新计算
     except Exception:
         pass
     logger.bind(username=body.username).info("用户登录成功")

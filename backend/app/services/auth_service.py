@@ -51,5 +51,6 @@ class AuthService:
             access_token=token,
             user=UserRead.model_validate(user),
             permissions=permissions,
+            roles=[{"id": r.id, "code": r.code, "name": r.name} for r in user.roles],
             menus=menus,
         )

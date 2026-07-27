@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { getMenuList } from "@/api/system";
+import { getMenuList } from "@/api/menus";
 
 const loading = ref(false);
 const list = ref([]);

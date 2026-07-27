@@ -105,6 +105,16 @@ async def update_user(
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
         target.is_active = body.is_active
     if body.role_ids is not None:
+        # 防止去掉最后一个 admin 的 admin 角色
+        admin_role = (await db.execute(select(Role).where(Role.code == "admin"))).scalars().first()
+        had_admin = admin_role and any(r.id == admin_role.id for r in target.roles)
+        will_lose_admin = admin_role and admin_role.id not in body.role_ids
+        if had_admin and will_lose_admin:
+            admin_count = (await db.execute(
+                select(User).join(User.roles).where(Role.code == "admin", User.is_active == True)
+            )).scalars().all()
+            if len(admin_count) <= 1:
+                raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
         target.roles = (await db.execute(
             select(Role).where(Role.id.in_(body.role_ids))
         )).scalars().all()
@@ -130,6 +140,8 @@ async def delete_user(
     target = result.scalars().first()
     if not target:
         raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
+    if user.id == user_id:
+        raise BusinessException(ErrorCode.CONFLICT, "不允许禁用自己的账号")
     if target.username == "admin":
         raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
     target.is_active = False

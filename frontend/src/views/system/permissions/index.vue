@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { getPermissionList } from "@/api/system";
+import { getPermissionList } from "@/api/permissions";
 
 const loading = ref(false);
 const list = ref([]);

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { store, router, resetRouter, routerArrays, storageLocal } from "../utils";
-import { type UserResult, getLogin } from "@/api/user";
+import { type UserResult, getLogin } from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
 
@@ -36,6 +36,7 @@ export const useUserStore = defineStore("pure-user", {
                 accessToken: res.data.access_token,
                 username: res.data.user?.display_name ?? res.data.user?.username,
                 permissions: res.data.permissions ?? [],
+                roles: res.data.roles?.map((r: any) => r.code) ?? [],
               });
               resolve(res);
             } else {

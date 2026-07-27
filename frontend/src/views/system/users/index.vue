@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { getUserList, deleteUser } from "@/api/system";
+import { getUserList, deleteUser } from "@/api/users";
 
 const loading = ref(false);
 const list = ref([]);

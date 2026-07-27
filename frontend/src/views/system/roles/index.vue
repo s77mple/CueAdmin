@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { getRoleList } from "@/api/system";
+import { getRoleList } from "@/api/roles";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
