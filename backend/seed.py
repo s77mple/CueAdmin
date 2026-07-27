@@ -3,13 +3,19 @@
 运行前确保数据库存在: CREATE DATABASE cueadmin CHARACTER SET utf8mb4;
 """
 
-import asyncio
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.database import async_engine, AsyncSessionLocal, Base
+from app.core.config import settings
+from app.core.database import Base
 from app.models import User, Role, Permission, Menu
 from app.core.security import _hash_password_sync
+
+# 种子脚本用同步引擎 — 不需要异步，避免 async 模式下 relationship.set 的 greenlet 陷阱
+_sync_url = settings.database_url.replace("+aiomysql", "+pymysql", 1)
+_sync_engine = create_engine(_sync_url, echo=False)
+SyncSession = sessionmaker(_sync_engine, autoflush=False)
+
 
 # ====== 权限定义 ======
 PERMISSIONS = [
@@ -35,14 +41,12 @@ ROLE_PERMS = {
     "admin": [p[0] for p in PERMISSIONS],
 }
 
-# ====== 菜单定义 ======
 MENUS = [
-    # (code, name, icon, path, parent_id, sort_order)
-    ("dashboard",    "仪表盘",   "Odometer",  "/dashboard",    None, 1),
-    ("users",        "用户管理", "UserFilled","/users",        None, 2),
-    ("roles",        "角色管理", "Avatar",    "/roles",        None, 3),
-    ("menus",        "菜单管理", "Menu",      "/menus",        None, 4),
-    ("permissions",  "权限管理", "Lock",      "/permissions",  None, 5),
+    ("dashboard", "仪表盘", "Odometer", "/dashboard", None, 1),
+    ("users", "用户管理", "UserFilled", "/users", None, 2),
+    ("roles", "角色管理", "Avatar", "/roles", None, 3),
+    ("menus", "菜单管理", "Menu", "/menus", None, 4),
+    ("permissions", "权限管理", "Lock", "/permissions", None, 5),
 ]
 
 ROLE_MENUS = {
@@ -50,28 +54,26 @@ ROLE_MENUS = {
 }
 
 
-async def seed(db: AsyncSession):
+def seed(db: Session):
     print("=== 开始种子数据初始化 ===")
 
     # 1. 权限
     print("\n[1/5] 创建权限...")
     perm_map: dict[str, Permission] = {}
     for code, name, resource, action in PERMISSIONS:
-        result = await db.execute(select(Permission).where(Permission.code == code))
-        perm = result.scalars().first()
+        perm = db.query(Permission).filter(Permission.code == code).first()
         if not perm:
             perm = Permission(code=code, name=name, resource=resource, action=action)
             db.add(perm)
         perm_map[code] = perm
-    await db.flush()
+    db.flush()
     print(f"  -> 共 {len(perm_map)} 项权限")
 
     # 2. 菜单
     print("\n[2/5] 创建菜单...")
     menu_map: dict[str, Menu] = {}
     for code, name, icon, path, parent_id, sort_order in MENUS:
-        result = await db.execute(select(Menu).where(Menu.code == code))
-        menu = result.scalars().first()
+        menu = db.query(Menu).filter(Menu.code == code).first()
         if not menu:
             menu = Menu(code=code, name=name, icon=icon,
                         path=path, parent_id=parent_id, sort_order=sort_order)
@@ -80,7 +82,7 @@ async def seed(db: AsyncSession):
             menu.icon = icon
             menu.sort_order = sort_order
         menu_map[code] = menu
-    await db.flush()
+    db.flush()
     print(f"  -> 共 {len(menu_map)} 个菜单")
 
     # 3. 角色
@@ -89,13 +91,12 @@ async def seed(db: AsyncSession):
     for code, name, desc, is_sys in [
         ("admin", "管理员", "系统管理员", True),
     ]:
-        result = await db.execute(select(Role).where(Role.code == code))
-        role = result.scalars().first()
+        role = db.query(Role).filter(Role.code == code).first()
         if not role:
             role = Role(code=code, name=name, description=desc, is_system=is_sys)
             db.add(role)
         roles[code] = role
-    await db.flush()
+    db.flush()
 
     # 4. 关联
     print("\n[4/5] 关联角色权限和菜单...")
@@ -109,12 +110,11 @@ async def seed(db: AsyncSession):
         menus = [menu_map[c] for c in menu_codes if c in menu_map]
         role.menus = menus
         print(f"  -> {role.name}: {len(menus)} 个菜单")
-    await db.flush()
+    db.flush()
 
     # 5. 管理员
     print("\n[5/5] 创建管理员...")
-    result = await db.execute(select(User).where(User.username == "admin"))
-    user = result.scalars().first()
+    user = db.query(User).filter(User.username == "admin").first()
     if not user:
         user = User(
             username="admin",
@@ -123,9 +123,9 @@ async def seed(db: AsyncSession):
         )
         db.add(user)
     user.roles = [roles["admin"]]
-    await db.flush()
+    db.flush()
 
-    await db.commit()
+    db.commit()
     print("\n=== 种子数据初始化完成 ===")
     print("""
 默认账号: admin / admin123
@@ -133,13 +133,10 @@ async def seed(db: AsyncSession):
 """)
 
 
-async def main():
-    # DDL 操作底层仍是同步的，通过 run_sync 在异步引擎上执行
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with AsyncSessionLocal() as db:
-        await seed(db)
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    Base.metadata.create_all(bind=_sync_engine)
+    db = SyncSession()
+    try:
+        seed(db)
+    finally:
+        db.close()

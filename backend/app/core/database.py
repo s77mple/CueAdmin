@@ -13,7 +13,6 @@ async_engine = create_async_engine(
     settings.database_url,      # 例: mysql+aiomysql://user:pass@host/db
     pool_size=10,               # 常驻连接数
     max_overflow=20,            # 临时额外连接上限（总上限 30）
-    pool_pre_ping=True,         # 取连接前 ping 检测，死连接自动换
     echo=False,                 # 不打印 SQL（调试用 True）
 )
 
