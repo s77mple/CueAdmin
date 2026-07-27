@@ -1,7 +1,9 @@
 export default {
   path: "/menus",
+  name: "Menus",
   redirect: "/menus/index",
-  meta: { icon: "ep/menu", title: "菜单管理", rank: 4 },
+  component: () => import("@/layout/index.vue"),
+  meta: { icon: "fa-solid:bars", title: "菜单管理", rank: 4 },
   children: [
     {
       path: "/menus/index",

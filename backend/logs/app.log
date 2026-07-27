@@ -437,3 +437,74 @@ Traceback (most recent call last):
 sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 
+2026-07-27 15:34:53.778 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:34:53.780 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.307s)
+2026-07-27 15:35:02.686 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:35:02.687 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.268s)
+2026-07-27 15:36:25.256 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:36:25.257 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.224s)
+2026-07-27 15:36:34.946 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:36:34.946 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.216s)
+2026-07-27 15:36:53.608 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:36:53.609 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.291s)
+2026-07-27 15:37:43.664 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:37:43.665 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.224s)
+2026-07-27 15:37:53.413 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:37:53.413 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.231s)
+2026-07-27 15:38:49.445 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:38:49.446 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.221s)
+2026-07-27 15:48:47.325 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:48:47.325 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.218s)
+2026-07-27 15:49:51.369 | INFO     | app.api.auth:login:29 - 用户登录成功
+2026-07-27 15:49:51.369 | INFO     | app.main:log_requests:35 - POST /api/v1/auth/login → 200 (0.217s)
+2026-07-27 15:54:33.132 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:54:33.151 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:54:33.196 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.107s)
+2026-07-27 15:54:35.985 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:54:35.999 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:54:36.014 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.036s)
+2026-07-27 15:54:37.970 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:54:37.982 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:54:38.006 | INFO     | app.main:log_requests:35 - GET /api/v1/roles → 200 (0.046s)
+2026-07-27 15:55:41.696 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:55:41.705 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:55:41.712 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.024s)
+2026-07-27 15:55:42.969 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:55:42.978 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:55:42.984 | INFO     | app.main:log_requests:35 - GET /api/v1/roles → 200 (0.022s)
+2026-07-27 15:55:45.631 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:55:45.642 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:55:45.650 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.025s)
+2026-07-27 15:55:47.086 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:55:47.100 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:55:47.115 | INFO     | app.main:log_requests:35 - GET /api/v1/roles → 200 (0.037s)
+2026-07-27 15:55:53.470 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:55:53.478 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:55:53.484 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.020s)
+2026-07-27 15:55:56.086 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:55:56.094 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:55:56.099 | INFO     | app.main:log_requests:35 - GET /api/v1/roles → 200 (0.019s)
+2026-07-27 15:56:02.296 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:02.303 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:02.308 | INFO     | app.main:log_requests:35 - GET /api/v1/menus → 200 (0.021s)
+2026-07-27 15:56:15.421 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:15.427 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:15.431 | INFO     | app.main:log_requests:35 - GET /api/v1/permissions → 200 (0.019s)
+2026-07-27 15:56:32.326 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:32.336 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:32.342 | INFO     | app.main:log_requests:35 - GET /api/v1/roles → 200 (0.023s)
+2026-07-27 15:56:39.602 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:39.609 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:39.614 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.019s)
+2026-07-27 15:56:44.707 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:44.714 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:44.714 | INFO     | app.main:log_requests:35 - GET /api/v1/menus → 200 (0.013s)
+2026-07-27 15:56:46.247 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:46.254 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:46.256 | INFO     | app.main:log_requests:35 - GET /api/v1/permissions → 200 (0.014s)
+2026-07-27 15:56:53.783 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:53.791 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:53.797 | INFO     | app.main:log_requests:35 - GET /api/v1/roles → 200 (0.019s)
+2026-07-27 15:56:55.823 | WARNING  | app.core.dependencies:get_current_user:70 - Redis 不可用，跳过黑名单检查
+2026-07-27 15:56:55.833 | DEBUG    | app.core.dependencies:get_current_user:106 - 用户认证成功
+2026-07-27 15:56:55.836 | INFO     | app.main:log_requests:35 - GET /api/v1/users → 200 (0.019s)

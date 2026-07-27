@@ -1,7 +1,9 @@
 export default {
   path: "/roles",
+  name: "Roles",
   redirect: "/roles/index",
-  meta: { icon: "ep/avatar", title: "角色管理", rank: 3 },
+  component: () => import("@/layout/index.vue"),
+  meta: { icon: "fa-solid:user-tag", title: "角色管理", rank: 3 },
   children: [
     {
       path: "/roles/index",

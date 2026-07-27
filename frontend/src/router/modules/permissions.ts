@@ -1,7 +1,9 @@
 export default {
   path: "/permissions",
+  name: "Permissions",
   redirect: "/permissions/index",
-  meta: { icon: "ep/lock", title: "权限管理", rank: 5 },
+  component: () => import("@/layout/index.vue"),
+  meta: { icon: "fa-solid:lock", title: "权限管理", rank: 5 },
   children: [
     {
       path: "/permissions/index",

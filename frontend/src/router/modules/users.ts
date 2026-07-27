@@ -1,7 +1,9 @@
 export default {
   path: "/users",
+  name: "Users",
   redirect: "/users/index",
-  meta: { icon: "ep/user-filled", title: "用户管理", rank: 2 },
+  component: () => import("@/layout/index.vue"),
+  meta: { icon: "fa-solid:users", title: "用户管理", rank: 2 },
   children: [
     {
       path: "/users/index",
