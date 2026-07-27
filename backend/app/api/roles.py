@@ -9,16 +9,16 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
+from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Role, Permission, Menu, User
 from app.models.associations import user_roles
-from app.schemas.role import RoleCreate, RoleUpdate
-from app.core.exceptions import NotFoundException, ConflictException
+from app.schemas.response import ApiResponse
+from app.schemas.role import RoleCreate, RoleUpdate, RoleListResponse, RoleListApiResponse, RoleBriefResponse
 from app.core.logger import logger
 
 router = APIRouter()
 
 
-# ---- 权限码常量 ----
 class RoleScope:
     LIST   = "role:list"
     CREATE = "role:create"
@@ -26,7 +26,7 @@ class RoleScope:
     DELETE = "role:delete"
 
 
-@router.get("", summary="角色列表")
+@router.get("", response_model=RoleListApiResponse, summary="角色列表")
 async def list_roles(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
@@ -38,8 +38,8 @@ async def list_roles(
     )
     result = await db.execute(stmt)
     roles = result.scalars().all()
-    return {
-        "items": [
+    data = RoleListResponse(
+        items=[
             {
                 "id": r.id, "code": r.code, "name": r.name,
                 "description": r.description, "is_system": r.is_system,
@@ -48,18 +48,19 @@ async def list_roles(
             }
             for r in roles
         ],
-        "total": len(roles),
-    }
+        total=len(roles),
+    )
+    return ApiResponse.ok(data=data)
 
 
-@router.post("", status_code=201, summary="创建角色")
+@router.post("", response_model=RoleBriefResponse, status_code=201, summary="创建角色")
 async def create_role(
     body: RoleCreate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.CREATE])],
 ):
     if (await db.execute(select(Role).where(Role.code == body.code))).scalars().first():
-        raise ConflictException("角色编码已存在")
+        raise BusinessException(ErrorCode.ROLE_CODE_EXISTS, "角色编码已存在")
     role = Role(code=body.code, name=body.name, description=body.description)
     if body.permission_codes:
         perms = (await db.execute(
@@ -80,10 +81,10 @@ async def create_role(
     db.add(role)
     await db.commit()
     await db.refresh(role)
-    return {"id": role.id, "code": role.code, "name": role.name}
+    return ApiResponse.ok(data=role, message="创建成功")
 
 
-@router.put("/{role_id}", summary="更新角色")
+@router.put("/{role_id}", response_model=RoleBriefResponse, summary="更新角色")
 async def update_role(
     role_id: int,
     body: RoleUpdate,
@@ -94,7 +95,7 @@ async def update_role(
     result = await db.execute(select(Role).where(Role.id == role_id))
     role = result.scalars().first()
     if not role:
-        raise NotFoundException("Role", role_id)
+        raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
     if body.name is not None:
         role.name = body.name
     if body.description is not None:
@@ -131,10 +132,10 @@ async def update_role(
         except Exception as e:
             logger.warning("清除用户缓存失败: {}", e)
 
-    return {"id": role.id, "code": role.code}
+    return ApiResponse.ok(data=role, message="更新成功")
 
 
-@router.delete("/{role_id}", summary="删除角色")
+@router.delete("/{role_id}", response_model=ApiResponse, summary="删除角色")
 async def delete_role(
     role_id: int,
     db: DbSession,
@@ -143,9 +144,9 @@ async def delete_role(
     result = await db.execute(select(Role).where(Role.id == role_id))
     role = result.scalars().first()
     if not role:
-        raise NotFoundException("Role", role_id)
+        raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
     if role.is_system:
-        raise ConflictException("不允许删除系统角色")
+        raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许删除系统角色")
     await db.delete(role)
     await db.commit()
-    return {"message": "删除成功"}
+    return ApiResponse.ok(message="删除成功")

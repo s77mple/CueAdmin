@@ -45,3 +45,15 @@ class UserRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# —————— 响应类型（具体类继承，绕开泛型 response_model 坑）——————
+from app.schemas.response import ApiResponse, PageData
+
+
+class UserReadResponse(ApiResponse[UserRead]):
+    pass
+
+
+class UserListResponse(ApiResponse[PageData[UserRead]]):
+    pass

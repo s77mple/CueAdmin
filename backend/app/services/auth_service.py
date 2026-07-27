@@ -8,7 +8,7 @@ from app.models import User, Role
 from app.schemas.auth import LoginResponse
 from app.schemas.user import UserRead
 from app.core.security import verify_password, create_access_token
-from app.core.exceptions import ValidationException
+from app.core.exceptions import BusinessException, ErrorCode
 
 
 class AuthService:
@@ -28,10 +28,10 @@ class AuthService:
         user = result.scalars().first()
 
         if not user or not await verify_password(password, user.password_hash):
-            raise ValidationException("用户名或密码错误")
+            raise BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, "用户名或密码错误")
 
         if not user.roles:
-            raise ValidationException("该账号未分配角色，请联系管理员")
+            raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色，请联系管理员")
 
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 

@@ -1,41 +1,50 @@
-"""自定义异常类。统一 HTTP 异常的类型和中文错误信息。"""
+"""业务异常 + 数字错误码枚举。"""
 
-from fastapi import HTTPException, status
-
-
-class AppException(HTTPException):
-    def __init__(self, detail: str, status_code: int = 400):
-        super().__init__(status_code=status_code, detail=detail)
+from enum import IntEnum
 
 
-class NotFoundException(AppException):
-    def __init__(self, resource: str, identifier: str | int):
-        names = {"User": "用户", "Role": "角色", "Permission": "权限", "Menu": "菜单"}
-        label = names.get(resource, resource)
-        super().__init__(
-            detail=f"{label}不存在: {identifier}",
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
+class ErrorCode(IntEnum):
+    """数字错误码 — 按模块分段，段内留 99 个空位。"""
+
+    # ====== 成功 ======
+    OK = 0
+
+    # ====== 认证 (AUTH)  11001-11099 ======
+    AUTH_INVALID_CREDENTIALS = 11001   # 用户名或密码错误
+    AUTH_TOKEN_EXPIRED       = 11002   # 令牌过期
+    AUTH_TOKEN_REVOKED       = 11003   # 令牌已作废（登出后）
+    AUTH_NO_ROLES            = 11004   # 未分配角色
+
+    # ====== 用户 (USER)  12001-12099 ======
+    USER_NOT_FOUND             = 12001  # 用户不存在
+    USERNAME_ALREADY_EXISTS    = 12002  # 用户名已存在
+    USER_CANNOT_DISABLE_SUPERADMIN = 12003  # 不允许禁用超级管理员
+
+    # ====== 角色 (ROLE)  13001-13099 ======
+    ROLE_NOT_FOUND   = 13001  # 角色不存在
+    ROLE_CODE_EXISTS = 13002  # 角色编码已存在
+    ROLE_IS_SYSTEM   = 13003  # 系统角色不可删除
+
+    # ====== 菜单 (MENU)  14001-14099 ======
+    MENU_NOT_FOUND   = 14001  # 菜单不存在
+    MENU_CODE_EXISTS = 14002  # 菜单编码已存在
+
+    # ====== 权限 (PERM)  15001-15099 ======
+    PERM_NOT_FOUND   = 15001  # 权限不存在
+    PERM_CODE_EXISTS = 15002  # 权限编码已存在
+
+    # ====== 权限校验 (ACCESS)  16001-16099 ======
+    ACCESS_DENIED = 16001      # 权限不足
+
+    # ====== 通用业务  17001-17099 ======
+    VALIDATION_ERROR = 17001   # 参数校验失败
+    CONFLICT         = 17002   # 数据冲突
 
 
-class ForbiddenException(AppException):
-    def __init__(self, required_permission: str):
-        super().__init__(
-            detail=f"权限不足，需要: {required_permission}",
-            status_code=status.HTTP_403_FORBIDDEN,
-        )
+class BusinessException(Exception):
+    """纯业务异常 — 不继承 HTTPException，由全局 handler 捕获后转 HTTP 200。"""
 
-
-class UnauthorizedException(AppException):
-    def __init__(self, detail: str = "未授权"):
-        super().__init__(detail=detail, status_code=status.HTTP_401_UNAUTHORIZED)
-
-
-class ValidationException(AppException):
-    def __init__(self, detail: str):
-        super().__init__(detail=detail, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
-
-class ConflictException(AppException):
-    def __init__(self, detail: str):
-        super().__init__(detail=detail, status_code=status.HTTP_409_CONFLICT)
+    def __init__(self, code: ErrorCode, message: str, details: dict | None = None):
+        self.code = code
+        self.message = message
+        self.details = details or {}

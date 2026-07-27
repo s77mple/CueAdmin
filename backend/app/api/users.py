@@ -4,20 +4,21 @@ from typing import Annotated
 
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, Query, Security
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
+from app.core.exceptions import BusinessException, ErrorCode
+from app.core.paginate import paginate
 from app.core.security import hash_password
 from app.models import User, Role
-from app.schemas.user import UserCreate, UserUpdate, UserRead
-from app.core.exceptions import NotFoundException, ConflictException
+from app.schemas.response import ApiResponse
+from app.schemas.user import UserCreate, UserUpdate, UserRead, UserReadResponse, UserListResponse
 
 router = APIRouter()
 
 
-# ---- 权限码常量 ----
 class UserScope:
     LIST   = "user:list"
     CREATE = "user:create"
@@ -25,44 +26,23 @@ class UserScope:
     DELETE = "user:delete"
 
 
-@router.get("", summary="用户列表")
+@router.get("", response_model=UserListResponse, summary="用户列表")
 async def list_users(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
     role_id: int | None = Query(None),
-    skip: int = Query(0),
-    limit: int = Query(20),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
 ):
-    query = select(User)
+    stmt = select(User).options(selectinload(User.roles))
     if role_id is not None:
-        query = query.join(User.roles).where(Role.id == role_id)
-
-    count_stmt = select(func.count()).select_from(query.subquery())
-    total = (await db.execute(count_stmt)).scalar()
-
-    query = query.options(selectinload(User.roles)).order_by(User.id.asc()).offset(skip).limit(limit)
-    result = await db.execute(query)
-    users = result.scalars().all()
-
-    page = skip // limit + 1 if limit > 0 else 1
-    return {
-        "items": [
-            {
-                "id": u.id, "username": u.username, "display_name": u.display_name,
-                "phone": u.phone, "is_active": u.is_active,
-                "created_at": u.created_at.isoformat() if u.created_at else None,
-                "updated_at": u.updated_at.isoformat() if u.updated_at else None,
-                "role_ids": [r.id for r in u.roles],
-                "role_names": "、".join([r.name for r in u.roles]) if u.roles else "",
-            }
-            for u in users
-        ],
-        "total": total, "page": page, "page_size": limit,
-        "has_more": page * limit < total,
-    }
+        stmt = stmt.join(User.roles).where(Role.id == role_id)
+    stmt = stmt.order_by(User.id.asc())
+    result = await paginate(db, stmt, page, page_size)
+    return ApiResponse.ok(data=result)
 
 
-@router.get("/{user_id}", summary="用户详情")
+@router.get("/{user_id}", response_model=UserReadResponse, summary="用户详情")
 async def get_user(
     user_id: int,
     db: DbSession,
@@ -72,24 +52,18 @@ async def get_user(
     result = await db.execute(stmt)
     target = result.scalars().first()
     if not target:
-        raise NotFoundException("User", user_id)
-    return {
-        "id": target.id, "username": target.username, "display_name": target.display_name,
-        "phone": target.phone, "is_active": target.is_active,
-        "created_at": target.created_at.isoformat() if target.created_at else None,
-        "updated_at": target.updated_at.isoformat() if target.updated_at else None,
-        "role_ids": [r.id for r in target.roles],
-    }
+        raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
+    return ApiResponse.ok(data=target)
 
 
-@router.post("", response_model=UserRead, status_code=201, summary="创建用户")
+@router.post("", response_model=UserReadResponse, status_code=201, summary="创建用户")
 async def create_user(
     body: UserCreate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.CREATE])],
 ):
     if (await db.execute(select(User).where(User.username == body.username))).scalars().first():
-        raise ConflictException("用户名已存在")
+        raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
     new_user = User(
         username=body.username, password_hash=await hash_password(body.password),
         display_name=body.display_name, phone=body.phone,
@@ -101,10 +75,10 @@ async def create_user(
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
-    return new_user
+    return ApiResponse.ok(data=new_user, message="创建成功")
 
 
-@router.put("/{user_id}", response_model=UserRead, summary="更新用户")
+@router.put("/{user_id}", response_model=UserReadResponse, summary="更新用户")
 async def update_user(
     user_id: int,
     body: UserUpdate,
@@ -115,10 +89,10 @@ async def update_user(
     result = await db.execute(select(User).where(User.id == user_id))
     target = result.scalars().first()
     if not target:
-        raise NotFoundException("User", user_id)
+        raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
     if body.username is not None and body.username != target.username:
         if (await db.execute(select(User).where(User.username == body.username))).scalars().first():
-            raise ConflictException("用户名已存在")
+            raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
         target.username = body.username
     if body.password is not None:
         target.password_hash = await hash_password(body.password)
@@ -128,7 +102,7 @@ async def update_user(
         target.phone = body.phone
     if body.is_active is not None:
         if target.username == "admin" and not body.is_active:
-            raise ConflictException("不允许禁用超级管理员")
+            raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
         target.is_active = body.is_active
     if body.role_ids is not None:
         target.roles = (await db.execute(
@@ -143,10 +117,10 @@ async def update_user(
         except aioredis.RedisError:
             pass
 
-    return target
+    return ApiResponse.ok(data=target, message="更新成功")
 
 
-@router.delete("/{user_id}", summary="删除用户")
+@router.delete("/{user_id}", response_model=ApiResponse, summary="禁用用户")
 async def delete_user(
     user_id: int,
     db: DbSession,
@@ -155,9 +129,9 @@ async def delete_user(
     result = await db.execute(select(User).where(User.id == user_id))
     target = result.scalars().first()
     if not target:
-        raise NotFoundException("User", user_id)
+        raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
     if target.username == "admin":
-        raise ConflictException("不允许禁用超级管理员")
+        raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
     target.is_active = False
     await db.commit()
-    return {"message": "已禁用"}
+    return ApiResponse.ok(message="已禁用")

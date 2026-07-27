@@ -1,7 +1,7 @@
 """init
 
 Revision ID: ea7d6797f6f1
-Revises: 
+Revises:
 Create Date: 2026-06-09 21:30:26.924883
 """
 from typing import Sequence, Union
@@ -58,52 +58,38 @@ def upgrade() -> None:
         sa.UniqueConstraint("code"),
     )
 
-    # ====== 菜单表 ======
+    # ====== 菜单表（树形结构） ======
     op.create_table(
         "menus",
         sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
         sa.Column("code", sa.String(50), nullable=False),
         sa.Column("name", sa.String(50), nullable=False),
         sa.Column("icon", sa.String(50), nullable=True),
-        sa.Column("path", sa.String(100), nullable=False),
+        sa.Column("path", sa.String(100), nullable=True),
+        sa.Column("parent_id", sa.BigInteger(),
+                  sa.ForeignKey("menus.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("sort_order", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("code"),
     )
 
-    # ====== 用户-角色关联表 ======
+    # ====== 关联表（复合主键，无自增 ID） ======
     op.create_table(
         "user_roles",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
-        sa.Column("user_id", sa.BigInteger(), nullable=False),
-        sa.Column("role_id", sa.BigInteger(), nullable=False),
-        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["role_id"], ["roles.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("user_id", "role_id"),
+        sa.Column("user_id", sa.BigInteger(), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("role_id", sa.BigInteger(), sa.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
     )
 
-    # ====== 角色-权限关联表 ======
     op.create_table(
         "role_permissions",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
-        sa.Column("role_id", sa.BigInteger(), nullable=False),
-        sa.Column("permission_id", sa.BigInteger(), nullable=False),
-        sa.ForeignKeyConstraint(["role_id"], ["roles.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["permission_id"], ["permissions.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("role_id", "permission_id"),
+        sa.Column("role_id", sa.BigInteger(), sa.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("permission_id", sa.BigInteger(), sa.ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
     )
 
-    # ====== 角色-菜单关联表 ======
     op.create_table(
         "role_menus",
-        sa.Column("id", sa.BigInteger(), autoincrement=True, nullable=False),
-        sa.Column("role_id", sa.BigInteger(), nullable=False),
-        sa.Column("menu_id", sa.BigInteger(), nullable=False),
-        sa.ForeignKeyConstraint(["role_id"], ["roles.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["menu_id"], ["menus.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("role_id", "menu_id"),
+        sa.Column("role_id", sa.BigInteger(), sa.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("menu_id", sa.BigInteger(), sa.ForeignKey("menus.id", ondelete="CASCADE"), primary_key=True),
     )
 
 

@@ -1,13 +1,15 @@
 """认证相关 Schema"""
 
 from pydantic import BaseModel
+
+from app.schemas.response import ApiResponse
 from app.schemas.user import UserRead
 
 
 class LoginRequest(BaseModel):
     username: str
     password: str
-    client: str | None = None  # "miniapp" or "admin"
+    client: str | None = None
 
 
 class LoginResponse(BaseModel):
@@ -26,3 +28,12 @@ class MeResponse(BaseModel):
     menus: list[dict]
 
     model_config = {"from_attributes": True}
+
+
+# —————— 响应类型 ——————
+class LoginApiResponse(ApiResponse[LoginResponse]):
+    pass
+
+
+class MeApiResponse(ApiResponse[MeResponse]):
+    pass

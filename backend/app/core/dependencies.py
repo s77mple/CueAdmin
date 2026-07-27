@@ -21,7 +21,7 @@ from app.core.config import settings
 from app.core.database import DbSession
 from app.models import User, Role
 from app.core.security import decode_token
-from app.core.exceptions import UnauthorizedException, ForbiddenException
+from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
 
 security_scheme = HTTPBearer()
@@ -58,25 +58,25 @@ async def get_current_user(
     try:
         payload = decode_token(token)
     except Exception:
-        raise UnauthorizedException("令牌无效")
+        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌无效")
 
     # ---- 2. Token 黑名单检查（Redis 故障时跳过）----
     jti = payload.get("jti")
     if jti:
         try:
             if await redis_client.exists(f"blacklist:{jti}"):
-                raise UnauthorizedException("令牌已作废")
+                raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "令牌已作废")
         except aioredis.RedisError:
             logger.warning("Redis 不可用，跳过黑名单检查")
 
     # ---- 3. 解析用户 ID ----
     sub = payload.get("sub")
     if sub is None:
-        raise UnauthorizedException("令牌无效")
+        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌无效")
     try:
         user_id = int(sub)
     except (ValueError, TypeError):
-        raise UnauthorizedException("令牌无效")
+        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "令牌无效")
 
     # ---- 4. 加载用户 ----
     stmt = (
@@ -91,9 +91,9 @@ async def get_current_user(
     user = result.scalars().first()
 
     if user is None or not user.is_active:
-        raise UnauthorizedException("用户已停用或不存在")
+        raise BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "用户已停用或不存在")
     if not user.roles:
-        raise UnauthorizedException("该账号未分配角色")
+        raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色")
 
     # ---- 5. 权限校验（仅当路由声明了 scopes 时触发）----
     if security_scopes.scopes:
@@ -101,7 +101,7 @@ async def get_current_user(
         for scope in security_scopes.scopes:
             if scope not in user_perms:
                 logger.bind(user_id=user.id, required=scope).warning("权限不足")
-                raise ForbiddenException(scope)
+                raise BusinessException(ErrorCode.ACCESS_DENIED, f"权限不足，需要: {scope}")
 
     logger.bind(user_id=user.id).debug("用户认证成功")
     return user
@@ -116,7 +116,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 async def require_admin(user: CurrentUser) -> User:
     """仅超级管理员可访问 — 直接校验角色码，不走细粒度权限。"""
     if not any(r.code == "admin" for r in user.roles):
-        raise ForbiddenException("admin")
+        raise BusinessException(ErrorCode.ACCESS_DENIED, "需要管理员权限")
     return user
 
 

@@ -17,8 +17,8 @@ class Role(Base, TimestampMixin):
 
     users = relationship("User", secondary=user_roles, back_populates="roles")
     permissions = relationship(
-        "Permission", secondary=role_permissions, back_populates="roles", lazy="selectin"
+        "Permission", secondary=role_permissions, back_populates="roles"
     )
     menus = relationship(
-        "Menu", secondary=role_menus, back_populates="roles", lazy="selectin"
+        "Menu", secondary=role_menus, back_populates="roles"
     )

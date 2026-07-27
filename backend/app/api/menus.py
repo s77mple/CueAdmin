@@ -7,14 +7,14 @@ from sqlalchemy import select
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
+from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Menu, User
-from app.schemas.menu import MenuCreate, MenuUpdate
-from app.core.exceptions import NotFoundException, ConflictException
+from app.schemas.menu import MenuCreate, MenuUpdate, MenuListResponse, MenuListApiResponse, MenuBriefResponse
+from app.schemas.response import ApiResponse
 
 router = APIRouter()
 
 
-# ---- 权限码常量 ----
 class MenuScope:
     LIST   = "menu:list"
     CREATE = "menu:create"
@@ -22,15 +22,15 @@ class MenuScope:
     DELETE = "menu:delete"
 
 
-@router.get("", summary="菜单列表")
+@router.get("", response_model=MenuListApiResponse, summary="菜单列表")
 async def list_menus(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
 ):
     result = await db.execute(select(Menu).order_by(Menu.sort_order, Menu.id))
     menus = result.scalars().all()
-    return {
-        "items": [
+    data = MenuListResponse(
+        items=[
             {
                 "id": m.id, "code": m.code, "name": m.name,
                 "icon": m.icon, "path": m.path,
@@ -38,18 +38,19 @@ async def list_menus(
             }
             for m in menus
         ],
-        "total": len(menus),
-    }
+        total=len(menus),
+    )
+    return ApiResponse.ok(data=data)
 
 
-@router.post("", status_code=201, summary="创建菜单")
+@router.post("", response_model=MenuBriefResponse, status_code=201, summary="创建菜单")
 async def create_menu(
     body: MenuCreate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.CREATE])],
 ):
     if (await db.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
-        raise ConflictException("菜单编码已存在")
+        raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
     menu = Menu(
         code=body.code, name=body.name, icon=body.icon,
         path=body.path, parent_id=body.parent_id, sort_order=body.sort_order,
@@ -57,10 +58,10 @@ async def create_menu(
     db.add(menu)
     await db.commit()
     await db.refresh(menu)
-    return {"id": menu.id, "code": menu.code, "name": menu.name}
+    return ApiResponse.ok(data=menu, message="创建成功")
 
 
-@router.put("/{menu_id}", summary="更新菜单")
+@router.put("/{menu_id}", response_model=MenuBriefResponse, summary="更新菜单")
 async def update_menu(
     menu_id: int,
     body: MenuUpdate,
@@ -70,7 +71,7 @@ async def update_menu(
     result = await db.execute(select(Menu).where(Menu.id == menu_id))
     menu = result.scalars().first()
     if not menu:
-        raise NotFoundException("Menu", menu_id)
+        raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
     if body.name is not None:
         menu.name = body.name
     if body.icon is not None:
@@ -82,10 +83,10 @@ async def update_menu(
     if body.sort_order is not None:
         menu.sort_order = body.sort_order
     await db.commit()
-    return {"id": menu.id, "code": menu.code}
+    return ApiResponse.ok(data=menu, message="更新成功")
 
 
-@router.delete("/{menu_id}", summary="删除菜单")
+@router.delete("/{menu_id}", response_model=ApiResponse, summary="删除菜单")
 async def delete_menu(
     menu_id: int,
     db: DbSession,
@@ -94,7 +95,7 @@ async def delete_menu(
     result = await db.execute(select(Menu).where(Menu.id == menu_id))
     menu = result.scalars().first()
     if not menu:
-        raise NotFoundException("Menu", menu_id)
+        raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
     await db.delete(menu)
     await db.commit()
-    return {"message": "删除成功"}
+    return ApiResponse.ok(message="删除成功")

@@ -7,14 +7,15 @@ from fastapi import APIRouter, Body, Depends
 from app.core.database import DbSession
 from app.core.dependencies import CurrentUser, get_redis, security_scheme
 from app.core.security import decode_token
-from app.schemas.auth import LoginRequest, LoginResponse, MeResponse
+from app.schemas.auth import LoginRequest, LoginApiResponse, MeApiResponse, MeResponse
+from app.schemas.response import ApiResponse
 from app.services.auth_service import AuthService
 from app.core.logger import logger
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginApiResponse)
 async def login(
     body: LoginRequest,
     db: DbSession,
@@ -26,10 +27,10 @@ async def login(
     except Exception:
         pass
     logger.bind(username=body.username).info("用户登录成功")
-    return result
+    return ApiResponse.ok(data=result)
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=ApiResponse)
 async def logout(
     credentials=Depends(security_scheme),
     redis_client: aioredis.Redis = Depends(get_redis),
@@ -46,10 +47,10 @@ async def logout(
             await redis_client.delete(f"perm:{user_id}")
     except Exception as e:
         logger.warning("登出清理失败: {}", e)
-    return {"message": "Logged out"}
+    return ApiResponse.ok(message="已登出")
 
 
-@router.put("/profile")
+@router.put("/profile", response_model=ApiResponse)
 async def update_profile(
     db: DbSession,
     user: CurrentUser,
@@ -57,10 +58,10 @@ async def update_profile(
 ):
     user.display_name = display_name
     await db.commit()
-    return {"display_name": user.display_name}
+    return ApiResponse.ok(data={"display_name": user.display_name})
 
 
-@router.get("/me", response_model=MeResponse)
+@router.get("/me", response_model=MeApiResponse)
 async def me(user: CurrentUser):
     permissions = sorted({p.code for role in user.roles for p in role.permissions})
     seen: set[str] = set()
@@ -73,9 +74,9 @@ async def me(user: CurrentUser):
                     "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
                     "parent_id": m.parent_id, "sort_order": m.sort_order,
                 })
-    return MeResponse(
+    return ApiResponse.ok(data=MeResponse(
         user=user,
         permissions=permissions,
         roles=[{"id": r.id, "code": r.code, "name": r.name} for r in user.roles],
         menus=menus,
-    )
+    ))

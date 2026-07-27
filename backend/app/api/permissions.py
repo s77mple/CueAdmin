@@ -7,14 +7,14 @@ from sqlalchemy import select
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
+from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Permission, User
-from app.schemas.permission import PermissionCreate, PermissionUpdate
-from app.core.exceptions import NotFoundException, ConflictException
+from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionListResponse, PermissionListApiResponse, PermissionBriefResponse
+from app.schemas.response import ApiResponse
 
 router = APIRouter()
 
 
-# ---- 权限码常量 ----
 class PermissionScope:
     LIST   = "permission:list"
     CREATE = "permission:create"
@@ -22,7 +22,7 @@ class PermissionScope:
     DELETE = "permission:delete"
 
 
-@router.get("", summary="权限列表")
+@router.get("", response_model=PermissionListApiResponse, summary="权限列表")
 async def list_permissions(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
@@ -31,8 +31,8 @@ async def list_permissions(
         select(Permission).order_by(Permission.resource, Permission.action)
     )
     perms = result.scalars().all()
-    return {
-        "items": [
+    data = PermissionListResponse(
+        items=[
             {
                 "id": p.id, "code": p.code, "name": p.name,
                 "resource": p.resource, "action": p.action,
@@ -40,18 +40,19 @@ async def list_permissions(
             }
             for p in perms
         ],
-        "total": len(perms),
-    }
+        total=len(perms),
+    )
+    return ApiResponse.ok(data=data)
 
 
-@router.post("", status_code=201, summary="创建权限")
+@router.post("", response_model=PermissionBriefResponse, status_code=201, summary="创建权限")
 async def create_permission(
     body: PermissionCreate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.CREATE])],
 ):
     if (await db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
-        raise ConflictException("权限编码已存在")
+        raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
     perm = Permission(
         code=body.code, name=body.name,
         resource=body.resource, action=body.action,
@@ -60,10 +61,10 @@ async def create_permission(
     db.add(perm)
     await db.commit()
     await db.refresh(perm)
-    return {"id": perm.id, "code": perm.code, "name": perm.name}
+    return ApiResponse.ok(data=perm, message="创建成功")
 
 
-@router.put("/{perm_id}", summary="更新权限")
+@router.put("/{perm_id}", response_model=PermissionBriefResponse, summary="更新权限")
 async def update_permission(
     perm_id: int,
     body: PermissionUpdate,
@@ -73,7 +74,7 @@ async def update_permission(
     result = await db.execute(select(Permission).where(Permission.id == perm_id))
     perm = result.scalars().first()
     if not perm:
-        raise NotFoundException("Permission", perm_id)
+        raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
     if body.code is not None:
         perm.code = body.code
     if body.name is not None:
@@ -85,10 +86,10 @@ async def update_permission(
     if body.description is not None:
         perm.description = body.description
     await db.commit()
-    return {"id": perm.id, "code": perm.code}
+    return ApiResponse.ok(data=perm, message="更新成功")
 
 
-@router.delete("/{perm_id}", summary="删除权限")
+@router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(
     perm_id: int,
     db: DbSession,
@@ -97,7 +98,7 @@ async def delete_permission(
     result = await db.execute(select(Permission).where(Permission.id == perm_id))
     perm = result.scalars().first()
     if not perm:
-        raise NotFoundException("Permission", perm_id)
+        raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
     await db.delete(perm)
     await db.commit()
-    return {"message": "删除成功"}
+    return ApiResponse.ok(message="删除成功")

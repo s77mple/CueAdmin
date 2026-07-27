@@ -17,3 +17,35 @@ class PermissionUpdate(BaseModel):
     resource: str | None = None
     action: str | None = None
     description: str | None = None
+
+class PermissionItem(BaseModel):
+    id: int
+    code: str
+    name: str
+    resource: str
+    action: str
+    description: str | None = None
+
+class PermissionListResponse(BaseModel):
+    items: list[PermissionItem]
+    total: int
+
+
+class PermissionBrief(BaseModel):
+    id: int
+    code: str
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+# —————— 响应类型 ——————
+from app.schemas.response import ApiResponse
+
+
+class PermissionListApiResponse(ApiResponse[PermissionListResponse]):
+    pass
+
+
+class PermissionBriefResponse(ApiResponse[PermissionBrief]):
+    pass
