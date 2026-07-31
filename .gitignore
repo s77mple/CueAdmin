@@ -15,6 +15,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+!frontend/build/     # Vite 构建配置，不是 Python 构建产物
 develop-eggs/
 dist/
 downloads/
