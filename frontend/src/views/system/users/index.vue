@@ -83,8 +83,10 @@ onMounted(() => { load(); loadRoles(); });
       <el-table-column prop="created_at" label="创建时间" width="180" />
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" :disabled="!row.is_active || row.username === 'admin'" @click="handleDelete(row.id, row.username)">禁用</el-button>
+          <template v-if="row.username !== 'admin'">
+            <el-button v-perms="['user:update']" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-perms="['user:delete']" type="danger" size="small" :disabled="!row.is_active" @click="handleDelete(row.id, row.username)">禁用</el-button>
+          </template>
         </template>
       </el-table-column>
     </el-table>

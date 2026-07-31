@@ -52,6 +52,7 @@ export function setToken(data: {
   // 用户信息存 localStorage（roles 给路由侧边栏过滤器用）
   if (username) useUserStoreHook().SET_USERNAME(username);
   if (permissions) useUserStoreHook().SET_PERMS(permissions);
+  if (roles) useUserStoreHook().SET_ROLES(roles);
   if (menus) useUserStoreHook().SET_MENUS(menus);
   storageLocal().setItem(userKey, {
     accessToken, username, permissions, roles: roles ?? [], menus: menus ?? [],
@@ -73,10 +74,12 @@ export const formatToken = (token: string): string => {
 /** 是否有按钮级别的权限 */
 export const hasPerms = (value: string | Array<string>): boolean => {
   if (!value) return false;
-  const { permissions } = useUserStoreHook();
-  if (!permissions) return false;
+  const store = useUserStoreHook();
+  /* admin 角色拥有所有权限 */
+  if (store.roles?.includes("admin")) return true;
+  if (!store.permissions) return false;
   const isAuths = isString(value)
-    ? permissions.includes(value)
-    : isIncludeAllChildren(value, permissions);
+    ? store.permissions.includes(value)
+    : isIncludeAllChildren(value, store.permissions);
   return isAuths ? true : false;
 };

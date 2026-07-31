@@ -1,6 +1,6 @@
 {
   "Version": "7.0.0",
-  "Title": "PureAdmin",
+  "Title": "CueAdmin",
   "FixedHeader": true,
   "HiddenSideBar": false,
   "MultiTagsCache": false,
@@ -16,7 +16,7 @@
   "HideFooter": false,
   "Stretch": false,
   "SidebarStatus": true,
-  "EpThemeColor": "#409EFF",
+  "EpThemeColor": "#0891b2",
   "ShowLogo": true,
   "Watermark": false,
   "TagsStyle": "chrome",

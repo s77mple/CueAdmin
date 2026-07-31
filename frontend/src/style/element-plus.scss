@@ -187,3 +187,32 @@
     background: rgb(199 201 203); /* 滑块hover颜色 */
   }
 }
+
+/* 按钮全部统一：白底细灰框，hover 边框加深 */
+body .el-button {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: #d0d5dd;
+  --el-button-text-color: #344054;
+  --el-button-hover-bg-color: #fff;
+  --el-button-hover-border-color: #1a1a1a;
+  --el-button-hover-text-color: #1a1a1a;
+}
+
+/* 删除按钮：平时白底，hover 红框 */
+body .el-button--danger {
+  --el-button-bg-color: #fff;
+  --el-button-border-color: #d0d5dd;
+  --el-button-text-color: #344054;
+  --el-button-hover-bg-color: #fff;
+  --el-button-hover-border-color: #f56c6c;
+  --el-button-hover-text-color: #f56c6c;
+}
+
+/* 禁用按钮也能 hover，移上去红框 */
+body .el-button.is-disabled {
+  pointer-events: auto !important;
+}
+body .el-button.is-disabled:hover {
+  border-color: #f56c6c !important;
+}
+

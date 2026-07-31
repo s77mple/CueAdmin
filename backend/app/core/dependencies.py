@@ -113,11 +113,13 @@ async def get_current_user(
 
     # ---- 5. 权限校验（仅当路由声明了 scopes 时触发）----
     if security_scopes.scopes:
-        user_perms = {p.code for role in user.roles for p in role.permissions}
-        for scope in security_scopes.scopes:
-            if scope not in user_perms:
-                logger.bind(user_id=user.id, required=scope).warning("权限不足")
-                raise BusinessException(ErrorCode.ACCESS_DENIED, f"权限不足，需要: {scope}")
+        # admin 角色拥有所有权限，跳过校验
+        if not any(r.code == "admin" for r in user.roles):
+            user_perms = {p.code for role in user.roles for p in role.permissions}
+            for scope in security_scopes.scopes:
+                if scope not in user_perms:
+                    logger.bind(user_id=user.id, required=scope).warning("权限不足")
+                    raise BusinessException(ErrorCode.ACCESS_DENIED, f"权限不足，需要: {scope}")
 
     logger.bind(user_id=user.id).debug("用户认证成功")
     return user

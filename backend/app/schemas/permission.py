@@ -35,6 +35,7 @@ class PermissionBrief(BaseModel):
     id: int
     code: str
     name: str
+    resource: str
 
     model_config = {"from_attributes": True}
 

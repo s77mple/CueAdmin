@@ -44,8 +44,8 @@ async def list_roles(
             {
                 "id": r.id, "code": r.code, "name": r.name,
                 "description": r.description, "is_system": r.is_system,
-                "permissions": [{"id": p.id, "code": p.code, "name": p.name} for p in r.permissions],
-                "menus": [{"id": m.id, "code": m.code, "name": m.name} for m in r.menus],
+                "permissions": [{"id": p.id, "code": p.code, "name": p.name, "resource": p.resource} for p in r.permissions],
+                "menus": [{"id": m.id, "code": m.code, "name": m.name, "parent_id": m.parent_id} for m in r.menus],
             }
             for r in roles
         ],

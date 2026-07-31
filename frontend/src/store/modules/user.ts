@@ -10,6 +10,8 @@ export const useUserStore = defineStore("pure-user", {
     username: storageLocal().getItem<DataInfo>(userKey)?.username ?? "",
     // 按钮级别权限
     permissions: storageLocal().getItem<DataInfo>(userKey)?.permissions ?? [],
+    // 角色
+    roles: storageLocal().getItem<DataInfo>(userKey)?.roles ?? [],
     // 动态菜单
     menus: storageLocal().getItem<DataInfo>(userKey)?.menus ?? [],
     // 登录页显示哪个组件（0：登录）
@@ -23,6 +25,10 @@ export const useUserStore = defineStore("pure-user", {
     /** 存储按钮级别权限 */
     SET_PERMS(permissions: Array<string>) {
       this.permissions = permissions;
+    },
+    /** 存储角色 */
+    SET_ROLES(roles: Array<string>) {
+      this.roles = roles;
     },
     /** 存储动态菜单 */
     SET_MENUS(menus: Array<any>) {

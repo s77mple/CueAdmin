@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getPermissionList, createPermission, updatePermission, deletePermission } from "@/api/permissions";
 
@@ -9,6 +9,35 @@ const dialogVisible = ref(false);
 const dialogTitle = ref("新增权限");
 
 const form = reactive({ id: 0, code: "", name: "", resource: "", action: "", description: "" });
+
+const resourceLabelMap: Record<string, string> = {
+  user: "用户管理",
+  role: "角色管理",
+  menu: "菜单管理",
+  permission: "权限管理",
+};
+
+/* 构建树形数据：resource 分组为父节点，权限为子节点 */
+const treeData = computed(() => {
+  const groups: Record<string, any[]> = {};
+  for (const p of list.value) {
+    const r = p.resource || "other";
+    if (!groups[r]) groups[r] = [];
+    groups[r].push(p);
+  }
+  return Object.entries(groups)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([resource, perms]) => ({
+      _treeId: `res:${resource}`,
+      resource,
+      _isGroup: true,
+      _label: resourceLabelMap[resource] || resource,
+      _count: perms.length,
+      children: perms
+        .sort((a, b) => a.action.localeCompare(b.action))
+        .map((p: any) => ({ ...p, _treeId: `perm:${p.id}` })),
+    }));
+});
 
 async function load() {
   loading.value = true;
@@ -55,20 +84,50 @@ onMounted(load);
 </script>
 
 <template>
-  <div>
-    <el-button type="primary" style="margin-bottom: 12px" @click="openCreate">新增权限</el-button>
+  <div style="padding: 20px">
+    <h2 style="margin-top: 0">权限管理</h2>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="code" label="权限码" />
-      <el-table-column prop="name" label="名称" />
-      <el-table-column prop="resource" label="资源" width="120" />
-      <el-table-column prop="action" label="操作" width="100" />
-      <el-table-column prop="description" label="描述" />
-      <el-table-column label="操作" width="180" fixed="right">
+    <el-button v-perms="['permission:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增权限</el-button>
+
+    <el-table
+      v-loading="loading"
+      :data="treeData"
+      row-key="_treeId"
+      border
+      stripe
+      default-expand-all
+      :tree-props="{ children: 'children' }"
+    >
+      <el-table-column prop="code" label="权限码" min-width="150">
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <template v-if="row._isGroup">
+            <span class="group-row-label">{{ row._label }}</span>
+            <el-tag size="small" round style="margin-left: 8px">{{ row._count }} 项</el-tag>
+          </template>
+          <span v-else style="padding-left: 16px">{{ row.code }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="name" label="名称">
+        <template #default="{ row }">
+          <span v-if="!row._isGroup">{{ row.name }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="action" label="操作" width="100">
+        <template #default="{ row }">
+          <span v-if="!row._isGroup">{{ row.action }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="description" label="描述">
+        <template #default="{ row }">
+          <span v-if="!row._isGroup">{{ row.description }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="管理" width="180" fixed="right">
+        <template #default="{ row }">
+          <template v-if="!row._isGroup">
+            <el-button v-perms="['permission:update']" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-perms="['permission:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          </template>
         </template>
       </el-table-column>
     </el-table>
@@ -98,3 +157,12 @@ onMounted(load);
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.group-row-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+}
+
+</style>
