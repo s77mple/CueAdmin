@@ -96,9 +96,9 @@ async def update_user(
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    # 行级锁：防止并发修改同一用户的角色
+    # 行级锁：防止并发修改同一用户的角色（需 eager load roles 防 async lazy load）
     result = await db.execute(
-        select(User).where(User.id == user_id).with_for_update()
+        select(User).options(selectinload(User.roles)).where(User.id == user_id).with_for_update()
     )
     target = result.scalars().first()
     if not target:
@@ -161,7 +161,9 @@ async def delete_user(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.DELETE])],
 ):
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(
+        select(User).options(selectinload(User.roles)).where(User.id == user_id)
+    )
     target = result.scalars().first()
     if not target:
         raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")

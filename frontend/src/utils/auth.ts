@@ -11,6 +11,11 @@ export interface DataInfo {
   permissions?: Array<string>;
   /** 角色 */
   roles?: Array<string>;
+  /** 动态菜单 */
+  menus?: Array<{
+    code: string; name: string; icon: string; path: string;
+    parent_id: number | null; sort_order: number;
+  }>;
 }
 
 export const userKey = "user-info";
@@ -34,8 +39,9 @@ export function setToken(data: {
   username?: string;
   permissions?: Array<string>;
   roles?: Array<string>;
+  menus?: Array<any>;
 }) {
-  const { accessToken, username, permissions, roles } = data;
+  const { accessToken, username, permissions, roles, menus } = data;
 
   // token 存 cookie
   Cookies.set(TokenKey, JSON.stringify({ accessToken }));
@@ -46,8 +52,9 @@ export function setToken(data: {
   // 用户信息存 localStorage（roles 给路由侧边栏过滤器用）
   if (username) useUserStoreHook().SET_USERNAME(username);
   if (permissions) useUserStoreHook().SET_PERMS(permissions);
+  if (menus) useUserStoreHook().SET_MENUS(menus);
   storageLocal().setItem(userKey, {
-    accessToken, username, permissions, roles: roles ?? [],
+    accessToken, username, permissions, roles: roles ?? [], menus: menus ?? [],
   });
 }
 

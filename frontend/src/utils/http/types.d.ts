@@ -2,7 +2,7 @@ import type {
   Method,
   AxiosError,
   AxiosResponse,
-  AxiosRequestConfig
+  InternalAxiosRequestConfig
 } from "axios";
 
 export type resultType = {
@@ -22,7 +22,7 @@ export interface PureHttpResponse extends AxiosResponse {
   config: PureHttpRequestConfig;
 }
 
-export interface PureHttpRequestConfig extends AxiosRequestConfig {
+export interface PureHttpRequestConfig extends InternalAxiosRequestConfig {
   beforeRequestCallback?: (request: PureHttpRequestConfig) => void;
   beforeResponseCallback?: (response: PureHttpResponse) => void;
 }

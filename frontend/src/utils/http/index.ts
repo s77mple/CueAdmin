@@ -32,14 +32,14 @@ class PureHttp {
     this.httpInterceptorsResponse();
   }
 
-  private static initConfig: PureHttpRequestConfig = {};
+  private static initConfig = {} as PureHttpRequestConfig;
 
   private static axiosInstance: AxiosInstance = Axios.create(defaultConfig);
 
   /** 请求拦截 — 自动带 token */
   private httpInterceptorsRequest(): void {
     PureHttp.axiosInstance.interceptors.request.use(
-      (config: PureHttpRequestConfig) => {
+      config => {
         // 白名单：不需要 token 的接口（精确匹配路径末尾）
         const whiteList = ["/auth/login"];
         const isWhite = whiteList.some(url => config.url?.endsWith(url));
@@ -61,21 +61,16 @@ class PureHttp {
     PureHttp.axiosInstance.interceptors.response.use(
       (response: PureHttpResponse) => {
         const res = response.data;
-
-        // 未登录 → 跳登录页
         if (res.code === 11002 || res.code === 11003 || res.code === 11005) {
           message("登录已过期，请重新登录", { type: "warning" });
           removeToken();
           router.push("/login");
           return Promise.reject(new Error(res.message));
         }
-
-        // 权限不足
         if (res.code === 16001) {
           message("权限不足", { type: "error" });
           return Promise.reject(new Error(res.message));
         }
-
         return response.data;
       },
       (error: PureHttpError) => {

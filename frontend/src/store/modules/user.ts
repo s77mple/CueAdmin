@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { store, router, resetRouter, routerArrays, storageLocal } from "../utils";
-import { type UserResult, getLogin } from "@/api/auth";
+import { type LoginResult, getLogin } from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
 
@@ -10,6 +10,8 @@ export const useUserStore = defineStore("pure-user", {
     username: storageLocal().getItem<DataInfo>(userKey)?.username ?? "",
     // 按钮级别权限
     permissions: storageLocal().getItem<DataInfo>(userKey)?.permissions ?? [],
+    // 动态菜单
+    menus: storageLocal().getItem<DataInfo>(userKey)?.menus ?? [],
     // 登录页显示哪个组件（0：登录）
     currentPage: 0,
   }),
@@ -22,13 +24,17 @@ export const useUserStore = defineStore("pure-user", {
     SET_PERMS(permissions: Array<string>) {
       this.permissions = permissions;
     },
+    /** 存储动态菜单 */
+    SET_MENUS(menus: Array<any>) {
+      this.menus = menus;
+    },
     /** 存储登录页面显示哪个组件 */
     SET_CURRENTPAGE(value: number) {
       this.currentPage = value;
     },
     /** 登录 */
     async loginByUsername(data) {
-      return new Promise<UserResult>((resolve, reject) => {
+      return new Promise<LoginResult>((resolve, reject) => {
         getLogin(data)
           .then(res => {
             if (res.code === 0) {
@@ -37,6 +43,7 @@ export const useUserStore = defineStore("pure-user", {
                 username: res.data.user?.display_name ?? res.data.user?.username,
                 permissions: res.data.permissions ?? [],
                 roles: res.data.roles?.map((r: any) => r.code) ?? [],
+                menus: res.data.menus ?? [],
               });
               resolve(res);
             } else {
