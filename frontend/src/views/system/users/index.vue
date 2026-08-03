@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
 import { getUserList, createUser, updateUser, deleteUser } from "@/api/users";
 import { getRoleList } from "@/api/roles";
+import { getDepartmentList } from "@/api/departments";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -13,8 +14,9 @@ const pageSize = ref(20);
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
 const roleOptions = ref<any[]>([]);
+const deptOptions = ref<any[]>([]);
 
-const form = reactive({ id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [] as number[] });
+const form = reactive({ id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [] as number[], department_id: null as number | null });
 const formRef = ref<FormInstance>();
 
 const rules = reactive<FormRules>({
@@ -50,26 +52,27 @@ async function load() {
 }
 
 async function loadRoles() {
-  const res = await getRoleList();
-  if (res.code === 0) roleOptions.value = res.data.items;
+  const [rRes, dRes] = await Promise.all([getRoleList(), getDepartmentList()]);
+  if (rRes.code === 0) roleOptions.value = rRes.data.items;
+  if (dRes.code === 0) deptOptions.value = dRes.data.items;
 }
 
 function openCreate() {
   dialogTitle.value = "新增用户";
-  Object.assign(form, { id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [] });
+  Object.assign(form, { id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [], department_id: null });
   dialogVisible.value = true;
 }
 
 function openEdit(row: any) {
   dialogTitle.value = "编辑用户";
-  Object.assign(form, { id: row.id, username: row.username, password: "", display_name: row.display_name, phone: row.phone ?? "", is_active: row.is_active, role_ids: row.roles?.map((r: any) => r.id) ?? [] });
+  Object.assign(form, { id: row.id, username: row.username, password: "", display_name: row.display_name, phone: row.phone ?? "", is_active: row.is_active, role_ids: row.roles?.map((r: any) => r.id) ?? [], department_id: row.department_id ?? null });
   dialogVisible.value = true;
 }
 
 async function handleSubmit() {
   if (!formRef.value) return;
   await formRef.value.validate();
-  const data: any = { display_name: form.display_name, phone: form.phone || null, role_ids: form.role_ids };
+  const data: any = { display_name: form.display_name, phone: form.phone || null, role_ids: form.role_ids, department_id: form.department_id, is_active: form.is_active };
   if (form.id) {
     data.username = form.username.trim();
     const res = await updateUser(form.id, data);
@@ -105,6 +108,11 @@ onMounted(() => { load(); loadRoles(); });
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="display_name" label="显示名" />
       <el-table-column prop="phone" label="手机号" />
+      <el-table-column label="部门">
+        <template #default="{ row }">
+          {{ deptOptions.find((d: any) => d.id === row.department_id)?.name ?? "—" }}
+        </template>
+      </el-table-column>
       <el-table-column prop="is_active" label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="row.is_active ? 'success' : 'danger'">{{ row.is_active ? "启用" : "禁用" }}</el-tag>
@@ -137,6 +145,11 @@ onMounted(() => { load(); loadRoles(); });
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="form.phone" />
+        </el-form-item>
+        <el-form-item label="部门">
+          <el-select v-model="form.department_id" clearable placeholder="请选择部门">
+            <el-option v-for="d in deptOptions" :key="d.id" :label="d.name" :value="d.id" />
+          </el-select>
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="form.role_ids" multiple placeholder="请选择角色">

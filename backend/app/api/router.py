@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api import auth, users, roles, menus, permissions, routes
+from app.api import auth, users, roles, menus, permissions, routes, departments
 
 api_router = APIRouter()
 
@@ -12,3 +12,4 @@ api_router.include_router(roles.router, prefix="/roles", tags=["角色管理"])
 api_router.include_router(menus.router, prefix="/menus", tags=["菜单管理"])
 api_router.include_router(permissions.router, prefix="/permissions", tags=["权限管理"])
 api_router.include_router(routes.router, prefix="/routes", tags=["动态路由"])
+api_router.include_router(departments.router, prefix="/departments", tags=["部门管理"])

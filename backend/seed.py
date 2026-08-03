@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 from app.core.database import Base
-from app.models import User, Role, Permission, Menu
+from app.models import User, Role, Permission, Menu, Department
 from app.core.security import _hash_password_sync
 
 # 种子脚本用同步引擎 — 不需要异步，避免 async 模式下 relationship.set 的 greenlet 陷阱
@@ -35,6 +35,10 @@ PERMISSIONS = [
     ("permission:create", "创建权限", "permission", "create"),
     ("permission:update", "更新权限", "permission", "update"),
     ("permission:delete", "删除权限", "permission", "delete"),
+    ("department:list", "查看部门", "department", "list"),
+    ("department:create", "创建部门", "department", "create"),
+    ("department:update", "更新部门", "department", "update"),
+    ("department:delete", "删除部门", "department", "delete"),
 ]
 
 ROLE_PERMS = {
@@ -61,12 +65,25 @@ MENUS = [
     # 权限管理（两级）
     ("permissions", "权限管理", "fa-solid:lock", "/permissions", None, None, 5),
     ("permissions_index", "权限列表", None, "/permissions/index", "system/permissions/index", "permissions", 1),
+
+    # 部门管理（两级）
+    ("departments", "部门管理", "fa-solid:building", "/departments", None, None, 6),
+    ("departments_index", "部门列表", None, "/departments/index", "system/departments/index", "departments", 1),
 ]
 
 ROLE_MENUS = {
     "admin": ["users", "users_index", "roles", "roles_index",
-              "menus", "menus_index", "permissions", "permissions_index"],
+              "menus", "menus_index", "permissions", "permissions_index",
+              "departments", "departments_index"],
 }
+
+# ====== 初始部门数据 ======
+DEPARTMENTS = [
+    ("ceo", "总经理室", None, 1, "公司最高决策部门"),
+    ("tech", "技术部", None, 2, "负责产品研发与技术支撑"),
+    ("market", "市场部", None, 3, "负责市场推广与销售"),
+    ("finance", "财务部", None, 4, "负责财务管理与审计"),
+]
 
 
 def seed(db: Session):
@@ -112,7 +129,7 @@ def seed(db: Session):
     print(f"  -> 共 {len(menu_map)} 个菜单")
 
     # 3. 角色
-    print("\n[3/5] 创建角色...")
+    print("\n[3/6] 创建角色...")
     roles: dict[str, Role] = {}
     for code, name, desc, is_sys in [
         ("admin", "管理员", "系统管理员", True),
@@ -125,7 +142,7 @@ def seed(db: Session):
     db.flush()
 
     # 4. 关联
-    print("\n[4/5] 关联角色权限和菜单...")
+    print("\n[4/6] 关联角色权限和菜单...")
     for role_code, perm_codes in ROLE_PERMS.items():
         role = roles[role_code]
         perms = [perm_map[c] for c in perm_codes if c in perm_map]
@@ -138,8 +155,23 @@ def seed(db: Session):
         print(f"  -> {role.name}: {len(menus)} 个菜单")
     db.flush()
 
-    # 5. 管理员
-    print("\n[5/5] 创建管理员...")
+    # 5. 初始部门
+    print("\n[5/6] 创建初始部门...")
+    dept_map: dict[str, Department] = {}
+    for code, name, parent_code, sort_order, desc in DEPARTMENTS:
+        dept = db.query(Department).filter(Department.code == code).first()
+        if not dept:
+            dept = Department(
+                code=code, name=name, parent_id=None,
+                sort_order=sort_order, description=desc,
+            )
+            db.add(dept)
+        dept_map[code] = dept
+    db.flush()
+    print(f"  -> 共 {len(dept_map)} 个部门")
+
+    # 6. 管理员
+    print("\n[6/6] 创建管理员...")
     user = db.query(User).filter(User.username == "admin").first()
     if not user:
         user = User(
@@ -149,9 +181,12 @@ def seed(db: Session):
         )
         db.add(user)
     user.roles = [roles["admin"]]
+    if dept_map.get("ceo"):
+        user.department_id = dept_map["ceo"].id
     db.flush()
 
     db.commit()
+
     print("\n=== 种子数据初始化完成 ===")
     print("""
 默认账号: admin / admin123

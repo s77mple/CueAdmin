@@ -35,7 +35,7 @@ async def list_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
-    stmt = select(User).options(selectinload(User.roles))
+    stmt = select(User).options(selectinload(User.roles), selectinload(User.department))
     if role_id is not None:
         stmt = stmt.join(User.roles).where(Role.id == role_id)
     stmt = stmt.order_by(User.id.asc())
@@ -49,7 +49,7 @@ async def get_user(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
 ):
-    stmt = select(User).options(selectinload(User.roles)).where(User.id == user_id)
+    stmt = select(User).options(selectinload(User.roles), selectinload(User.department)).where(User.id == user_id)
     result = await db.execute(stmt)
     target = result.scalars().first()
     if not target:
@@ -68,6 +68,7 @@ async def create_user(
     new_user = User(
         username=body.username, password_hash=await hash_password(body.password),
         display_name=body.display_name, phone=body.phone,
+        department_id=body.department_id,
     )
     if body.role_ids:
         roles = (await db.execute(
@@ -98,7 +99,7 @@ async def update_user(
 ):
     # 行级锁：防止并发修改同一用户的角色（需 eager load roles 防 async lazy load）
     result = await db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user_id).with_for_update()
+        select(User).options(selectinload(User.roles), selectinload(User.department)).where(User.id == user_id).with_for_update()
     )
     target = result.scalars().first()
     if not target:
@@ -117,6 +118,8 @@ async def update_user(
         if target.username == "admin" and not body.is_active:
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
         target.is_active = body.is_active
+    if body.department_id is not None:
+        target.department_id = body.department_id
     if body.role_ids is not None:
         # 验证所有角色 ID 存在
         roles = (await db.execute(

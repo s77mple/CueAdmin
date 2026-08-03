@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, BigInteger
+from sqlalchemy import String, Boolean, BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -15,5 +15,9 @@ class User(Base, TimestampMixin):
     display_name: Mapped[str] = mapped_column(String(50))
     phone: Mapped[str | None] = mapped_column(String(20))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    department_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("departments.id", ondelete="SET NULL"), default=None
+    )
 
     roles = relationship("Role", secondary=user_roles, back_populates="users")
+    department = relationship("Department", back_populates="users")

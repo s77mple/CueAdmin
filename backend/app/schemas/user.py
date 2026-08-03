@@ -10,6 +10,7 @@ class UserCreate(BaseModel):
     display_name: str
     phone: str | None = None
     role_ids: list[int] = []
+    department_id: int | None = None
 
     @field_validator("username")
     @classmethod
@@ -35,6 +36,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     is_active: bool | None = None
     role_ids: list[int] | None = None
+    department_id: int | None = None
 
     @field_validator("username")
     @classmethod
@@ -61,6 +63,7 @@ class UserRead(BaseModel):
     display_name: str
     phone: str | None = None
     is_active: bool
+    department_id: int | None = None
     created_at: datetime
     updated_at: datetime
 
