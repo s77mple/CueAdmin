@@ -8,6 +8,7 @@ class MenuCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     icon: str | None = Field(None, max_length=50)
     path: str | None = Field(None, max_length=100)
+    component: str | None = Field(None, max_length=200)
     parent_id: int | None = None
     sort_order: int = 0
 
@@ -16,6 +17,7 @@ class MenuUpdate(BaseModel):
     name: str | None = None
     icon: str | None = None
     path: str | None = None
+    component: str | None = None
     parent_id: int | None = None
     sort_order: int | None = None
 
@@ -26,6 +28,7 @@ class MenuItem(BaseModel):
     name: str
     icon: str | None = None
     path: str | None = None
+    component: str | None = None
     parent_id: int | None = None
     sort_order: int
 

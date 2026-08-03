@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import User, Role
+from app.models import User, Role, Menu
 from app.schemas.auth import LoginResponse
 from app.schemas.user import UserRead
 from app.core.security import verify_password, create_access_token
@@ -50,17 +50,29 @@ class AuthService:
         # 6. 从所有角色中收集权限 code，去重排序
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 
-        # 7. 从所有角色中收集菜单，按 code 去重（多个角色可能拥有相同菜单），按 sort_order 排序
+        # 7. 收集菜单：系统角色拥有全部菜单，否则仅角色绑定的菜单
         seen: set[str] = set()
         menus: list[dict] = []
-        for role in user.roles:
-            for m in role.menus:
-                if m.code not in seen:
-                    seen.add(m.code)
-                    menus.append({
-                        "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
-                        "parent_id": m.parent_id, "sort_order": m.sort_order,
-                    })
+        if any(role.is_system for role in user.roles):
+            stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
+            result = await self.db.execute(stmt)
+            all_menus = result.scalars().all()
+            for m in all_menus:
+                menus.append({
+                    "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
+                    "component": m.component,
+                    "parent_id": m.parent_id, "sort_order": m.sort_order,
+                })
+        else:
+            for role in user.roles:
+                for m in role.menus:
+                    if m.code not in seen:
+                        seen.add(m.code)
+                        menus.append({
+                            "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
+                            "component": m.component,
+                            "parent_id": m.parent_id, "sort_order": m.sort_order,
+                        })
 
         menus.sort(key=lambda m: m["sort_order"])
 

@@ -41,16 +41,31 @@ ROLE_PERMS = {
     "admin": [p[0] for p in PERMISSIONS],
 }
 
+# 菜单格式: (code, name, icon, path, component, parent_code, sort_order)
+# - parent_code 用 code 引用父菜单，种子脚本自动解析为 parent_id
+# - component 仅叶子节点需要（如 system/users/index），父级为 None
+# 注意：首页 /welcome 由前端 home.ts 静态路由提供，不需要后端菜单
 MENUS = [
-    ("dashboard", "仪表盘", "Odometer", "/dashboard", None, 1),
-    ("users", "用户管理", "UserFilled", "/users", None, 2),
-    ("roles", "角色管理", "Avatar", "/roles", None, 3),
-    ("menus", "菜单管理", "Menu", "/menus", None, 4),
-    ("permissions", "权限管理", "Lock", "/permissions", None, 5),
+    # 用户管理（两级）
+    ("users", "用户管理", "fa-solid:users", "/users", None, None, 2),
+    ("users_index", "用户列表", None, "/users/index", "system/users/index", "users", 1),
+
+    # 角色管理（两级）
+    ("roles", "角色管理", "fa-solid:user-tag", "/roles", None, None, 3),
+    ("roles_index", "角色列表", None, "/roles/index", "system/roles/index", "roles", 1),
+
+    # 菜单管理（两级）
+    ("menus", "菜单管理", "fa-solid:bars", "/menus", None, None, 4),
+    ("menus_index", "菜单列表", None, "/menus/index", "system/menus/index", "menus", 1),
+
+    # 权限管理（两级）
+    ("permissions", "权限管理", "fa-solid:lock", "/permissions", None, None, 5),
+    ("permissions_index", "权限列表", None, "/permissions/index", "system/permissions/index", "permissions", 1),
 ]
 
 ROLE_MENUS = {
-    "admin": ["dashboard", "users", "roles", "menus", "permissions"],
+    "admin": ["users", "users_index", "roles", "roles_index",
+              "menus", "menus_index", "permissions", "permissions_index"],
 }
 
 
@@ -72,16 +87,27 @@ def seed(db: Session):
     # 2. 菜单
     print("\n[2/5] 创建菜单...")
     menu_map: dict[str, Menu] = {}
-    for code, name, icon, path, parent_id, sort_order in MENUS:
+    # 第一遍：创建所有菜单（parent_id 先留空）
+    for code, name, icon, path, component, _parent_code, sort_order in MENUS:
         menu = db.query(Menu).filter(Menu.code == code).first()
         if not menu:
-            menu = Menu(code=code, name=name, icon=icon,
-                        path=path, parent_id=parent_id, sort_order=sort_order)
+            menu = Menu(
+                code=code, name=name, icon=icon,
+                path=path, component=component,
+                parent_id=None, sort_order=sort_order,
+            )
             db.add(menu)
         else:
             menu.icon = icon
+            menu.path = path
+            menu.component = component
             menu.sort_order = sort_order
         menu_map[code] = menu
+    db.flush()
+    # 第二遍：根据 parent_code 回填 parent_id
+    for code, name, icon, path, component, parent_code, sort_order in MENUS:
+        if parent_code and parent_code in menu_map:
+            menu_map[code].parent_id = menu_map[parent_code].id
     db.flush()
     print(f"  -> 共 {len(menu_map)} 个菜单")
 

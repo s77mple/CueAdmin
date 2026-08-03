@@ -57,7 +57,7 @@ async def list_menus(
         items=[
             {
                 "id": m.id, "code": m.code, "name": m.name,
-                "icon": m.icon, "path": m.path,
+                "icon": m.icon, "path": m.path, "component": m.component,
                 "parent_id": m.parent_id, "sort_order": m.sort_order,
             }
             for m in menus
@@ -81,7 +81,8 @@ async def create_menu(
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
     menu = Menu(
         code=body.code, name=body.name, icon=body.icon,
-        path=body.path, parent_id=body.parent_id, sort_order=body.sort_order,
+        path=body.path, component=body.component,
+        parent_id=body.parent_id, sort_order=body.sort_order,
     )
     db.add(menu)
     await db.commit()
@@ -108,6 +109,8 @@ async def update_menu(
         menu.icon = body.icon
     if body.path is not None:
         menu.path = body.path
+    if body.component is not None:
+        menu.component = body.component
     if "parent_id" in body.model_dump(exclude_unset=True):
         new_parent_id = body.parent_id
         if new_parent_id is not None:

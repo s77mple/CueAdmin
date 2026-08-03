@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getMenuList, createMenu, updateMenu, deleteMenu } from "@/api/menus";
+import { handleTree } from "@/utils/tree";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增菜单");
 
-const form = reactive({ id: 0, code: "", name: "", icon: "", path: "", parent_id: null as number | null, sort_order: 0 });
+const menuTree = computed(() => handleTree(list.value, "id", "parent_id", "children"));
+
+const form = reactive({ id: 0, code: "", name: "", icon: "", path: "", component: "", parent_id: null as number | null, sort_order: 0, children: [] as any[] });
+
+const childDefault = () => ({ code: "", name: "", path: "", component: "", sort_order: 0 });
+function addChild() { form.children.push(childDefault()); }
+function removeChild(index: number) { form.children.splice(index, 1); }
 
 async function load() {
   loading.value = true;
@@ -20,25 +27,58 @@ async function load() {
 
 function openCreate() {
   dialogTitle.value = "新增菜单";
-  Object.assign(form, { id: 0, code: "", name: "", icon: "", path: "", parent_id: null, sort_order: 0 });
+  Object.assign(form, { id: 0, code: "", name: "", icon: "", path: "", component: "", parent_id: null, sort_order: 0, children: [] });
   dialogVisible.value = true;
 }
 
 function openEdit(row: any) {
   dialogTitle.value = "编辑菜单";
-  Object.assign(form, { id: row.id, code: row.code, name: row.name, icon: row.icon ?? "", path: row.path ?? "", parent_id: row.parent_id, sort_order: row.sort_order ?? 0 });
+  Object.assign(form, { id: row.id, code: row.code, name: row.name, icon: row.icon ?? "", path: row.path ?? "", component: row.component ?? "", parent_id: row.parent_id, sort_order: row.sort_order ?? 0, children: [] });
   dialogVisible.value = true;
 }
 
 async function handleSubmit() {
-  const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, parent_id: form.parent_id, sort_order: form.sort_order };
+  // 编辑模式：不变
   if (form.id) {
+    const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, component: form.component || null, parent_id: form.parent_id, sort_order: form.sort_order };
     await updateMenu(form.id, data);
     ElMessage.success("更新成功");
-  } else {
-    await createMenu({ ...data, code: form.code });
-    ElMessage.success("创建成功");
+    dialogVisible.value = false;
+    load();
+    return;
   }
+
+  // 新增模式：先创建父菜单，再创建子菜单
+  const parentData: any = {
+    code: form.code, name: form.name, icon: form.icon || null,
+    path: form.path || null, component: form.component || null,
+    parent_id: form.parent_id, sort_order: form.sort_order,
+  };
+  const parentRes: any = await createMenu(parentData);
+  if (parentRes.code !== 0) {
+    ElMessage.error(parentRes.message || "父菜单创建失败");
+    return;
+  }
+  const parentId = parentRes.data.id;
+
+  let failedCount = 0;
+  for (const child of form.children) {
+    const childData: any = {
+      code: child.code, name: child.name,
+      path: child.path || null, component: child.component || null,
+      parent_id: parentId, sort_order: child.sort_order ?? 0,
+    };
+    try {
+      const childRes: any = await createMenu(childData);
+      if (childRes.code !== 0) failedCount++;
+    } catch { failedCount++; }
+  }
+
+  const total = form.children.length;
+  if (total === 0) ElMessage.success("创建成功");
+  else if (failedCount === 0) ElMessage.success(`创建成功，含 ${total} 个子菜单`);
+  else ElMessage.warning(`父菜单已创建，但 ${failedCount}/${total} 个子菜单创建失败，请手动补建`);
+
   dialogVisible.value = false;
   load();
 }
@@ -62,12 +102,13 @@ onMounted(load);
   <div>
     <el-button type="primary" style="margin-bottom: 12px" @click="openCreate">新增菜单</el-button>
 
-    <el-table v-loading="loading" :data="list" border stripe row-key="id">
+    <el-table v-loading="loading" :data="menuTree" border stripe row-key="id" tree-props="{ children: 'children' }">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="code" label="编码" />
       <el-table-column prop="name" label="名称" />
       <el-table-column prop="icon" label="图标" width="120" />
       <el-table-column prop="path" label="路径" />
+      <el-table-column prop="component" label="组件" />
       <el-table-column prop="sort_order" label="排序" width="80" />
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
@@ -77,7 +118,7 @@ onMounted(load);
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="580px" destroy-on-close>
       <el-form :model="form" label-width="80px">
         <el-form-item v-if="!form.id" label="编码" required>
           <el-input v-model="form.code" />
@@ -91,6 +132,9 @@ onMounted(load);
         <el-form-item label="路径">
           <el-input v-model="form.path" placeholder="如 /users" />
         </el-form-item>
+        <el-form-item label="组件">
+          <el-input v-model="form.component" placeholder="如 system/users/index" />
+        </el-form-item>
         <el-form-item label="父菜单">
           <el-select v-model="form.parent_id" clearable placeholder="顶级菜单">
             <el-option v-for="o in parentOptions(form.id)" :key="o.value" :label="o.label" :value="o.value" />
@@ -99,6 +143,43 @@ onMounted(load);
         <el-form-item label="排序">
           <el-input-number v-model="form.sort_order" :min="0" />
         </el-form-item>
+
+        <!-- 子菜单（仅新增模式） -->
+        <template v-if="!form.id">
+          <el-divider content-position="left">
+            <span style="font-size: 13px; color: #606266">子菜单</span>
+          </el-divider>
+
+          <div
+            v-for="(child, idx) in form.children"
+            :key="idx"
+            style="background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px"
+          >
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+              <span style="font-size: 13px; font-weight: 600; color: #303133">子菜单 #{{ idx + 1 }}</span>
+              <el-button type="danger" size="small" text @click="removeChild(idx)">删除</el-button>
+            </div>
+            <el-form-item label="编码" style="margin-bottom: 12px">
+              <el-input v-model="child.code" placeholder="子菜单编码" />
+            </el-form-item>
+            <el-form-item label="名称" style="margin-bottom: 12px">
+              <el-input v-model="child.name" placeholder="子菜单名称" />
+            </el-form-item>
+            <el-form-item label="路径" style="margin-bottom: 12px">
+              <el-input v-model="child.path" placeholder="如 /users/index" />
+            </el-form-item>
+            <el-form-item label="组件" style="margin-bottom: 12px">
+              <el-input v-model="child.component" placeholder="如 system/users/index" />
+            </el-form-item>
+            <el-form-item label="排序" style="margin-bottom: 0">
+              <el-input-number v-model="child.sort_order" :min="0" />
+            </el-form-item>
+          </div>
+
+          <el-button type="primary" plain size="small" style="width: 100%" @click="addChild">
+            + 添加子菜单
+          </el-button>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>

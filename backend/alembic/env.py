@@ -28,9 +28,11 @@ config = context.config
 # ---- 同步 URL（Alembic DDL 不支持异步驱动）----
 # 应用运行用 aiomysql，但 CREATE/ALTER TABLE 等底层是同步 API，
 # make_url() 结构化解析后只改 drivername，避免字符串替换误改密码。
-sync_url = str(
+sync_url = (
     make_url(settings.database_url)          # 例: mysql+aiomysql://root:pass@localhost/db
-    .set_drivername("mysql+pymysql")         #  →  mysql+pymysql://root:pass@localhost/db
+    .set(drivername="mysql+pymysql")         #  →  mysql+pymysql://root:pass@localhost/db
+    .set(host="127.0.0.1")                   # Windows 上 localhost 可能不走 TCP
+    .render_as_string(hide_password=False)   # SQLAlchemy 2.0 的 str(url) 会隐去密码为 ***
 )
 config.set_main_option("sqlalchemy.url", sync_url)  # 覆盖 alembic.ini 中的占位 URL
 

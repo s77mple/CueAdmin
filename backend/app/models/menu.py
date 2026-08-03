@@ -11,7 +11,8 @@ class Menu(Base):
     code: Mapped[str] = mapped_column(String(50), unique=True)
     name: Mapped[str] = mapped_column(String(50))
     icon: Mapped[str | None] = mapped_column(String(50))
-    path: Mapped[str | None] = mapped_column(String(100))           # 叶子节点才有路由路径
+    path: Mapped[str | None] = mapped_column(String(100))           # 路由路径（如 /users/index）
+    component: Mapped[str | None] = mapped_column(String(200))      # 组件路径（如 system/users/index），用于动态路由匹配 Vue 文件
     parent_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("menus.id", ondelete="SET NULL"), default=None
     )

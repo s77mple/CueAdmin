@@ -4,10 +4,12 @@ import time
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Body, Depends
 from jose import JWTError
+from sqlalchemy import select
 
 from app.core.database import DbSession
 from app.core.dependencies import CurrentUser, get_redis, security_scheme
 from app.core.security import decode_token
+from app.models import User, Menu
 from app.schemas.auth import LoginRequest, LoginApiResponse, MeApiResponse, MeResponse
 from app.schemas.response import ApiResponse
 from app.services.auth_service import AuthService
@@ -70,16 +72,31 @@ async def update_profile(
 @router.get("/me", response_model=MeApiResponse)
 async def me(user: CurrentUser):
     permissions = sorted({p.code for role in user.roles for p in role.permissions})
-    seen: set[str] = set()
-    menus: list[dict] = []
-    for role in user.roles:
-        for m in role.menus:
-            if m.code not in seen:
-                seen.add(m.code)
-                menus.append({
-                    "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
-                    "parent_id": m.parent_id, "sort_order": m.sort_order,
-                })
+    # 系统角色（admin）拥有全部菜单权限
+    if any(role.is_system for role in user.roles):
+        stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
+        result = await db.execute(stmt)
+        all_menus = result.scalars().all()
+        menus = [
+            {
+                "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
+                "component": m.component,
+                "parent_id": m.parent_id, "sort_order": m.sort_order,
+            }
+            for m in all_menus
+        ]
+    else:
+        seen: set[str] = set()
+        menus: list[dict] = []
+        for role in user.roles:
+            for m in role.menus:
+                if m.code not in seen:
+                    seen.add(m.code)
+                    menus.append({
+                        "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
+                        "component": m.component,
+                        "parent_id": m.parent_id, "sort_order": m.sort_order,
+                    })
     menus.sort(key=lambda m: m["sort_order"])
     return ApiResponse.ok(data=MeResponse(
         user=user,
