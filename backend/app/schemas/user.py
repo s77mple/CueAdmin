@@ -13,10 +13,12 @@ class UserCreate(BaseModel):
 
     @field_validator("username")
     @classmethod
-    def username_min_length(cls, v: str) -> str:
-        if len(v.strip()) < 3:
+    def validate_username(cls, v: str) -> str:
+        if len(v) < 3:
             raise ValueError("用户名至少 3 个字符")
-        return v.strip()
+        if v != v.strip():
+            raise ValueError("用户名不允许首尾包含空格")
+        return v
 
     @field_validator("password")
     @classmethod
@@ -33,6 +35,17 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     is_active: bool | None = None
     role_ids: list[int] | None = None
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if len(v) < 3:
+            raise ValueError("用户名至少 3 个字符")
+        if v != v.strip():
+            raise ValueError("用户名不允许首尾包含空格")
+        return v
 
     @field_validator("password")
     @classmethod

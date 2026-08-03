@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import { getUserList, createUser, updateUser, deleteUser } from "@/api/users";
 import { getRoleList } from "@/api/roles";
 
@@ -14,7 +15,31 @@ const dialogTitle = ref("新增用户");
 const roleOptions = ref<any[]>([]);
 
 const form = reactive({ id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [] as number[] });
-const formRef = ref();
+const formRef = ref<FormInstance>();
+
+const rules = reactive<FormRules>({
+  username: [
+    { required: true, message: "请输入用户名", trigger: "blur" },
+    { min: 3, message: "用户名至少 3 个字符", trigger: "blur" },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== value.trim()) {
+          callback(new Error("用户名不允许首尾包含空格"));
+        } else {
+          callback();
+        }
+      },
+      trigger: ["blur", "change"],
+    },
+  ],
+  password: [
+    { required: true, message: "请输入密码", trigger: "blur" },
+    { min: 6, message: "密码至少 6 个字符", trigger: "blur" },
+  ],
+  display_name: [
+    { required: true, message: "请输入显示名", trigger: "blur" },
+  ],
+});
 
 async function load() {
   loading.value = true;
@@ -42,13 +67,18 @@ function openEdit(row: any) {
 }
 
 async function handleSubmit() {
+  if (!formRef.value) return;
+  await formRef.value.validate();
   const data: any = { display_name: form.display_name, phone: form.phone || null, role_ids: form.role_ids };
   if (form.id) {
-    await updateUser(form.id, data);
+    data.username = form.username.trim();
+    const res = await updateUser(form.id, data);
+    if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
     ElMessage.success("更新成功");
   } else {
-    data.username = form.username; data.password = form.password;
-    await createUser(data);
+    data.username = form.username.trim(); data.password = form.password;
+    const res = await createUser(data);
+    if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
     ElMessage.success("创建成功");
   }
   dialogVisible.value = false;
@@ -95,14 +125,14 @@ onMounted(() => { load(); loadRoles(); });
       :total="total" :page-size="pageSize" :current-page="page" @current-change="handlePageChange" />
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
-      <el-form ref="formRef" :model="form" label-width="80px">
-        <el-form-item v-if="!form.id" label="用户名" required>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" />
         </el-form-item>
-        <el-form-item v-if="!form.id" label="密码" required>
+        <el-form-item v-if="!form.id" label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password />
         </el-form-item>
-        <el-form-item label="显示名">
+        <el-form-item label="显示名" prop="display_name">
           <el-input v-model="form.display_name" />
         </el-form-item>
         <el-form-item label="手机号">

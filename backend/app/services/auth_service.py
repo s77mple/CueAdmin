@@ -20,7 +20,9 @@ class AuthService:
         self.db = db
 
     async def login(self, username: str, password: str, client: str | None = None) -> LoginResponse:
-        username = username.strip()
+        # 1. 用户名在创建时已校验不允许空格，此处无需 strip
+
+        # 2. 从数据库加载用户，同时预加载角色、权限、菜单（一次查询，避免后续 N+1）
         stmt = (
             select(User)
             .options(
@@ -32,19 +34,23 @@ class AuthService:
         result = await self.db.execute(stmt)
         user = result.scalars().first()
 
+        # 3. 用户不存在：也跑一次 bcrypt，防止通过响应时间差异枚举用户名
         if user is None:
-            # 用户不存在也跑一次 bcrypt，防止通过响应时间枚举用户名
             await verify_password(password, _DUMMY_HASH)
             raise BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, "用户名或密码错误")
 
+        # 4. 验证密码（bcrypt 比对）
         if not await verify_password(password, user.password_hash):
             raise BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, "用户名或密码错误")
 
+        # 5. 检查是否分配了角色（没角色无法登录，因为权限和菜单都来自角色）
         if not user.roles:
             raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色，请联系管理员")
 
+        # 6. 从所有角色中收集权限 code，去重排序
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 
+        # 7. 从所有角色中收集菜单，按 code 去重（多个角色可能拥有相同菜单），按 sort_order 排序
         seen: set[str] = set()
         menus: list[dict] = []
         for role in user.roles:
@@ -58,7 +64,10 @@ class AuthService:
 
         menus.sort(key=lambda m: m["sort_order"])
 
+        # 8. 签发 JWT（payload 包含 user_id、username、唯一 jti、签发时间、过期时间）
         token = create_access_token(user.id, user.username)
+
+        # 9. 组装登录响应：token + 用户信息 + 权限列表 + 角色列表 + 菜单列表
         return LoginResponse(
             access_token=token,
             user=UserRead.model_validate(user),
