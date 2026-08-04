@@ -100,17 +100,15 @@ async def update_department(
         dept.name = body.name
     if body.description is not None:
         dept.description = body.description
-    if "parent_id" in body.model_dump(exclude_unset=True):
-        new_parent_id = body.parent_id
-        if new_parent_id is not None:
-            if new_parent_id == dept_id:
-                raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
-            parent = (await db.execute(select(Department).where(Department.id == new_parent_id))).scalars().first()
-            if not parent:
-                raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {new_parent_id}")
-            if await _would_create_cycle(db, dept_id, new_parent_id):
-                raise BusinessException(ErrorCode.CONFLICT, "不能将部门设置为自己的子孙部门")
-        dept.parent_id = new_parent_id
+    if body.parent_id is not None:
+        if body.parent_id == dept_id:
+            raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
+        parent = (await db.execute(select(Department).where(Department.id == body.parent_id))).scalars().first()
+        if not parent:
+            raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
+        if await _would_create_cycle(db, dept_id, body.parent_id):
+            raise BusinessException(ErrorCode.CONFLICT, "不能将部门设置为自己的子孙部门")
+    dept.parent_id = body.parent_id
     if body.sort_order is not None:
         dept.sort_order = body.sort_order
     await db.commit()

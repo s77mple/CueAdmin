@@ -50,7 +50,7 @@ async function handleSubmit() {
   try {
     // 编辑模式：不变
     if (form.id) {
-      const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, component: form.component || null, parent_id: form.parent_id, sort_order: form.sort_order };
+      const data: any = { name: form.name, icon: form.icon, path: form.path, component: form.component, parent_id: form.parent_id, sort_order: form.sort_order };
       await updateMenu(form.id, data);
       ElMessage.success("更新成功");
       dialogVisible.value = false;
@@ -60,8 +60,8 @@ async function handleSubmit() {
 
   // 新增模式：先创建父菜单，再创建子菜单
   const parentData: any = {
-    code: form.code, name: form.name, icon: form.icon || null,
-    path: form.path || null, component: form.component || null,
+    code: form.code, name: form.name, icon: form.icon,
+    path: form.path, component: form.component,
     parent_id: form.parent_id, sort_order: form.sort_order,
   };
   const parentRes: any = await createMenu(parentData);
@@ -75,7 +75,7 @@ async function handleSubmit() {
   for (const child of form.children) {
     const childData: any = {
       code: child.code, name: child.name,
-      path: child.path || null, component: child.component || null,
+      path: child.path, component: child.component,
       parent_id: parentId, sort_order: child.sort_order ?? 0,
     };
     try {

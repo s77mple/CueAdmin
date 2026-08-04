@@ -111,18 +111,16 @@ async def update_menu(
         menu.path = body.path
     if body.component is not None:
         menu.component = body.component
-    if "parent_id" in body.model_dump(exclude_unset=True):
-        new_parent_id = body.parent_id
-        if new_parent_id is not None:
-            if new_parent_id == menu_id:
-                raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
-            parent = (await db.execute(select(Menu).where(Menu.id == new_parent_id))).scalars().first()
-            if not parent:
-                raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {new_parent_id}")
-            # 检查循环引用：新父菜单的祖先链中不能包含自己
-            if await _would_create_cycle(db, menu_id, new_parent_id):
-                raise BusinessException(ErrorCode.CONFLICT, "不能将菜单设置为自己的子孙菜单")
-        menu.parent_id = new_parent_id
+    
+    if body.parent_id is not None:
+        if body.parent_id == menu_id:
+            raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
+        parent = (await db.execute(select(Menu).where(Menu.id == body.parent_id))).scalars().first()
+        if not parent:
+            raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
+        if await _would_create_cycle(db, menu_id, body.parent_id):
+            raise BusinessException(ErrorCode.CONFLICT, "不能将菜单设置为自己的子孙菜单")
+    menu.parent_id = body.parent_id
     if body.sort_order is not None:
         menu.sort_order = body.sort_order
     await db.commit()

@@ -77,7 +77,7 @@ function openEdit(row: any) {
 async function handleSubmit() {
   if (!formRef.value) return;
   await formRef.value.validate();
-  const data: any = { display_name: form.display_name, phone: form.phone || null, role_ids: form.role_ids, department_id: form.department_id, is_active: form.is_active };
+  const data: any = { display_name: form.display_name, phone: form.phone, role_ids: form.role_ids, department_id: form.department_id, is_active: form.is_active };
   if (form.id) {
     data.username = form.username.trim();
     const res = await updateUser(form.id, data);

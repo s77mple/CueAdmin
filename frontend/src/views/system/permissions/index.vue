@@ -72,7 +72,7 @@ function openEdit(row: any) {
 async function handleSubmit() {
   if (!formRef.value) return;
   await formRef.value.validate();
-  const data: any = { name: form.name, resource: form.resource, action: form.action, description: form.description || null };
+  const data: any = { name: form.name, resource: form.resource, action: form.action, description: form.description };
   try {
     if (form.id) {
       if (form.code !== list.value.find((p: any) => p.id === form.id)?.code) data.code = form.code;

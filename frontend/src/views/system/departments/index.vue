@@ -49,7 +49,7 @@ async function handleSubmit() {
   await formRef.value.validate();
   const data: any = {
     name: form.name, parent_id: form.parent_id,
-    sort_order: form.sort_order, description: form.description || null,
+    sort_order: form.sort_order, description: form.description,
   };
   try {
     if (form.id) {

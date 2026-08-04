@@ -95,7 +95,7 @@ async function handleSubmit() {
   const checkedMenuIds = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
   const data: any = {
     name: form.name,
-    description: form.description || null,
+    description: form.description,
     permission_codes: form.permission_codes,
     menu_ids: checkedMenuIds,
   };
