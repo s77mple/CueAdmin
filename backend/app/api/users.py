@@ -13,7 +13,7 @@ from app.core.dependencies import get_current_user, get_redis
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.paginate import paginate
 from app.core.security import hash_password
-from app.models import User, Role
+from app.models import User, Role, Department
 from app.schemas.response import ApiResponse
 from app.schemas.user import UserCreate, UserUpdate, UserRead, UserReadResponse, UserListResponse
 
@@ -65,6 +65,12 @@ async def create_user(
 ):
     if (await db.execute(select(User).where(User.username == body.username))).scalars().first():
         raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
+    # 验证部门存在
+    if body.department_id is not None:
+        from app.models import Department
+        dept = (await db.execute(select(Department).where(Department.id == body.department_id))).scalars().first()
+        if not dept:
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {body.department_id}")
     new_user = User(
         username=body.username, password_hash=await hash_password(body.password),
         display_name=body.display_name, phone=body.phone,
@@ -119,6 +125,10 @@ async def update_user(
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许禁用超级管理员")
         target.is_active = body.is_active
     if body.department_id is not None:
+        from app.models import Department
+        dept = (await db.execute(select(Department).where(Department.id == body.department_id))).scalars().first()
+        if not dept:
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {body.department_id}")
         target.department_id = body.department_id
     if body.role_ids is not None:
         # 验证所有角色 ID 存在
@@ -137,7 +147,7 @@ async def update_user(
             admin_count = (await db.execute(
                 select(User).join(User.roles).where(
                     Role.code == "admin", User.is_active == True
-                )
+                ).with_for_update()
             )).scalars().all()
             if len(admin_count) <= 1:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
@@ -179,7 +189,7 @@ async def delete_user(
         admin_count = (await db.execute(
             select(User).join(User.roles).where(
                 Role.code == "admin", User.is_active == True
-            )
+            ).with_for_update()
         )).scalars().all()
         if len(admin_count) <= 1:
             raise BusinessException(ErrorCode.CONFLICT, "不允许禁用最后一个管理员")

@@ -2,9 +2,10 @@ from sqlalchemy import String, BigInteger, Integer, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.base import TimestampMixin
 
 
-class Menu(Base):
+class Menu(Base, TimestampMixin):
     __tablename__ = "menus"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

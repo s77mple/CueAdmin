@@ -40,7 +40,7 @@ export const usePermissionStore = defineStore("pure-permission", {
         return;
       }
       try {
-        const menuTree = handleTree(menus, "code", "parent_id", "children");
+        const menuTree = handleTree(menus, "id", "parent_id", "children");
         const toRoute = (node: any): any => ({
           path: node.path,
           name: node.code,

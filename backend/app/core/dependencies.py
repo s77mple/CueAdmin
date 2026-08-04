@@ -74,14 +74,16 @@ async def get_current_user(
     except JWTError:
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
-    # ---- 2. Token 黑名单检查（Redis 故障时跳过）----
+    # ---- 2. Token 黑名单检查（Redis 故障时拒绝请求）----
     jti = payload.get("jti")
-    if jti:
-        try:
-            if await redis_client.exists(f"blacklist:{jti}"):
-                raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "令牌已作废")
-        except aioredis.RedisError:
-            logger.warning("Redis 不可用，跳过黑名单检查")
+    if not jti:
+        raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
+    try:
+        if await redis_client.exists(f"blacklist:{jti}"):
+            raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "令牌已作废")
+    except aioredis.RedisError:
+        logger.error("Redis 不可用，拒绝请求以防止已登出 token 被复用")
+        raise BusinessException(ErrorCode.AUTH_SERVICE_UNAVAILABLE, "认证服务暂不可用，请稍后重试")
 
     # ---- 3. 解析用户 ID ----
     sub = payload.get("sub")
@@ -92,15 +94,22 @@ async def get_current_user(
     except (ValueError, TypeError):
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
-    # ---- 4. 加载用户 ----
-    stmt = (
-        select(User)
-        .options(
-            selectinload(User.roles).selectinload(Role.permissions),
-            selectinload(User.roles).selectinload(Role.menus),
-        )
-        .where(User.id == user_id)
-    )
+    # ---- 4. 权限缓存尝试（仅需要鉴权时）----
+    perm_key = f"perm:{user_id}"
+    cached_perms: set[str] | None = None
+    if security_scopes.scopes:
+        try:
+            raw = await redis_client.get(perm_key)
+            if raw:
+                cached_perms = set(raw.split(","))
+        except aioredis.RedisError:
+            pass
+
+    # ---- 5. 加载用户（命中缓存则跳过权限预加载）----
+    stmt = select(User).options(selectinload(User.roles).selectinload(Role.menus))
+    if cached_perms is None:
+        stmt = stmt.options(selectinload(User.roles).selectinload(Role.permissions))
+    stmt = stmt.where(User.id == user_id)
     result = await db.execute(stmt)
     user = result.scalars().first()
 
@@ -111,11 +120,19 @@ async def get_current_user(
     if not user.roles:
         raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色")
 
-    # ---- 5. 权限校验（仅当路由声明了 scopes 时触发）----
+    # ---- 6. 写入权限缓存（TTL 5 分钟）----
+    if cached_perms is None and security_scopes.scopes:
+        perms = {p.code for role in user.roles for p in role.permissions}
+        try:
+            await redis_client.setex(perm_key, 300, ",".join(sorted(perms)))
+        except aioredis.RedisError:
+            pass
+
+    # ---- 7. 权限校验（仅当路由声明了 scopes 时触发）----
     if security_scopes.scopes:
         # admin 角色拥有所有权限，跳过校验
         if not any(r.code == "admin" for r in user.roles):
-            user_perms = {p.code for role in user.roles for p in role.permissions}
+            user_perms = cached_perms or {p.code for role in user.roles for p in role.permissions}
             for scope in security_scopes.scopes:
                 if scope not in user_perms:
                     logger.bind(user_id=user.id, required=scope).warning("权限不足")

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import { getMenuList, createMenu, updateMenu, deleteMenu } from "@/api/menus";
 import { handleTree } from "@/utils/tree";
 
@@ -12,6 +13,12 @@ const dialogTitle = ref("新增菜单");
 const menuTree = computed(() => handleTree(list.value, "id", "parent_id", "children"));
 
 const form = reactive({ id: 0, code: "", name: "", icon: "", path: "", component: "", parent_id: null as number | null, sort_order: 0, children: [] as any[] });
+const formRef = ref<FormInstance>();
+
+const rules: FormRules = {
+  code: [{ required: true, message: "请输入菜单编码", trigger: "blur" }],
+  name: [{ required: true, message: "请输入菜单名称", trigger: "blur" }],
+};
 
 const childDefault = () => ({ code: "", name: "", path: "", component: "", sort_order: 0 });
 function addChild() { form.children.push(childDefault()); }
@@ -38,15 +45,18 @@ function openEdit(row: any) {
 }
 
 async function handleSubmit() {
-  // 编辑模式：不变
-  if (form.id) {
-    const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, component: form.component || null, parent_id: form.parent_id, sort_order: form.sort_order };
-    await updateMenu(form.id, data);
-    ElMessage.success("更新成功");
-    dialogVisible.value = false;
-    load();
-    return;
-  }
+  if (!formRef.value) return;
+  await formRef.value.validate();
+  try {
+    // 编辑模式：不变
+    if (form.id) {
+      const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, component: form.component || null, parent_id: form.parent_id, sort_order: form.sort_order };
+      await updateMenu(form.id, data);
+      ElMessage.success("更新成功");
+      dialogVisible.value = false;
+      load();
+      return;
+    }
 
   // 新增模式：先创建父菜单，再创建子菜单
   const parentData: any = {
@@ -81,13 +91,16 @@ async function handleSubmit() {
 
   dialogVisible.value = false;
   load();
+  } catch { /* 拦截器已弹 toast */ }
 }
 
 async function handleDelete(row: any) {
-  await ElMessageBox.confirm(`确认删除菜单 "${row.name}"？`, "提示", { type: "warning" });
-  const res: any = await deleteMenu(row.id);
-  ElMessage.success(res.message ?? "已删除");
-  load();
+  try {
+    await ElMessageBox.confirm(`确认删除菜单 "${row.name}"？`, "提示", { type: "warning" });
+    const res: any = await deleteMenu(row.id);
+    ElMessage.success(res.message ?? "已删除");
+    load();
+  } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
 // 父级菜单选项（排除自己）
@@ -100,9 +113,9 @@ onMounted(load);
 
 <template>
   <div>
-    <el-button type="primary" style="margin-bottom: 12px" @click="openCreate">新增菜单</el-button>
+    <el-button v-perms="['menu:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增菜单</el-button>
 
-    <el-table v-loading="loading" :data="menuTree" border stripe row-key="id" tree-props="{ children: 'children' }">
+    <el-table v-loading="loading" :data="menuTree" border stripe row-key="id" :tree-props="{ children: 'children' }">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="code" label="编码" />
       <el-table-column prop="name" label="名称" />
@@ -112,18 +125,18 @@ onMounted(load);
       <el-table-column prop="sort_order" label="排序" width="80" />
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button v-perms="['menu:update']" type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button v-perms="['menu:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="580px" destroy-on-close>
-      <el-form :model="form" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" required>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item v-if="!form.id" label="编码" prop="code">
           <el-input v-model="form.code" />
         </el-form-item>
-        <el-form-item label="名称">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item label="图标">

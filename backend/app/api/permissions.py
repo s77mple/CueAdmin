@@ -2,17 +2,37 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Security
+import redis.asyncio as aioredis
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy import select
 
 from app.core.database import DbSession
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_redis
 from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Permission, User
+from app.models.associations import user_roles, role_permissions
 from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionListResponse, PermissionListApiResponse, PermissionBriefResponse
 from app.schemas.response import ApiResponse
+from app.core.logger import logger
 
 router = APIRouter()
+
+
+async def _clear_perm_cache(db: DbSession, redis_client: aioredis.Redis, perm_id: int):
+    """删除权限或修改 code 后，清除所有关联用户的权限缓存。"""
+    rows = (await db.execute(
+        select(user_roles.c.user_id)
+        .join(role_permissions, role_permissions.c.role_id == user_roles.c.role_id)
+        .where(role_permissions.c.permission_id == perm_id)
+        .distinct()
+    )).all()
+    for (uid,) in rows:
+        try:
+            await redis_client.delete(f"perm:{uid}")
+        except aioredis.RedisError:
+            pass
+    if rows:
+        logger.info("权限变更，已清除 {} 个用户缓存", len(rows))
 
 
 class PermissionScope:
@@ -70,6 +90,7 @@ async def update_permission(
     body: PermissionUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
+    redis_client: aioredis.Redis = Depends(get_redis),
 ):
     result = await db.execute(
         select(Permission).where(Permission.id == perm_id).with_for_update()
@@ -77,10 +98,12 @@ async def update_permission(
     perm = result.scalars().first()
     if not perm:
         raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
+    code_changed = False
     if body.code is not None and body.code != perm.code:
         if (await db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
         perm.code = body.code
+        code_changed = True
     if body.name is not None:
         perm.name = body.name
     if body.resource is not None:
@@ -90,6 +113,8 @@ async def update_permission(
     if body.description is not None:
         perm.description = body.description
     await db.commit()
+    if code_changed:
+        await _clear_perm_cache(db, redis_client, perm_id)
     return ApiResponse.ok(data=perm, message="更新成功")
 
 
@@ -98,11 +123,15 @@ async def delete_permission(
     perm_id: int,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.DELETE])],
+    redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    result = await db.execute(select(Permission).where(Permission.id == perm_id))
+    result = await db.execute(
+        select(Permission).where(Permission.id == perm_id).with_for_update()
+    )
     perm = result.scalars().first()
     if not perm:
         raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
+    await _clear_perm_cache(db, redis_client, perm_id)  # 删前清除（删后关联表 CASCADE 查不到）
     await db.delete(perm)
     await db.commit()
     return ApiResponse.ok(message="删除成功")

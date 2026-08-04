@@ -4,11 +4,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Security
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
-from app.models import User, Role, Menu
+from app.models import User, Menu
 from app.schemas.response import ApiResponse
 
 router = APIRouter()
@@ -133,6 +132,7 @@ async def get_routes(
                         "icon": m.icon, "path": m.path, "component": m.component,
                         "parent_id": m.parent_id, "sort_order": m.sort_order,
                     })
+        menus.sort(key=lambda m: m["sort_order"])
 
     routes = _build_routes(menus)
     return ApiResponse.ok(data=routes)

@@ -2,9 +2,10 @@ from sqlalchemy import String, BigInteger, Integer, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.base import TimestampMixin
 
 
-class Department(Base):
+class Department(Base, TimestampMixin):
     __tablename__ = "departments"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

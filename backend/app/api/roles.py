@@ -96,13 +96,16 @@ async def update_role(
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
     result = await db.execute(
-        select(Role).where(Role.id == role_id).with_for_update()
+        select(Role)
+        .options(selectinload(Role.permissions), selectinload(Role.menus))
+        .where(Role.id == role_id)
+        .with_for_update()
     )
     role = result.scalars().first()
     if not role:
         raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
-    if role.is_system and body.permission_codes is not None:
-        raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许修改系统角色的权限")
+    if role.is_system:
+        raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许修改系统角色")
     if body.name is not None:
         role.name = body.name
     if body.description is not None:
@@ -152,7 +155,9 @@ async def delete_role(
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.DELETE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    result = await db.execute(select(Role).where(Role.id == role_id))
+    result = await db.execute(
+        select(Role).where(Role.id == role_id).with_for_update()
+    )
     role = result.scalars().first()
     if not role:
         raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")

@@ -15,6 +15,7 @@ class ErrorCode(IntEnum):
     AUTH_TOKEN_REVOKED       = 11003   # 令牌已作废（登出后）
     AUTH_NO_ROLES            = 11004   # 未分配角色
     AUTH_TOKEN_INVALID       = 11005   # 令牌格式/签名无效
+    AUTH_SERVICE_UNAVAILABLE = 11006   # 认证服务暂不可用（Redis 故障时拒绝请求）
 
     # ====== 用户 (USER)  12001-12099 ======
     USER_NOT_FOUND             = 12001  # 用户不存在
@@ -36,6 +37,10 @@ class ErrorCode(IntEnum):
 
     # ====== 权限校验 (ACCESS)  16001-16099 ======
     ACCESS_DENIED = 16001      # 权限不足
+
+    # ====== 部门 (DEPT)  18001-18099 ======
+    DEPT_NOT_FOUND   = 18001  # 部门不存在
+    DEPT_CODE_EXISTS = 18002  # 部门编码已存在
 
     # ====== 通用业务  17001-17099 ======
     VALIDATION_ERROR = 17001   # 参数校验失败

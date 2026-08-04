@@ -3,7 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Security
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import DbSession
@@ -68,11 +68,11 @@ async def create_department(
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.CREATE])],
 ):
     if (await db.execute(select(Department).where(Department.code == body.code))).scalars().first():
-        raise BusinessException(ErrorCode.CONFLICT, "部门编码已存在")
+        raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
     if body.parent_id is not None:
         parent = (await db.execute(select(Department).where(Department.id == body.parent_id))).scalars().first()
         if not parent:
-            raise BusinessException(ErrorCode.NOT_FOUND, f"父部门不存在: {body.parent_id}")
+            raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
     dept = Department(
         code=body.code, name=body.name, parent_id=body.parent_id,
         sort_order=body.sort_order, description=body.description,
@@ -95,7 +95,7 @@ async def update_department(
     )
     dept = result.scalars().first()
     if not dept:
-        raise BusinessException(ErrorCode.NOT_FOUND, f"部门不存在: {dept_id}")
+        raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
     if body.name is not None:
         dept.name = body.name
     if body.description is not None:
@@ -107,7 +107,7 @@ async def update_department(
                 raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
             parent = (await db.execute(select(Department).where(Department.id == new_parent_id))).scalars().first()
             if not parent:
-                raise BusinessException(ErrorCode.NOT_FOUND, f"父部门不存在: {new_parent_id}")
+                raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {new_parent_id}")
             if await _would_create_cycle(db, dept_id, new_parent_id):
                 raise BusinessException(ErrorCode.CONFLICT, "不能将部门设置为自己的子孙部门")
         dept.parent_id = new_parent_id
@@ -123,10 +123,12 @@ async def delete_department(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.DELETE])],
 ):
-    result = await db.execute(select(Department).where(Department.id == dept_id))
+    result = await db.execute(
+        select(Department).where(Department.id == dept_id).with_for_update()
+    )
     dept = result.scalars().first()
     if not dept:
-        raise BusinessException(ErrorCode.NOT_FOUND, f"部门不存在: {dept_id}")
+        raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
     # 子部门设为顶级
     children = (await db.execute(
         select(Department).where(Department.parent_id == dept_id)
@@ -137,11 +139,16 @@ async def delete_department(
         child_info = {"count": len(children), "children": child_names}
         for child in children:
             child.parent_id = None
+    # 统计受影响用户
+    user_count = (await db.execute(
+        select(func.count()).select_from(User).where(User.department_id == dept_id)
+    )).scalar() or 0
     await db.delete(dept)
     await db.commit()
-    if child_info:
-        return ApiResponse.ok(
-            message=f"已删除，{child_info['count']} 个子部门已变为顶级部门",
-            data=child_info,
-        )
-    return ApiResponse.ok(message="删除成功")
+    parts = []
+    if child_info and child_info["count"] > 0:
+        parts.append(f"{child_info['count']} 个子部门已变为顶级部门")
+    if user_count > 0:
+        parts.append(f"{user_count} 个用户部门已清空")
+    message = "已删除" + ("，" + "、".join(parts) if parts else "")
+    return ApiResponse.ok(message=message, data={"child_depts": child_info, "affected_users": user_count})

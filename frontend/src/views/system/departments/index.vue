@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import { getDepartmentList, createDepartment, updateDepartment, deleteDepartment } from "@/api/departments";
 import { handleTree } from "@/utils/tree";
 
@@ -12,6 +13,12 @@ const dialogTitle = ref("新增部门");
 const deptTree = computed(() => handleTree(list.value, "id", "parent_id", "children"));
 
 const form = reactive({ id: 0, code: "", name: "", parent_id: null as number | null, sort_order: 0, description: "" });
+const formRef = ref<FormInstance>();
+
+const rules: FormRules = {
+  code: [{ required: true, message: "请输入部门编码", trigger: "blur" }],
+  name: [{ required: true, message: "请输入部门名称", trigger: "blur" }],
+};
 
 async function load() {
   loading.value = true;
@@ -38,26 +45,32 @@ function openEdit(row: any) {
 }
 
 async function handleSubmit() {
+  if (!formRef.value) return;
+  await formRef.value.validate();
   const data: any = {
     name: form.name, parent_id: form.parent_id,
     sort_order: form.sort_order, description: form.description || null,
   };
-  if (form.id) {
-    await updateDepartment(form.id, data);
-    ElMessage.success("更新成功");
-  } else {
-    await createDepartment({ ...data, code: form.code });
-    ElMessage.success("创建成功");
-  }
-  dialogVisible.value = false;
-  load();
+  try {
+    if (form.id) {
+      await updateDepartment(form.id, data);
+      ElMessage.success("更新成功");
+    } else {
+      await createDepartment({ ...data, code: form.code });
+      ElMessage.success("创建成功");
+    }
+    dialogVisible.value = false;
+    load();
+  } catch { /* 拦截器已弹 toast */ }
 }
 
 async function handleDelete(row: any) {
-  await ElMessageBox.confirm(`确认删除部门 "${row.name}"？`, "提示", { type: "warning" });
-  const res: any = await deleteDepartment(row.id);
-  ElMessage.success(res.message ?? "已删除");
-  load();
+  try {
+    await ElMessageBox.confirm(`确认删除部门 "${row.name}"？`, "提示", { type: "warning" });
+    const res: any = await deleteDepartment(row.id);
+    ElMessage.success(res.message ?? "已删除");
+    load();
+  } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
 function parentOptions(currentId = 0) {
@@ -69,9 +82,9 @@ onMounted(load);
 
 <template>
   <div>
-    <el-button type="primary" style="margin-bottom: 12px" @click="openCreate">新增部门</el-button>
+    <el-button v-perms="['department:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增部门</el-button>
 
-    <el-table v-loading="loading" :data="deptTree" border stripe row-key="id" tree-props="{ children: 'children' }">
+    <el-table v-loading="loading" :data="deptTree" border stripe row-key="id" :tree-props="{ children: 'children' }">
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="code" label="编码" />
       <el-table-column prop="name" label="名称" />
@@ -79,18 +92,18 @@ onMounted(load);
       <el-table-column prop="description" label="描述" />
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button v-perms="['department:update']" type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button v-perms="['department:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="550px" destroy-on-close>
-      <el-form :model="form" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" required>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item v-if="!form.id" label="编码" prop="code">
           <el-input v-model="form.code" />
         </el-form-item>
-        <el-form-item label="名称">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item label="父部门">

@@ -14,8 +14,15 @@ from app.schemas.auth import LoginRequest, LoginApiResponse, MeApiResponse, MeRe
 from app.schemas.response import ApiResponse
 from app.services.auth_service import AuthService
 from app.core.logger import logger
+from app.core.exceptions import BusinessException, ErrorCode
 
 router = APIRouter()
+
+
+# 登录频率限制：5 次失败 / 5 分钟 → 锁定 15 分钟
+_LOGIN_MAX_FAILURES = 5
+_LOGIN_FAIL_WINDOW = 300   # 5 分钟
+_LOGIN_LOCK_TTL = 900      # 15 分钟
 
 
 @router.post("/login", response_model=LoginApiResponse)
@@ -24,11 +31,43 @@ async def login(
     db: DbSession,
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    result = await AuthService(db).login(body.username, body.password, body.client)
+    fail_key = f"login_fail:{body.username}"
+
+    # 检查是否已锁定
     try:
+        fail_count = await redis_client.get(fail_key)
+        if fail_count is not None and int(fail_count) >= _LOGIN_MAX_FAILURES:
+            raise BusinessException(
+                ErrorCode.AUTH_INVALID_CREDENTIALS,
+                f"登录失败次数过多，请 {_LOGIN_LOCK_TTL // 60} 分钟后重试",
+            )
+    except aioredis.RedisError:
+        pass  # Redis 不可用时跳过频率限制，不影响登录
+
+    try:
+        result = await AuthService(db).login(body.username, body.password, body.client)
+    except BusinessException as e:
+        if e.code == ErrorCode.AUTH_INVALID_CREDENTIALS:
+            # 记录失败次数（滑动窗口）
+            try:
+                new_count = await redis_client.incr(fail_key)
+                if new_count == 1:
+                    await redis_client.expire(fail_key, _LOGIN_FAIL_WINDOW)
+                if new_count >= _LOGIN_MAX_FAILURES:
+                    await redis_client.expire(fail_key, _LOGIN_LOCK_TTL)
+                    logger.bind(username=body.username).warning(
+                        f"登录失败 {new_count} 次，锁定 {_LOGIN_LOCK_TTL // 60} 分钟"
+                    )
+            except aioredis.RedisError:
+                pass
+        raise
+
+    # 登录成功，清除失败计数
+    try:
+        await redis_client.delete(fail_key)
         await redis_client.delete(f"perm:{result.user.id}")
     except aioredis.RedisError:
-        logger.warning("登录时清除权限缓存失败，跳过")
+        logger.warning("登录时清除缓存失败，跳过")
     logger.bind(username=body.username).info("用户登录成功")
     return ApiResponse.ok(data=result)
 
@@ -70,7 +109,7 @@ async def update_profile(
 
 
 @router.get("/me", response_model=MeApiResponse)
-async def me(user: CurrentUser):
+async def me(user: CurrentUser, db: DbSession):
     permissions = sorted({p.code for role in user.roles for p in role.permissions})
     # 系统角色（admin）拥有全部菜单权限
     if any(role.is_system for role in user.roles):

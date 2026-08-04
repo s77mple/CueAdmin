@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import { getPermissionList, createPermission, updatePermission, deletePermission } from "@/api/permissions";
 
 const loading = ref(false);
@@ -9,12 +10,21 @@ const dialogVisible = ref(false);
 const dialogTitle = ref("新增权限");
 
 const form = reactive({ id: 0, code: "", name: "", resource: "", action: "", description: "" });
+const formRef = ref<FormInstance>();
+
+const rules: FormRules = {
+  code: [{ required: true, message: "请输入权限编码", trigger: "blur" }],
+  name: [{ required: true, message: "请输入权限名称", trigger: "blur" }],
+  resource: [{ required: true, message: "请输入资源标识", trigger: "blur" }],
+  action: [{ required: true, message: "请输入操作标识", trigger: "blur" }],
+};
 
 const resourceLabelMap: Record<string, string> = {
   user: "用户管理",
   role: "角色管理",
   menu: "菜单管理",
   permission: "权限管理",
+  department: "部门管理",
 };
 
 /* 构建树形数据：resource 分组为父节点，权限为子节点 */
@@ -60,24 +70,30 @@ function openEdit(row: any) {
 }
 
 async function handleSubmit() {
+  if (!formRef.value) return;
+  await formRef.value.validate();
   const data: any = { name: form.name, resource: form.resource, action: form.action, description: form.description || null };
-  if (form.id) {
-    if (form.code !== list.value.find((p: any) => p.id === form.id)?.code) data.code = form.code;
-    await updatePermission(form.id, data);
-    ElMessage.success("更新成功");
-  } else {
-    await createPermission({ ...data, code: form.code });
-    ElMessage.success("创建成功");
-  }
-  dialogVisible.value = false;
-  load();
+  try {
+    if (form.id) {
+      if (form.code !== list.value.find((p: any) => p.id === form.id)?.code) data.code = form.code;
+      await updatePermission(form.id, data);
+      ElMessage.success("更新成功");
+    } else {
+      await createPermission({ ...data, code: form.code });
+      ElMessage.success("创建成功");
+    }
+    dialogVisible.value = false;
+    load();
+  } catch { /* 拦截器已弹 toast */ }
 }
 
 async function handleDelete(row: any) {
-  await ElMessageBox.confirm(`确认删除权限 "${row.name}"？`, "提示", { type: "warning" });
-  await deletePermission(row.id);
-  ElMessage.success("已删除");
-  load();
+  try {
+    await ElMessageBox.confirm(`确认删除权限 "${row.name}"？`, "提示", { type: "warning" });
+    await deletePermission(row.id);
+    ElMessage.success("已删除");
+    load();
+  } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
 onMounted(load);
@@ -85,8 +101,6 @@ onMounted(load);
 
 <template>
   <div style="padding: 20px">
-    <h2 style="margin-top: 0">权限管理</h2>
-
     <el-button v-perms="['permission:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增权限</el-button>
 
     <el-table
@@ -133,17 +147,17 @@ onMounted(load);
     </el-table>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
-      <el-form :model="form" label-width="80px">
-        <el-form-item v-if="!form.id" label="权限码" required>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item v-if="!form.id" label="权限码" prop="code">
           <el-input v-model="form.code" placeholder="如 user:list" />
         </el-form-item>
-        <el-form-item label="名称">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item label="资源">
+        <el-form-item label="资源" prop="resource">
           <el-input v-model="form.resource" />
         </el-form-item>
-        <el-form-item label="操作">
+        <el-form-item label="操作" prop="action">
           <el-input v-model="form.action" />
         </el-form-item>
         <el-form-item label="描述">

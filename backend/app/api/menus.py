@@ -135,7 +135,9 @@ async def delete_menu(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.DELETE])],
 ):
-    result = await db.execute(select(Menu).where(Menu.id == menu_id))
+    result = await db.execute(
+        select(Menu).where(Menu.id == menu_id).with_for_update()
+    )
     menu = result.scalars().first()
     if not menu:
         raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")

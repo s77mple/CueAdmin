@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, FormRules } from "element-plus";
 import { getRoleList, createRole, updateRole, deleteRole } from "@/api/roles";
 import { getPermissionList } from "@/api/permissions";
 import { getMenuList } from "@/api/menus";
@@ -14,6 +15,12 @@ const permOptions = ref<any[]>([]);
 const menuOptions = ref<any[]>([]);
 
 const form = reactive({ id: 0, code: "", name: "", description: "", permission_codes: [] as string[], menu_ids: [] as number[] });
+const formRef = ref<FormInstance>();
+
+const rules: FormRules = {
+  code: [{ required: true, message: "请输入角色编码", trigger: "blur" }],
+  name: [{ required: true, message: "请输入角色名称", trigger: "blur" }],
+};
 
 const menuTreeRef = ref();
 
@@ -24,6 +31,7 @@ const resourceLabelMap: Record<string, string> = {
   role: "角色管理",
   menu: "菜单管理",
   permission: "权限管理",
+  department: "部门管理",
 };
 
 const permissionGroups = computed(() => {
@@ -48,20 +56,26 @@ async function load() {
   } finally { loading.value = false; }
 }
 
+// 懒加载：首次打开弹窗时才请求，之后复用缓存
+const optionsLoaded = ref(false);
+
 async function loadOptions() {
+  if (optionsLoaded.value) return;
   const [pRes, mRes] = await Promise.all([getPermissionList(), getMenuList()]);
   if (pRes.code === 0) permOptions.value = pRes.data.items;
   if (mRes.code === 0) menuOptions.value = mRes.data.items;
+  optionsLoaded.value = true;
 }
 
-function openCreate() {
+async function openCreate() {
   dialogTitle.value = "新增角色";
   Object.assign(form, { id: 0, code: "", name: "", description: "", permission_codes: [], menu_ids: [] });
   dialogVisible.value = true;
+  await loadOptions();
   nextTick(() => menuTreeRef.value?.setCheckedKeys([]));
 }
 
-function openEdit(row: any) {
+async function openEdit(row: any) {
   dialogTitle.value = "编辑角色";
   const menuIds: number[] = row.menus?.map((m: any) => m.id) ?? [];
   const permCodes: string[] = row.permissions?.map((p: any) => p.code) ?? [];
@@ -71,10 +85,13 @@ function openEdit(row: any) {
     menu_ids: menuIds,
   });
   dialogVisible.value = true;
+  await loadOptions();
   nextTick(() => menuTreeRef.value?.setCheckedKeys(menuIds));
 }
 
 async function handleSubmit() {
+  if (!formRef.value) return;
+  await formRef.value.validate();
   const checkedMenuIds = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
   const data: any = {
     name: form.name,
@@ -82,22 +99,26 @@ async function handleSubmit() {
     permission_codes: form.permission_codes,
     menu_ids: checkedMenuIds,
   };
-  if (form.id) {
-    await updateRole(form.id, data);
-    ElMessage.success("更新成功");
-  } else {
-    await createRole({ ...data, code: form.code });
-    ElMessage.success("创建成功");
-  }
-  dialogVisible.value = false;
-  load();
+  try {
+    if (form.id) {
+      await updateRole(form.id, data);
+      ElMessage.success("更新成功");
+    } else {
+      await createRole({ ...data, code: form.code });
+      ElMessage.success("创建成功");
+    }
+    dialogVisible.value = false;
+    load();
+  } catch { /* 拦截器已弹 toast */ }
 }
 
 async function handleDelete(row: any) {
-  await ElMessageBox.confirm(`确认删除角色 "${row.name}"？`, "提示", { type: "warning" });
-  await deleteRole(row.id);
-  ElMessage.success("已删除");
-  load();
+  try {
+    await ElMessageBox.confirm(`确认删除角色 "${row.name}"？`, "提示", { type: "warning" });
+    await deleteRole(row.id);
+    ElMessage.success("已删除");
+    load();
+  } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
 function getPermGroups(permissions: any[]) {
@@ -151,12 +172,11 @@ function toggleGroup(resource: string) {
   }
 }
 
-onMounted(() => { load(); loadOptions(); });
+onMounted(() => { load(); });
 </script>
 
 <template>
   <div style="padding: 20px">
-    <h2>角色管理</h2>
     <el-button v-perms="['role:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增角色</el-button>
 
     <el-table v-loading="loading" :data="list" border stripe style="margin-top: 16px">
@@ -243,11 +263,11 @@ onMounted(() => { load(); loadOptions(); });
     </el-table>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="750px" destroy-on-close>
-      <el-form :model="form" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" required>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
+        <el-form-item v-if="!form.id" label="编码" prop="code">
           <el-input v-model="form.code" />
         </el-form-item>
-        <el-form-item label="名称">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item label="描述">

@@ -35,8 +35,11 @@ const rules = reactive<FormRules>({
     },
   ],
   password: [
-    { required: true, message: "请输入密码", trigger: "blur" },
-    { min: 6, message: "密码至少 6 个字符", trigger: "blur" },
+    { validator: (_rule, value, callback) => {
+      if (!form.id && !value) callback(new Error("请输入密码"));
+      else if (value && value.length < 6) callback(new Error("密码至少 6 个字符"));
+      else callback();
+    }, trigger: "blur" },
   ],
   display_name: [
     { required: true, message: "请输入显示名", trigger: "blur" },
@@ -52,9 +55,11 @@ async function load() {
 }
 
 async function loadRoles() {
-  const [rRes, dRes] = await Promise.all([getRoleList(), getDepartmentList()]);
-  if (rRes.code === 0) roleOptions.value = rRes.data.items;
-  if (dRes.code === 0) deptOptions.value = dRes.data.items;
+  try {
+    const [rRes, dRes] = await Promise.all([getRoleList(), getDepartmentList()]);
+    if (rRes.code === 0) roleOptions.value = rRes.data.items;
+    if (dRes.code === 0) deptOptions.value = dRes.data.items;
+  } catch { /* 无权限或网络错误则跳过 */ }
 }
 
 function openCreate() {
@@ -89,10 +94,12 @@ async function handleSubmit() {
 }
 
 async function handleDelete(id: number, username: string) {
-  await ElMessageBox.confirm(`确认禁用用户 "${username}"？`, "提示", { type: "warning" });
-  await deleteUser(id);
-  ElMessage.success("已禁用");
-  load();
+  try {
+    await ElMessageBox.confirm(`确认禁用用户 "${username}"？`, "提示", { type: "warning" });
+    await deleteUser(id);
+    ElMessage.success("已禁用");
+    load();
+  } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
 function handlePageChange(p: number) { page.value = p; load(); }
@@ -101,7 +108,7 @@ onMounted(() => { load(); loadRoles(); });
 
 <template>
   <div>
-    <el-button type="primary" style="margin-bottom: 12px" @click="openCreate">新增用户</el-button>
+    <el-button v-perms="['user:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增用户</el-button>
 
     <el-table v-loading="loading" :data="list" border stripe>
       <el-table-column prop="id" label="ID" width="80" />

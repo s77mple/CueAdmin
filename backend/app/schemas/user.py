@@ -57,6 +57,14 @@ class UserUpdate(BaseModel):
         return v
 
 
+class RoleBrief(BaseModel):
+    id: int
+    code: str
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
 class UserRead(BaseModel):
     id: int
     username: str
@@ -64,6 +72,7 @@ class UserRead(BaseModel):
     phone: str | None = None
     is_active: bool
     department_id: int | None = None
+    roles: list[RoleBrief] = []
     created_at: datetime
     updated_at: datetime
 
