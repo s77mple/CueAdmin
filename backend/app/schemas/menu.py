@@ -14,10 +14,21 @@ class MenuCreate(BaseModel):
 
 
 class MenuUpdate(BaseModel):
-    name: str | None = None
-    icon: str | None = None
-    path: str | None = None
-    component: str | None = None
+    """全量更新（PUT）—— 所有字段必传"""
+    name: str = Field(..., min_length=1, max_length=50)
+    icon: str | None = Field(None, max_length=50)
+    path: str | None = Field(None, max_length=100)
+    component: str | None = Field(None, max_length=200)
+    parent_id: int | None = None
+    sort_order: int = 0
+
+
+class MenuPatch(BaseModel):
+    """部分更新（PATCH）—— 仅传需要修改的字段"""
+    name: str | None = Field(None, min_length=1, max_length=50)
+    icon: str | None = Field(None, max_length=50)
+    path: str | None = Field(None, max_length=100)
+    component: str | None = Field(None, max_length=200)
     parent_id: int | None = None
     sort_order: int | None = None
 

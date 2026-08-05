@@ -10,7 +10,7 @@ from app.core.database import DbSession
 from app.core.dependencies import get_current_user
 from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Menu, User
-from app.schemas.menu import MenuCreate, MenuUpdate, MenuListResponse, MenuListApiResponse, MenuBriefResponse
+from app.schemas.menu import MenuCreate, MenuUpdate, MenuPatch, MenuListResponse, MenuListApiResponse, MenuBriefResponse
 from app.schemas.response import ApiResponse
 
 router = APIRouter()
@@ -90,28 +90,22 @@ async def create_menu(
     return ApiResponse.ok(data=menu, message="创建成功")
 
 
-@router.put("/{menu_id}", response_model=MenuBriefResponse, summary="更新菜单")
+@router.put("/{menu_id}", response_model=MenuBriefResponse, summary="全量更新菜单")
 async def update_menu(
     menu_id: int,
     body: MenuUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.UPDATE])],
 ):
+    """PUT 全量更新 —— 前端传所有字段，直接覆盖"""
     result = await db.execute(
         select(Menu).where(Menu.id == menu_id).with_for_update()
     )
     menu = result.scalars().first()
     if not menu:
         raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
-    if body.name is not None:
-        menu.name = body.name
-    if body.icon is not None:
-        menu.icon = body.icon
-    if body.path is not None:
-        menu.path = body.path
-    if body.component is not None:
-        menu.component = body.component
-    
+
+    # 校验父菜单
     if body.parent_id is not None:
         if body.parent_id == menu_id:
             raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
@@ -120,9 +114,60 @@ async def update_menu(
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
         if await _would_create_cycle(db, menu_id, body.parent_id):
             raise BusinessException(ErrorCode.CONFLICT, "不能将菜单设置为自己的子孙菜单")
+
+    # 全量赋值
+    menu.name = body.name
+    menu.icon = body.icon
+    menu.path = body.path
+    menu.component = body.component
     menu.parent_id = body.parent_id
-    if body.sort_order is not None:
-        menu.sort_order = body.sort_order
+    menu.sort_order = body.sort_order
+
+    await db.commit()
+    return ApiResponse.ok(data=menu, message="更新成功")
+
+
+@router.patch("/{menu_id}", response_model=MenuBriefResponse, summary="部分更新菜单")
+async def patch_menu(
+    menu_id: int,
+    body: MenuPatch,
+    db: DbSession,
+    user: Annotated[User, Security(get_current_user, scopes=[MenuScope.UPDATE])],
+):
+    """PATCH 部分更新 —— 仅更新传了的字段（传 null 则清除该字段值）"""
+    result = await db.execute(
+        select(Menu).where(Menu.id == menu_id).with_for_update()
+    )
+    menu = result.scalars().first()
+    if not menu:
+        raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
+
+    data = body.model_dump(exclude_unset=True)
+
+    if "name" in data:
+        menu.name = data["name"]
+    if "icon" in data:
+        menu.icon = data["icon"]
+    if "path" in data:
+        menu.path = data["path"]
+    if "component" in data:
+        menu.component = data["component"]
+
+    if "parent_id" in data:
+        new_parent_id = data["parent_id"]
+        if new_parent_id is not None:
+            if new_parent_id == menu_id:
+                raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
+            parent = (await db.execute(select(Menu).where(Menu.id == new_parent_id))).scalars().first()
+            if not parent:
+                raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {new_parent_id}")
+            if await _would_create_cycle(db, menu_id, new_parent_id):
+                raise BusinessException(ErrorCode.CONFLICT, "不能将菜单设置为自己的子孙菜单")
+        menu.parent_id = new_parent_id
+
+    if "sort_order" in data:
+        menu.sort_order = data["sort_order"]
+
     await db.commit()
     return ApiResponse.ok(data=menu, message="更新成功")
 
