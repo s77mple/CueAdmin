@@ -40,7 +40,7 @@ function openCreate() {
 
 function openEdit(row: any) {
   dialogTitle.value = "编辑菜单";
-  Object.assign(form, { id: row.id, code: row.code, name: row.name, icon: row.icon ?? "", path: row.path ?? "", component: row.component ?? "", parent_id: row.parent_id, sort_order: row.sort_order ?? 0, children: [] });
+  Object.assign(form, { id: row.id, code: row.code, name: row.name, icon: row.icon, path: row.path, component: row.component, parent_id: row.parent_id, sort_order: row.sort_order, children: [] });
   dialogVisible.value = true;
 }
 
@@ -50,7 +50,7 @@ async function handleSubmit() {
   try {
     // 编辑模式：不变
     if (form.id) {
-      const data: any = { name: form.name, icon: form.icon, path: form.path, component: form.component, parent_id: form.parent_id, sort_order: form.sort_order };
+      const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, component: form.component || null, parent_id: form.parent_id ?? null, sort_order: form.sort_order };
       await updateMenu(form.id, data);
       ElMessage.success("更新成功");
       dialogVisible.value = false;
@@ -60,9 +60,11 @@ async function handleSubmit() {
 
   // 新增模式：先创建父菜单，再创建子菜单
   const parentData: any = {
-    code: form.code, name: form.name, icon: form.icon,
-    path: form.path, component: form.component,
-    parent_id: form.parent_id, sort_order: form.sort_order,
+    code: form.code, name: form.name,
+    icon: form.icon || null,
+    path: form.path || null,
+    component: form.component || null,
+    parent_id: form.parent_id ?? null, sort_order: form.sort_order,
   };
   const parentRes: any = await createMenu(parentData);
   if (parentRes.code !== 0) {
@@ -75,7 +77,7 @@ async function handleSubmit() {
   for (const child of form.children) {
     const childData: any = {
       code: child.code, name: child.name,
-      path: child.path, component: child.component,
+      path: child.path || null, component: child.component || null,
       parent_id: parentId, sort_order: child.sort_order ?? 0,
     };
     try {

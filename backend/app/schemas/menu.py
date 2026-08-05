@@ -14,13 +14,13 @@ class MenuCreate(BaseModel):
 
 
 class MenuUpdate(BaseModel):
-    """全量更新（PUT）—— 所有字段必传"""
-    name: str = Field(..., min_length=1, max_length=50)
-    icon: str | None = Field(None, max_length=50)
-    path: str | None = Field(None, max_length=100)
-    component: str | None = Field(None, max_length=200)
-    parent_id: int | None = None
-    sort_order: int = 0
+    """全量更新（PUT）—— 所有字段必传，可空字段传 null"""
+    name: str = Field(..., min_length=1, max_length=50, description="菜单名称")
+    icon: str | None = Field(..., max_length=50, description="图标，无则传 null")
+    path: str | None = Field(..., max_length=100, description="路由路径，无则传 null")
+    component: str | None = Field(..., max_length=200, description="组件路径，无则传 null")
+    parent_id: int | None = Field(..., description="父菜单 ID，顶级菜单传 null")
+    sort_order: int = Field(..., description="排序号")
 
 
 class MenuPatch(BaseModel):
