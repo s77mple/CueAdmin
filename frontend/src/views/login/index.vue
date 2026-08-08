@@ -55,6 +55,7 @@ const ruleForm = reactive({
 
 const onLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
+  if (loading.value) return;  // 防止重复提交
   await formEl.validate(valid => {
     if (valid) {
       loading.value = true;
@@ -71,10 +72,10 @@ const onLogin = async (formEl: FormInstance | undefined) => {
           });
         })
         .catch(_err => {
+          disabled.value = false;
           message(t("login.pureLoginFail"), { type: "error" });
         })
         .finally(() => {
-          disabled.value = false;
           loading.value = false;
         });
     }

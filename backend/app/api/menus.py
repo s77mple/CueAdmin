@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Security
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import DbSession
@@ -85,7 +86,11 @@ async def create_menu(
         parent_id=body.parent_id, sort_order=body.sort_order,
     )
     db.add(menu)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
     await db.refresh(menu)
     return ApiResponse.ok(data=menu, message="创建成功")
 
@@ -145,6 +150,8 @@ async def patch_menu(
     data = body.model_dump(exclude_unset=True)
 
     if "name" in data:
+        if data["name"] is None:
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
         menu.name = data["name"]
     if "icon" in data:
         menu.icon = data["icon"]
@@ -186,7 +193,7 @@ async def delete_menu(
         raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
     # 检查子菜单
     children = (await db.execute(
-        select(Menu).where(Menu.parent_id == menu_id)
+        select(Menu).where(Menu.parent_id == menu_id).with_for_update()
     )).scalars().all()
     child_info = None
     if children:

@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
-import { getUserList, createUser, updateUser, deleteUser } from "@/api/users";
+import { getUserList, createUser, updateUser, patchUser, deleteUser, hardDeleteUser } from "@/api/users";
 import { getRoleList } from "@/api/roles";
 import { getDepartmentList } from "@/api/departments";
 
@@ -15,6 +15,9 @@ const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
 const roleOptions = ref<any[]>([]);
 const deptOptions = ref<any[]>([]);
+
+// "active" | "disabled" | "all"
+const statusFilter = ref<"active" | "disabled" | "all">("active");
 
 const form = reactive({ id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [] as number[], department_id: null as number | null });
 const formRef = ref<FormInstance>();
@@ -49,16 +52,27 @@ const rules = reactive<FormRules>({
 async function load() {
   loading.value = true;
   try {
-    const res = await getUserList({ page: page.value, page_size: pageSize.value });
-    if (res.code === 0) { list.value = res.data.items; total.value = res.data.total; }
+    const params: any = { page: page.value, page_size: pageSize.value };
+    if (statusFilter.value === "active") params.is_active = true;
+    else if (statusFilter.value === "disabled") params.is_active = false;
+    // "all" 不传 is_active，查全部
+    const res = await getUserList(params);
+    if (res.code === 0) { list.value = res.data?.items ?? []; total.value = res.data?.total ?? 0; }
+    else { ElMessage.error(res.message || "加载用户列表失败"); }
   } finally { loading.value = false; }
+}
+
+function onStatusChange(val: "active" | "disabled" | "all") {
+  statusFilter.value = val;
+  page.value = 1;
+  load();
 }
 
 async function loadRoles() {
   try {
     const [rRes, dRes] = await Promise.all([getRoleList(), getDepartmentList()]);
-    if (rRes.code === 0) roleOptions.value = rRes.data.items;
-    if (dRes.code === 0) deptOptions.value = dRes.data.items;
+    if (rRes.code === 0) roleOptions.value = rRes.data?.items ?? [];
+    if (dRes.code === 0) deptOptions.value = dRes.data?.items ?? [];
   } catch { /* 无权限或网络错误则跳过 */ }
 }
 
@@ -76,29 +90,55 @@ function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
-  await formRef.value.validate();
-  const data: any = { display_name: form.display_name, phone: form.phone, role_ids: form.role_ids, department_id: form.department_id, is_active: form.is_active };
-  if (form.id) {
-    data.username = form.username.trim();
-    const res = await updateUser(form.id, data);
-    if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
-    ElMessage.success("更新成功");
-  } else {
-    data.username = form.username.trim(); data.password = form.password;
-    const res = await createUser(data);
-    if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
-    ElMessage.success("创建成功");
+  try {
+    await formRef.value.validate();
+    const data: any = { display_name: form.display_name, phone: form.phone || null, role_ids: form.role_ids, department_id: form.department_id ?? null, is_active: form.is_active };
+    if (form.id) {
+      data.username = form.username.trim();
+      const res = await updateUser(form.id, data);
+      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
+      ElMessage.success("更新成功");
+    } else {
+      data.username = form.username.trim(); data.password = form.password;
+      const res = await createUser(data);
+      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
+      ElMessage.success("创建成功");
+    }
+    dialogVisible.value = false;
+    load();
+  } catch (err: any) {
+    if (err?.message) { ElMessage.error(err.message); }
   }
-  dialogVisible.value = false;
-  load();
 }
 
-async function handleDelete(id: number, username: string) {
+async function handleDisable(row: any) {
   try {
-    await ElMessageBox.confirm(`确认禁用用户 "${username}"？`, "提示", { type: "warning" });
-    await deleteUser(id);
-    ElMessage.success("已禁用");
-    load();
+    const action = row.is_active ? "禁用" : "启用";
+    await ElMessageBox.confirm(`确认${action}用户 "${row.username}"？`, "提示", { type: "warning" });
+    if (row.is_active) {
+      // 禁用：调用 DELETE（软删除）
+      const res: any = await deleteUser(row.id);
+      if (res.code === 0) { ElMessage.success(res.message || "已禁用"); load(); }
+      else { ElMessage.error(res.message || "操作失败"); }
+    } else {
+      // 重新启用：调用 PATCH
+      const res: any = await patchUser(row.id, { is_active: true });
+      if (res.code === 0) { ElMessage.success("已启用"); load(); }
+      else { ElMessage.error(res.message || "操作失败"); }
+    }
+  } catch { /* 用户取消或拦截器已弹 toast */ }
+}
+
+async function handleHardDelete(row: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确认彻底删除用户 "${row.username}"？此操作不可恢复！`,
+      "危险操作",
+      { type: "error", confirmButtonText: "彻底删除", cancelButtonText: "取消" },
+    );
+    const res: any = await hardDeleteUser(row.id);
+    if (res.code === 0) { ElMessage.success(res.message || "已彻底删除"); load(); }
+    else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
@@ -108,7 +148,14 @@ onMounted(() => { load(); loadRoles(); });
 
 <template>
   <div>
-    <el-button v-perms="['user:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增用户</el-button>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
+      <el-button v-perms="['user:create']" type="primary" @click="openCreate">新增用户</el-button>
+      <el-radio-group v-model="statusFilter" size="small" @change="onStatusChange">
+        <el-radio-button value="active">启用</el-radio-button>
+        <el-radio-button value="disabled">已禁用</el-radio-button>
+        <el-radio-button value="all">全部</el-radio-button>
+      </el-radio-group>
+    </div>
 
     <el-table v-loading="loading" :data="list" border stripe>
       <el-table-column prop="id" label="ID" width="80" />
@@ -126,11 +173,27 @@ onMounted(() => { load(); loadRoles(); });
         </template>
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <template v-if="row.username !== 'admin'">
             <el-button v-perms="['user:update']" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button v-perms="['user:delete']" type="danger" size="small" :disabled="!row.is_active" @click="handleDelete(row.id, row.username)">禁用</el-button>
+            <el-button
+              v-perms="[row.is_active ? 'user:delete' : 'user:update']"
+              size="small"
+              :type="row.is_active ? 'warning' : 'success'"
+              @click="handleDisable(row)"
+            >
+              {{ row.is_active ? "禁用" : "启用" }}
+            </el-button>
+            <el-button
+              v-if="!row.is_active"
+              v-perms="['user:delete']"
+              type="danger"
+              size="small"
+              @click="handleHardDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </template>
       </el-table-column>

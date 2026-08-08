@@ -44,7 +44,7 @@ const treeData = computed(() => {
       _label: resourceLabelMap[resource] || resource,
       _count: perms.length,
       children: perms
-        .sort((a, b) => a.action.localeCompare(b.action))
+        .sort((a, b) => (a.action || "").localeCompare(b.action || ""))
         .map((p: any) => ({ ...p, _treeId: `perm:${p.id}` })),
     }));
 });
@@ -53,7 +53,8 @@ async function load() {
   loading.value = true;
   try {
     const res = await getPermissionList();
-    if (res.code === 0) list.value = res.data.items;
+    if (res.code === 0) list.value = res.data?.items ?? [];
+    else ElMessage.error(res.message || "加载权限列表失败");
   } finally { loading.value = false; }
 }
 
@@ -71,28 +72,29 @@ function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
-  await formRef.value.validate();
-  const data: any = { name: form.name, resource: form.resource, action: form.action, description: form.description };
   try {
+    await formRef.value.validate();
+    const data: any = { code: form.code, name: form.name, resource: form.resource, action: form.action, description: form.description || null };
     if (form.id) {
-      if (form.code !== list.value.find((p: any) => p.id === form.id)?.code) data.code = form.code;
       await updatePermission(form.id, data);
       ElMessage.success("更新成功");
     } else {
-      await createPermission({ ...data, code: form.code });
+      await createPermission(data);
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
     load();
-  } catch { /* 拦截器已弹 toast */ }
+  } catch (err: any) {
+    if (err?.message) ElMessage.error(err.message);
+  }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除权限 "${row.name}"？`, "提示", { type: "warning" });
-    await deletePermission(row.id);
-    ElMessage.success("已删除");
-    load();
+    const res: any = await deletePermission(row.id);
+    if (res.code === 0) { ElMessage.success(res.message || "已删除"); load(); }
+    else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
@@ -148,7 +150,7 @@ onMounted(load);
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item v-if="!form.id" label="权限码" prop="code">
+        <el-form-item label="权限码" prop="code">
           <el-input v-model="form.code" placeholder="如 user:list" />
         </el-form-item>
         <el-form-item label="名称" prop="name">

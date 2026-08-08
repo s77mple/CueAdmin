@@ -83,7 +83,7 @@ export function transformI18n(message: any = "") {
   if (typeof message === "object") {
     const locale: string | WritableComputedRef<string> | any =
       i18n.global.locale;
-    return message[locale?.value];
+    return message[locale?.value ?? "zh"];
   }
 
   const key = message.match(/(\S*)\./)?.input;

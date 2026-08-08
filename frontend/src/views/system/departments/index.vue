@@ -24,7 +24,8 @@ async function load() {
   loading.value = true;
   try {
     const res = await getDepartmentList();
-    if (res.code === 0) list.value = res.data.items;
+    if (res.code === 0) list.value = res.data?.items ?? [];
+    else ElMessage.error(res.message || "加载部门列表失败");
   } finally { loading.value = false; }
 }
 
@@ -38,20 +39,22 @@ function openEdit(row: any) {
   dialogTitle.value = "编辑部门";
   Object.assign(form, {
     id: row.id, code: row.code, name: row.name,
-    parent_id: row.parent_id, sort_order: row.sort_order ?? 0,
-    description: row.description ?? "",
+    parent_id: row.parent_id, sort_order: row.sort_order,
+    description: row.description,
   });
   dialogVisible.value = true;
 }
 
 async function handleSubmit() {
   if (!formRef.value) return;
-  await formRef.value.validate();
-  const data: any = {
-    name: form.name, parent_id: form.parent_id,
-    sort_order: form.sort_order, description: form.description,
-  };
   try {
+    await formRef.value.validate();
+    const data: any = {
+      name: form.name,
+      parent_id: form.parent_id ?? null,
+      sort_order: form.sort_order,
+      description: form.description || null,
+    };
     if (form.id) {
       await updateDepartment(form.id, data);
       ElMessage.success("更新成功");
@@ -61,20 +64,41 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     load();
-  } catch { /* 拦截器已弹 toast */ }
+  } catch (err: any) {
+    if (err?.message) ElMessage.error(err.message);
+  }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除部门 "${row.name}"？`, "提示", { type: "warning" });
     const res: any = await deleteDepartment(row.id);
-    ElMessage.success(res.message ?? "已删除");
-    load();
+    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); load(); }
+    else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
+function getDescendantIds(nodeId: number): Set<number> {
+  const ids = new Set<number>();
+  const visited = new Set<number>();
+  const walk = (items: any[]) => {
+    for (const item of items) {
+      if (visited.has(item.id)) continue;
+      visited.add(item.id);
+      if (item.parent_id === nodeId) {
+        ids.add(item.id);
+        walk(list.value);
+      }
+    }
+  };
+  walk(list.value);
+  return ids;
+}
+
 function parentOptions(currentId = 0) {
-  return list.value.filter((m: any) => m.id !== currentId).map((m: any) => ({ label: m.name, value: m.id }));
+  const excludeIds = getDescendantIds(currentId);
+  excludeIds.add(currentId);
+  return list.value.filter((m: any) => !excludeIds.has(m.id)).map((m: any) => ({ label: m.name, value: m.id }));
 }
 
 onMounted(load);

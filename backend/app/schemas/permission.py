@@ -12,11 +12,21 @@ class PermissionCreate(BaseModel):
 
 
 class PermissionUpdate(BaseModel):
-    code: str | None = None
-    name: str | None = None
-    resource: str | None = None
-    action: str | None = None
-    description: str | None = None
+    """全量更新（PUT）—— 所有字段必传，可空字段传 null（code 允许修改）"""
+    code: str = Field(..., min_length=1, max_length=100, description="权限码")
+    name: str = Field(..., min_length=1, max_length=100, description="权限名称")
+    resource: str = Field(..., min_length=1, max_length=50, description="资源标识")
+    action: str = Field(..., min_length=1, max_length=50, description="操作标识")
+    description: str | None = Field(..., max_length=200, description="描述，无则传 null")
+
+
+class PermissionPatch(BaseModel):
+    """部分更新（PATCH）—— 仅传需要修改的字段"""
+    code: str | None = Field(None, min_length=1, max_length=100)
+    name: str | None = Field(None, min_length=1, max_length=100)
+    resource: str | None = Field(None, min_length=1, max_length=50)
+    action: str | None = Field(None, min_length=1, max_length=50)
+    description: str | None = Field(None, max_length=200)
 
 class PermissionItem(BaseModel):
     id: int

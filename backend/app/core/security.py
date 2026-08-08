@@ -43,4 +43,11 @@ def create_access_token(user_id: int, username: str) -> str:
 
 
 def decode_token(token: str) -> dict:
-    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    """解码 JWT token。调用方仍需自行捕获 ExpiredSignatureError / JWTError 以区分过期和无效。"""
+    from jose import JWTError
+    try:
+        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except JWTError:
+        raise
+    except Exception as e:
+        raise JWTError(f"Token 解码失败: {e}")

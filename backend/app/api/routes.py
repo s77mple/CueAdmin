@@ -7,6 +7,8 @@ from sqlalchemy import select
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
+from app.core.exceptions import BusinessException, ErrorCode
+from app.core.logger import logger
 from app.models import User, Menu
 from app.schemas.response import ApiResponse
 
@@ -54,7 +56,7 @@ def _build_routes(menus: list) -> list[dict]:
     # 构建父子关系
     for node in menu_map.values():
         pid = node.get("parent_id")
-        if pid and pid in menu_map:
+        if pid is not None and pid in menu_map:
             menu_map[pid]["children"].append(node)
         else:
             top_nodes.append(node)
@@ -68,9 +70,16 @@ def _build_routes(menus: list) -> list[dict]:
 
     sort_children(top_nodes)
 
-    # 转换为 Pure Admin 格式
-    def to_route(node: dict) -> dict:
-        children_routes = [to_route(c) for c in node["children"]] if node["children"] else []
+    # 转换为 Pure Admin 格式（带循环检测）
+    def to_route(node: dict, seen: set | None = None) -> dict:
+        if seen is None:
+            seen = set()
+        node_id = node["id"]
+        if node_id in seen:
+            raise BusinessException(ErrorCode.CONFLICT, f"菜单 parent_id 存在循环引用: id={node_id} code={node.get('code')} name={node.get('name')}")
+        seen.add(node_id)
+
+        children_routes = [to_route(c, seen.copy()) for c in node["children"]] if node["children"] else []
 
         route: dict = {
             "path": node["path"] or "",
@@ -95,6 +104,8 @@ def _build_routes(menus: list) -> list[dict]:
             # 叶子节点：必须指定 component，否则 path 匹配不到 Vue 文件
             if node.get("component"):
                 route["component"] = node["component"]
+            else:
+                logger.warning("菜单 [{}] 为叶子节点但缺少 component，前端可能无法渲染", node.get("code"))
 
         return route
 
@@ -107,8 +118,8 @@ async def get_routes(
     user: Annotated[User, Security(get_current_user)],
 ):
     """返回当前用户角色的菜单，格式适配 Pure Admin 动态路由。"""
-    # 系统角色（admin）拥有全部菜单权限
-    if any(role.is_system for role in user.roles):
+    # admin 角色拥有全部菜单权限
+    if any(role.code == "admin" for role in user.roles):
         stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
         result = await db.execute(stmt)
         all_menus = result.scalars().all()
@@ -132,6 +143,34 @@ async def get_routes(
                         "icon": m.icon, "path": m.path, "component": m.component,
                         "parent_id": m.parent_id, "sort_order": m.sort_order,
                     })
+
+        # 补全缺失的父级菜单：子菜单被分配给了角色但其父级目录未被分配
+        # 例如用户有 /system/users 但没有 /system（目录菜单），会导致树结构断裂
+        while True:
+            missing = {
+                m["parent_id"]
+                for m in menus
+                if m["parent_id"] is not None and m["parent_id"] not in seen
+            }
+            if not missing:
+                break
+            stmt = select(Menu).where(Menu.id.in_(missing))
+            result = await db.execute(stmt)
+            parents = result.scalars().all()
+            if not parents:
+                break
+            for p in parents:
+                if p.id not in seen:
+                    seen.add(p.id)
+                    menus.append({
+                        "id": p.id, "code": p.code, "name": p.name,
+                        "icon": p.icon, "path": p.path, "component": p.component,
+                        "parent_id": p.parent_id, "sort_order": p.sort_order,
+                    })
+                    logger.debug(
+                        "自动补全父级菜单: id=%d code=%s name=%s", p.id, p.code, p.name
+                    )
+
         menus.sort(key=lambda m: m["sort_order"])
 
     routes = _build_routes(menus)

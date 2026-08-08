@@ -53,25 +53,49 @@ class AuthService:
         # 7. 收集菜单：系统角色拥有全部菜单，否则仅角色绑定的菜单
         seen: set[str] = set()
         menus: list[dict] = []
-        if any(role.is_system for role in user.roles):
+        if any(role.code == "admin" for role in user.roles):
             stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
             result = await self.db.execute(stmt)
             all_menus = result.scalars().all()
             for m in all_menus:
                 menus.append({
-                    "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
-                    "component": m.component,
+                    "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
+                    "path": m.path, "component": m.component,
                     "parent_id": m.parent_id, "sort_order": m.sort_order,
                 })
         else:
+            seen_ids: set[int] = set()
             for role in user.roles:
                 for m in role.menus:
                     if m.code not in seen:
                         seen.add(m.code)
+                        seen_ids.add(m.id)
                         menus.append({
-                            "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
-                            "component": m.component,
+                            "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
+                            "path": m.path, "component": m.component,
                             "parent_id": m.parent_id, "sort_order": m.sort_order,
+                        })
+            # 补全缺失的父级菜单：子菜单被分配给了角色但其父级目录未被分配
+            while True:
+                missing = {
+                    m["parent_id"]
+                    for m in menus
+                    if m["parent_id"] is not None and m["parent_id"] not in seen_ids
+                }
+                if not missing:
+                    break
+                stmt = select(Menu).where(Menu.id.in_(missing))
+                result = await self.db.execute(stmt)
+                parents = result.scalars().all()
+                if not parents:
+                    break
+                for p in parents:
+                    if p.id not in seen_ids:
+                        seen_ids.add(p.id)
+                        menus.append({
+                            "id": p.id, "code": p.code, "name": p.name, "icon": p.icon,
+                            "path": p.path, "component": p.component,
+                            "parent_id": p.parent_id, "sort_order": p.sort_order,
                         })
 
         menus.sort(key=lambda m: m["sort_order"])

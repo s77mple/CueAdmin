@@ -4,13 +4,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Security
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
 from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Department, User
-from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentListResponse, DepartmentListApiResponse, DepartmentBriefResponse
+from app.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentPatch, DepartmentListResponse, DepartmentListApiResponse, DepartmentBriefResponse
 from app.schemas.response import ApiResponse
 
 router = APIRouter()
@@ -78,28 +79,31 @@ async def create_department(
         sort_order=body.sort_order, description=body.description,
     )
     db.add(dept)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
     await db.refresh(dept)
     return ApiResponse.ok(data=dept, message="创建成功")
 
 
-@router.put("/{dept_id}", response_model=DepartmentBriefResponse, summary="更新部门")
+@router.put("/{dept_id}", response_model=DepartmentBriefResponse, summary="全量更新部门")
 async def update_department(
     dept_id: int,
     body: DepartmentUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.UPDATE])],
 ):
+    """PUT 全量更新 —— 前端传所有字段（可空字段传 null），直接覆盖"""
     result = await db.execute(
         select(Department).where(Department.id == dept_id).with_for_update()
     )
     dept = result.scalars().first()
     if not dept:
         raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
-    if body.name is not None:
-        dept.name = body.name
-    if body.description is not None:
-        dept.description = body.description
+
+    # 校验父部门
     if body.parent_id is not None:
         if body.parent_id == dept_id:
             raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
@@ -108,9 +112,56 @@ async def update_department(
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
         if await _would_create_cycle(db, dept_id, body.parent_id):
             raise BusinessException(ErrorCode.CONFLICT, "不能将部门设置为自己的子孙部门")
+
+    # 全量赋值
+    dept.name = body.name
     dept.parent_id = body.parent_id
-    if body.sort_order is not None:
-        dept.sort_order = body.sort_order
+    dept.sort_order = body.sort_order
+    dept.description = body.description
+
+    await db.commit()
+    return ApiResponse.ok(data=dept, message="更新成功")
+
+
+@router.patch("/{dept_id}", response_model=DepartmentBriefResponse, summary="部分更新部门")
+async def patch_department(
+    dept_id: int,
+    body: DepartmentPatch,
+    db: DbSession,
+    user: Annotated[User, Security(get_current_user, scopes=[DeptScope.UPDATE])],
+):
+    """PATCH 部分更新 —— 仅更新传了的字段（传 null 则清除该字段值）"""
+    result = await db.execute(
+        select(Department).where(Department.id == dept_id).with_for_update()
+    )
+    dept = result.scalars().first()
+    if not dept:
+        raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
+
+    data = body.model_dump(exclude_unset=True)
+
+    if "name" in data:
+        if data["name"] is None:
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
+        dept.name = data["name"]
+    if "description" in data:
+        dept.description = data["description"]
+
+    if "parent_id" in data:
+        new_parent_id = data["parent_id"]
+        if new_parent_id is not None:
+            if new_parent_id == dept_id:
+                raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
+            parent = (await db.execute(select(Department).where(Department.id == new_parent_id))).scalars().first()
+            if not parent:
+                raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {new_parent_id}")
+            if await _would_create_cycle(db, dept_id, new_parent_id):
+                raise BusinessException(ErrorCode.CONFLICT, "不能将部门设置为自己的子孙部门")
+        dept.parent_id = new_parent_id
+
+    if "sort_order" in data:
+        dept.sort_order = data["sort_order"]
+
     await db.commit()
     return ApiResponse.ok(data=dept, message="更新成功")
 
@@ -129,7 +180,7 @@ async def delete_department(
         raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
     # 子部门设为顶级
     children = (await db.execute(
-        select(Department).where(Department.parent_id == dept_id)
+        select(Department).where(Department.parent_id == dept_id).with_for_update()
     )).scalars().all()
     child_info = None
     if children:

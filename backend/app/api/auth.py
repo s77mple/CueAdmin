@@ -101,7 +101,7 @@ async def logout(
 async def update_profile(
     db: DbSession,
     user: CurrentUser,
-    display_name: str = Body(..., embed=True, max_length=50),
+    display_name: str = Body(..., embed=True, min_length=1, max_length=50),
 ):
     user.display_name = display_name
     await db.commit()
@@ -111,30 +111,54 @@ async def update_profile(
 @router.get("/me", response_model=MeApiResponse)
 async def me(user: CurrentUser, db: DbSession):
     permissions = sorted({p.code for role in user.roles for p in role.permissions})
-    # 系统角色（admin）拥有全部菜单权限
-    if any(role.is_system for role in user.roles):
+    # admin 角色拥有全部菜单权限
+    if any(role.code == "admin" for role in user.roles):
         stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
         result = await db.execute(stmt)
         all_menus = result.scalars().all()
         menus = [
             {
-                "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
-                "component": m.component,
+                "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
+                "path": m.path, "component": m.component,
                 "parent_id": m.parent_id, "sort_order": m.sort_order,
             }
             for m in all_menus
         ]
     else:
         seen: set[str] = set()
+        seen_ids: set[int] = set()
         menus: list[dict] = []
         for role in user.roles:
             for m in role.menus:
                 if m.code not in seen:
                     seen.add(m.code)
+                    seen_ids.add(m.id)
                     menus.append({
-                        "code": m.code, "name": m.name, "icon": m.icon, "path": m.path,
-                        "component": m.component,
+                        "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
+                        "path": m.path, "component": m.component,
                         "parent_id": m.parent_id, "sort_order": m.sort_order,
+                    })
+        # 补全缺失的父级菜单：子菜单被分配给了角色但其父级目录未被分配
+        while True:
+            missing = {
+                m["parent_id"]
+                for m in menus
+                if m["parent_id"] is not None and m["parent_id"] not in seen_ids
+            }
+            if not missing:
+                break
+            stmt = select(Menu).where(Menu.id.in_(missing))
+            result = await db.execute(stmt)
+            parents = result.scalars().all()
+            if not parents:
+                break
+            for p in parents:
+                if p.id not in seen_ids:
+                    seen_ids.add(p.id)
+                    menus.append({
+                        "id": p.id, "code": p.code, "name": p.name, "icon": p.icon,
+                        "path": p.path, "component": p.component,
+                        "parent_id": p.parent_id, "sort_order": p.sort_order,
                     })
     menus.sort(key=lambda m: m["sort_order"])
     return ApiResponse.ok(data=MeResponse(

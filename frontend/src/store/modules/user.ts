@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { store, router, resetRouter, routerArrays, storageLocal } from "../utils";
-import { type LoginResult, getLogin } from "@/api/auth";
+import { type LoginResult, getLogin, logout } from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
 import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
 
@@ -61,13 +61,14 @@ export const useUserStore = defineStore("pure-user", {
           });
       });
     },
-    /** 前端登出（不调用接口） */
+    /** 前端登出（调用接口使 token 失效） */
     logOut() {
       this.username = "";
       this.permissions = [];
       removeToken();
       useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
       resetRouter();
+      logout().catch(() => {});  // fire-and-forget: 即使网络异常也不阻塞跳转
       router.push("/login");
     },
   }

@@ -12,7 +12,7 @@ class Department(Base, TimestampMixin):
     code: Mapped[str] = mapped_column(String(50), unique=True)
     name: Mapped[str] = mapped_column(String(50))
     parent_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("departments.id", ondelete="SET NULL"), default=None
+        BigInteger, ForeignKey("departments.id", ondelete="SET NULL"), default=None, index=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(Text)

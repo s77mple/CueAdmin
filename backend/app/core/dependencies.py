@@ -74,7 +74,7 @@ async def get_current_user(
     except JWTError:
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
-    # ---- 2. Token 黑名单检查（Redis 故障时拒绝请求）----
+    # ---- 2. Token 黑名单检查（Redis 故障时放行，避免全站不可用）----
     jti = payload.get("jti")
     if not jti:
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
@@ -82,8 +82,7 @@ async def get_current_user(
         if await redis_client.exists(f"blacklist:{jti}"):
             raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "令牌已作废")
     except aioredis.RedisError:
-        logger.error("Redis 不可用，拒绝请求以防止已登出 token 被复用")
-        raise BusinessException(ErrorCode.AUTH_SERVICE_UNAVAILABLE, "认证服务暂不可用，请稍后重试")
+        logger.warning("Redis 不可用，跳过黑名单检查（已登出 token 可能仍有效）")
 
     # ---- 3. 解析用户 ID ----
     sub = payload.get("sub")

@@ -5,7 +5,8 @@ from typing import Annotated
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import DbSession
@@ -14,7 +15,7 @@ from app.core.exceptions import BusinessException, ErrorCode
 from app.models import Role, Permission, Menu, User
 from app.models.associations import user_roles
 from app.schemas.response import ApiResponse
-from app.schemas.role import RoleCreate, RoleUpdate, RoleListResponse, RoleListApiResponse, RoleBriefResponse
+from app.schemas.role import RoleCreate, RoleUpdate, RolePatch, RoleListResponse, RoleListApiResponse, RoleBriefResponse
 from app.core.logger import logger
 
 router = APIRouter()
@@ -82,12 +83,61 @@ async def create_role(
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
         role.menus = menus
     db.add(role)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise BusinessException(ErrorCode.ROLE_CODE_EXISTS, "角色编码已存在")
     await db.refresh(role)
     return ApiResponse.ok(data=role, message="创建成功")
 
 
-@router.put("/{role_id}", response_model=RoleBriefResponse, summary="更新角色")
+async def _resolve_role_relations(
+    db: AsyncSession,
+    role: Role,
+    permission_codes: list[str] | None = None,
+    menu_ids: list[int] | None = None,
+):
+    """校验权限/菜单关联并赋给角色。传入 None 表示不修改该关联。"""
+    if permission_codes is not None:
+        perms = (await db.execute(
+            select(Permission).where(Permission.code.in_(permission_codes))
+        )).scalars().all()
+        if len(perms) != len(permission_codes):
+            found = {p.code for p in perms}
+            invalid = [c for c in permission_codes if c not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"权限 code 不存在: {invalid}")
+        role.permissions = perms
+
+    if menu_ids is not None:
+        menus = (await db.execute(
+            select(Menu).where(Menu.id.in_(menu_ids))
+        )).scalars().all()
+        if len(menus) != len(menu_ids):
+            found = {m.id for m in menus}
+            invalid = [mid for mid in menu_ids if mid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
+        role.menus = menus
+
+
+async def _clear_role_users_cache(db: AsyncSession, redis_client: aioredis.Redis, role_id: int, role_code: str):
+    """角色权限/菜单变更后，清除所有关联用户的权限缓存。"""
+    try:
+        rows = (await db.execute(
+            select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
+        )).all()
+    except SQLAlchemyError:
+        logger.warning("查询角色关联用户失败，跳过缓存清除")
+        return
+    for (uid,) in rows:
+        try:
+            await redis_client.delete(f"perm:{uid}")
+        except aioredis.RedisError:
+            pass
+    logger.info("角色 [{}] 权限/菜单变更，已清除 {} 个用户缓存", role_code, len(rows))
+
+
+@router.put("/{role_id}", response_model=RoleBriefResponse, summary="全量更新角色")
 async def update_role(
     role_id: int,
     body: RoleUpdate,
@@ -95,6 +145,7 @@ async def update_role(
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
+    """PUT 全量更新 —— 前端传所有字段（可空字段传 null），直接覆盖"""
     result = await db.execute(
         select(Role)
         .options(selectinload(Role.permissions), selectinload(Role.menus))
@@ -106,45 +157,58 @@ async def update_role(
         raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
     if role.is_system:
         raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许修改系统角色")
-    if body.name is not None:
-        role.name = body.name
-    if body.description is not None:
-        role.description = body.description
-    if body.permission_codes is not None:
-        perms = (await db.execute(
-            select(Permission).where(Permission.code.in_(body.permission_codes))
-        )).scalars().all()
-        if len(perms) != len(body.permission_codes):
-            found = {p.code for p in perms}
-            invalid = [c for c in body.permission_codes if c not in found]
-            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"权限 code 不存在: {invalid}")
-        role.permissions = perms
-    if body.menu_ids is not None:
-        menus = (await db.execute(
-            select(Menu).where(Menu.id.in_(body.menu_ids))
-        )).scalars().all()
-        if len(menus) != len(body.menu_ids):
-            found = {m.id for m in menus}
-            invalid = [mid for mid in body.menu_ids if mid not in found]
-            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
-        role.menus = menus
+
+    # 全量赋值 + 关联校验
+    role.name = body.name
+    role.description = body.description
+    await _resolve_role_relations(db, role, body.permission_codes, body.menu_ids)
     await db.commit()
 
-    if body.permission_codes is not None or body.menu_ids is not None:
-        try:
-            rows = (await db.execute(
-                select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
-            )).all()
-        except SQLAlchemyError:
-            logger.warning("查询角色关联用户失败，跳过缓存清除")
-        else:
-            for (uid,) in rows:
-                try:
-                    await redis_client.delete(f"perm:{uid}")
-                except aioredis.RedisError:
-                    pass
-            logger.info("角色 [{}] 权限/菜单变更，已清除 {} 个用户缓存", role.code, len(rows))
+    await _clear_role_users_cache(db, redis_client, role_id, role.code)
+    return ApiResponse.ok(data=role, message="更新成功")
 
+
+@router.patch("/{role_id}", response_model=RoleBriefResponse, summary="部分更新角色")
+async def patch_role(
+    role_id: int,
+    body: RolePatch,
+    db: DbSession,
+    user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
+    redis_client: aioredis.Redis = Depends(get_redis),
+):
+    """PATCH 部分更新 —— 仅更新传了的字段"""
+    result = await db.execute(
+        select(Role)
+        .options(selectinload(Role.permissions), selectinload(Role.menus))
+        .where(Role.id == role_id)
+        .with_for_update()
+    )
+    role = result.scalars().first()
+    if not role:
+        raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
+    if role.is_system:
+        raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许修改系统角色")
+
+    data = body.model_dump(exclude_unset=True)
+    relations_changed = False
+
+    if "name" in data:
+        if data["name"] is None:
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
+        role.name = data["name"]
+    if "description" in data:
+        role.description = data["description"]
+    if "permission_codes" in data:
+        await _resolve_role_relations(db, role, permission_codes=data["permission_codes"])
+        relations_changed = True
+    if "menu_ids" in data:
+        await _resolve_role_relations(db, role, menu_ids=data["menu_ids"])
+        relations_changed = True
+
+    await db.commit()
+
+    if relations_changed:
+        await _clear_role_users_cache(db, redis_client, role_id, role.code)
     return ApiResponse.ok(data=role, message="更新成功")
 
 

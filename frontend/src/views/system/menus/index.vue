@@ -28,7 +28,8 @@ async function load() {
   loading.value = true;
   try {
     const res = await getMenuList();
-    if (res.code === 0) list.value = res.data.items;
+    if (res.code === 0) list.value = res.data?.items ?? [];
+    else ElMessage.error(res.message || "加载菜单失败");
   } finally { loading.value = false; }
 }
 
@@ -58,7 +59,13 @@ async function handleSubmit() {
       return;
     }
 
-  // 新增模式：先创建父菜单，再创建子菜单
+  // 新增模式：先校验子菜单，再创建
+  // 子菜单字段校验（必须在创建父菜单之前，避免创建孤儿记录）
+  for (const child of (form.children ?? [])) {
+    if (!child.code?.trim()) { ElMessage.error("子菜单编码不能为空"); return; }
+    if (!child.name?.trim()) { ElMessage.error("子菜单名称不能为空"); return; }
+  }
+
   const parentData: any = {
     code: form.code, name: form.name,
     icon: form.icon || null,
@@ -69,6 +76,10 @@ async function handleSubmit() {
   const parentRes: any = await createMenu(parentData);
   if (parentRes.code !== 0) {
     ElMessage.error(parentRes.message || "父菜单创建失败");
+    return;
+  }
+  if (!parentRes.data?.id) {
+    ElMessage.error("父菜单创建成功但未返回 ID");
     return;
   }
   const parentId = parentRes.data.id;
@@ -100,8 +111,8 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除菜单 "${row.name}"？`, "提示", { type: "warning" });
     const res: any = await deleteMenu(row.id);
-    ElMessage.success(res.message ?? "已删除");
-    load();
+    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); load(); }
+    else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 

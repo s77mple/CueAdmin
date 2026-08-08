@@ -7,5 +7,7 @@ export const createDepartment = (data?: object) =>
   http.request<ApiResult<any>>("post", "/api/v1/departments", { data });
 export const updateDepartment = (id: number, data?: object) =>
   http.request<ApiResult<any>>("put", `/api/v1/departments/${id}`, { data });
+export const patchDepartment = (id: number, data?: object) =>
+  http.request<ApiResult<any>>("patch", `/api/v1/departments/${id}`, { data });
 export const deleteDepartment = (id: number) =>
   http.request<ApiResult>("delete", `/api/v1/departments/${id}`);

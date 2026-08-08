@@ -27,12 +27,14 @@ async def paginate(
     page = max(1, page)
     page_size = max(1, min(page_size, 100))
 
-    # COUNT — 套子查询，JOIN 时不会重复计数
-    count_stmt = select(func.count()).select_from(stmt.subquery())
+    # COUNT — 先 DISTINCT 再套子查询，避免 JOIN 导致重复计数
+    # 例如 list_users 按 role_id 过滤时 JOIN user_roles，同一个用户多角色会多行
+    count_subq = stmt.distinct().subquery()
+    count_stmt = select(func.count()).select_from(count_subq)
     total = (await db.execute(count_stmt)).scalar() or 0
 
-    # 分页数据
-    page_stmt = stmt.offset((page - 1) * page_size).limit(page_size)
+    # 分页数据 — 同样 DISTINCT 避免 JOIN 返回重复行
+    page_stmt = stmt.distinct().offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(page_stmt)
     items = list(result.scalars().all())
 

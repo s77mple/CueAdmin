@@ -15,7 +15,7 @@ class Menu(Base, TimestampMixin):
     path: Mapped[str | None] = mapped_column(String(100))           # 路由路径（如 /users/index）
     component: Mapped[str | None] = mapped_column(String(200))      # 组件路径（如 system/users/index），用于动态路由匹配 Vue 文件
     parent_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("menus.id", ondelete="SET NULL"), default=None
+        BigInteger, ForeignKey("menus.id", ondelete="SET NULL"), default=None, index=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0)     # 同级排序，越小越前
 

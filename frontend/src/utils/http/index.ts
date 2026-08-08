@@ -74,6 +74,10 @@ class PureHttp {
         return response.data;
       },
       (error: PureHttpError) => {
+        // 请求被取消（如路由跳转），不弹 toast
+        if (Axios.isCancel(error)) {
+          return Promise.reject(error);
+        }
         const httpCode = error?.response?.status;
         if (httpCode === 401) {
           message("未授权，请登录", { type: "warning" });
@@ -81,7 +85,7 @@ class PureHttp {
           router.push("/login");
         } else if (httpCode === 500) {
           message("服务器繁忙，请稍后重试", { type: "error" });
-        } else if (error.message?.includes("timeout")) {
+        } else if (error.code === 'ECONNABORTED') {
           message("请求超时，请重试", { type: "error" });
         } else if (!error?.response) {
           message("网络异常，请检查网络连接", { type: "error" });

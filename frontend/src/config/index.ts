@@ -20,7 +20,7 @@ const getConfig = (key?: string): PlatformConfigs => {
           data = null;
         }
       });
-      return data;
+      return data ?? {};
     }
   }
   return config;

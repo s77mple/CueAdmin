@@ -13,7 +13,7 @@ export const extractPathList = (tree: any[]): any => {
   for (const node of tree) {
     const hasChildren = node.children && node.children.length > 0;
     if (hasChildren) {
-      extractPathList(node.children);
+      expandedPaths.push(...extractPathList(node.children));
     }
     expandedPaths.push(node.uniqueId);
   }
@@ -175,7 +175,7 @@ export const handleTree = (
   }
 
   function adaptToChildrenList(o: Record<string, any>) {
-    if (childrenListMap[o[config.id]] !== null) {
+    if (childrenListMap[o[config.id]] != null) {
       o[config.childrenList] = childrenListMap[o[config.id]];
     }
     if (o[config.childrenList]) {

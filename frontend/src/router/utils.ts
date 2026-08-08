@@ -43,11 +43,13 @@ function handRank(routeInfo: any) {
 
 /** 按照路由中meta下的rank等级升序来排序路由 */
 function ascending(arr: any[]) {
-  arr.forEach((v, index) => {
+  // 浅拷贝避免直接修改入参数组
+  const sorted = [...arr];
+  sorted.forEach((v, index) => {
     // 当rank不存在时，根据顺序自动创建，首页路由永远在第一位
-    if (handRank(v)) v.meta.rank = index + 2;
+    if (handRank(v) && v.meta) v.meta.rank = index + 2;
   });
-  return arr.sort(
+  return sorted.sort(
     (a: { meta: { rank: number } }, b: { meta: { rank: number } }) => {
       return a?.meta.rank - b?.meta.rank;
     }
@@ -173,14 +175,16 @@ function handleAsyncRoutes(routeList) {
           // 切记将路由push到routes后还需要使用addRoute，这样路由才能正常跳转
           router.options.routes[0].children.push(v);
           // 最终路由进行升序
-          ascending(router.options.routes[0].children);
+          router.options.routes[0].children = ascending(router.options.routes[0].children);
           if (!router.hasRoute(v?.name)) router.addRoute(v);
           const flattenRouters: any = router
             .getRoutes()
             .find(n => n.path === "/");
           // 保持router.options.routes[0].children与path为"/"的children一致，防止数据不一致导致异常
-          flattenRouters.children = router.options.routes[0].children;
-          router.addRoute(flattenRouters);
+          if (flattenRouters) {
+            flattenRouters.children = router.options.routes[0].children;
+            router.addRoute(flattenRouters);
+          }
         }
       }
     );
@@ -210,27 +214,33 @@ function initRouter() {
       });
     } else {
       return new Promise(resolve => {
-        getAsyncRoutes().then(({ code, data }) => {
-          if (code === 0) {
-            handleAsyncRoutes(cloneDeep(data));
-            storageLocal().setItem(key, data);
+        getAsyncRoutes()
+          .then(({ code, data }) => {
+            if (code === 0) {
+              handleAsyncRoutes(cloneDeep(data));
+              storageLocal().setItem(key, data);
+            }
             resolve(router);
-          } else {
+          })
+          .catch(err => {
+            console.error("获取动态路由失败，降级使用静态路由", err);
             resolve(router);
-          }
-        });
+          });
       });
     }
   } else {
     return new Promise(resolve => {
-      getAsyncRoutes().then(({ code, data }) => {
-        if (code === 0) {
-          handleAsyncRoutes(cloneDeep(data));
+      getAsyncRoutes()
+        .then(({ code, data }) => {
+          if (code === 0) {
+            handleAsyncRoutes(cloneDeep(data));
+          }
           resolve(router);
-        } else {
+        })
+        .catch(err => {
+          console.error("获取动态路由失败，降级使用静态路由", err);
           resolve(router);
-        }
-      });
+        });
     });
   }
 }
@@ -320,6 +330,7 @@ function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
   const modulesRoutesKeys = Object.keys(modulesRoutes);
   arrRoutes.forEach((v: RouteRecordRaw) => {
     // 将backstage属性加入meta，标识此路由为后端返回路由
+    if (!v.meta) v.meta = {} as any;
     v.meta.backstage = true;
     // 父级的redirect属性取值：如果子级存在且父级的redirect属性不存在，默认取第一个子级的path；如果子级存在且父级的redirect属性存在，取存在的redirect属性，会覆盖默认值
     if (v?.children && v.children.length && !v.redirect)
@@ -331,10 +342,17 @@ function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
       v.component = IFrame;
     } else {
       // 对后端传component组件路径和不传做兼容（如果后端传component组件路径，那么path可以随便写，如果不传，component组件路径会跟path保持一致）
-      const index = v?.component
-        ? modulesRoutesKeys.findIndex(ev => ev.includes(v.component as any))
-        : modulesRoutesKeys.findIndex(ev => ev.includes(v.path));
-      v.component = modulesRoutes[modulesRoutesKeys[index]];
+      const searchKey = (v?.component || v?.path || "") as string;
+      if (!searchKey) {
+        console.warn(`动态路由组件匹配失败: path 和 component 均为空`);
+      } else {
+        const index = modulesRoutesKeys.findIndex(ev => ev.includes(searchKey));
+        if (index === -1) {
+          console.warn(`动态路由组件匹配失败: path="${v.path}" component="${v.component}"`);
+        } else {
+          v.component = modulesRoutes[modulesRoutesKeys[index]];
+        }
+      }
     }
     if (v?.children && v.children.length) {
       addAsyncRoutes(v.children);
@@ -364,6 +382,8 @@ function getHistoryMode(routerHistory): RouterHistory {
       return createWebHistory(rightMode);
     }
   }
+  // fallback：配置异常时默认使用 hash 模式
+  return createWebHashHistory("");
 }
 
 /** 获取当前页面按钮级别的权限 */

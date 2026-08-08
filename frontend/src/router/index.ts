@@ -82,12 +82,14 @@ export const router: Router = createRouter({
   scrollBehavior(to, from, savedPosition) {
     return new Promise(resolve => {
       if (savedPosition) {
-        return savedPosition;
+        resolve(savedPosition);
       } else {
         if (from.meta.saveSrollTop) {
           const top: number =
             document.documentElement.scrollTop || document.body.scrollTop;
           resolve({ left: 0, top });
+        } else {
+          resolve({ left: 0, top: 0 });
         }
       }
     });
@@ -185,6 +187,7 @@ router.beforeEach((to: ToRouteType, _from) => {
             if (route && route.meta?.title) {
               if (isAllEmpty(route.parentId) && route.meta?.backstage) {
                 // 此处为动态顶级路由（目录）
+                if (!route.children?.length) return;
                 const { path, name, meta } = route.children[0];
                 useMultiTagsStoreHook().handleTags("push", {
                   path,

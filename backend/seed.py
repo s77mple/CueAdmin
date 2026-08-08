@@ -116,6 +116,7 @@ def seed(db: Session):
             db.add(menu)
         else:
             menu.icon = icon
+            menu.name = name
             menu.path = path
             menu.component = component
             menu.sort_order = sort_order

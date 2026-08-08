@@ -52,7 +52,8 @@ async function load() {
   loading.value = true;
   try {
     const res = await getRoleList();
-    if (res.code === 0) list.value = res.data.items;
+    if (res.code === 0) list.value = res.data?.items ?? [];
+    else ElMessage.error(res.message || "加载角色列表失败");
   } finally { loading.value = false; }
 }
 
@@ -61,10 +62,16 @@ const optionsLoaded = ref(false);
 
 async function loadOptions() {
   if (optionsLoaded.value) return;
-  const [pRes, mRes] = await Promise.all([getPermissionList(), getMenuList()]);
-  if (pRes.code === 0) permOptions.value = pRes.data.items;
-  if (mRes.code === 0) menuOptions.value = mRes.data.items;
-  optionsLoaded.value = true;
+  try {
+    const [pRes, mRes] = await Promise.all([getPermissionList(), getMenuList()]);
+    if (pRes.code === 0) permOptions.value = pRes.data?.items ?? [];
+    else ElMessage.warning("权限数据加载失败");
+    if (mRes.code === 0) menuOptions.value = mRes.data?.items ?? [];
+    else ElMessage.warning("菜单数据加载失败");
+    optionsLoaded.value = true;
+  } catch {
+    ElMessage.warning("加载选项数据失败，请检查网络连接");
+  }
 }
 
 async function openCreate() {
@@ -91,15 +98,15 @@ async function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
-  await formRef.value.validate();
-  const checkedMenuIds = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
-  const data: any = {
-    name: form.name,
-    description: form.description,
-    permission_codes: form.permission_codes,
-    menu_ids: checkedMenuIds,
-  };
   try {
+    await formRef.value.validate();
+    const checkedMenuIds = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
+    const data: any = {
+      name: form.name,
+      description: form.description || null,
+      permission_codes: form.permission_codes,
+      menu_ids: checkedMenuIds,
+    };
     if (form.id) {
       await updateRole(form.id, data);
       ElMessage.success("更新成功");
@@ -109,15 +116,17 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     load();
-  } catch { /* 拦截器已弹 toast */ }
+  } catch (err: any) {
+    if (err?.message) ElMessage.error(err.message);
+  }
 }
 
 async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除角色 "${row.name}"？`, "提示", { type: "warning" });
-    await deleteRole(row.id);
-    ElMessage.success("已删除");
-    load();
+    const res: any = await deleteRole(row.id);
+    if (res.code === 0) { ElMessage.success(res.message || "已删除"); load(); }
+    else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
