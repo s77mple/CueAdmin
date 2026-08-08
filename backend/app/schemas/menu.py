@@ -1,4 +1,13 @@
-"""菜单 Schema"""
+"""菜单 Schema — 创建/更新/查询的数据结构。
+
+菜单的两种类型：
+  目录菜单：component=null, path=/system    → 纯文件夹，不可点击
+  页面菜单：component=system/users/index   → 对应 src/views/ 下的 Vue 文件
+
+前端动态路由匹配：
+  addAsyncRoutes() 中 component 字符串匹配 import.meta.glob 的 key
+  例 component="system/users/index" → /src/views/system/users/index.vue
+"""
 
 from pydantic import BaseModel, Field
 
@@ -9,12 +18,12 @@ class MenuCreate(BaseModel):
     icon: str | None = Field(None, max_length=50)
     path: str | None = Field(None, max_length=100)
     component: str | None = Field(None, max_length=200)
-    parent_id: int | None = None
-    sort_order: int = Field(0, ge=0)
+    parent_id: int | None = None              # null = 顶级菜单
+    sort_order: int = Field(0, ge=0)          # ge=0：不允许负数
 
 
 class MenuUpdate(BaseModel):
-    """全量更新（PUT）—— 所有字段必传，可空字段传 null"""
+    """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
     name: str = Field(..., min_length=1, max_length=50, description="菜单名称")
     icon: str | None = Field(..., max_length=50, description="图标，无则传 null")
     path: str | None = Field(..., max_length=100, description="路由路径，无则传 null")
@@ -24,7 +33,7 @@ class MenuUpdate(BaseModel):
 
 
 class MenuPatch(BaseModel):
-    """部分更新（PATCH）—— 仅传需要修改的字段"""
+    """PATCH 部分更新 — 只传要改的字段（传 null 清除该字段）。"""
     name: str | None = Field(None, min_length=1, max_length=50)
     icon: str | None = Field(None, max_length=50)
     path: str | None = Field(None, max_length=100)
@@ -33,7 +42,12 @@ class MenuPatch(BaseModel):
     sort_order: int | None = Field(None, ge=0)
 
 
+# ============================================================
+# 响应 Schema
+# ============================================================
+
 class MenuItem(BaseModel):
+    """菜单列表项 — 扁平列表，前端转树。"""
     id: int
     code: str
     name: str
@@ -50,6 +64,7 @@ class MenuListResponse(BaseModel):
 
 
 class MenuBrief(BaseModel):
+    """菜单简要信息 — 嵌套在角色响应中。"""
     id: int
     code: str
     name: str
@@ -58,7 +73,7 @@ class MenuBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# —————— 响应类型 ——————
+# —————— 响应包装 ——————
 from app.schemas.response import ApiResponse
 
 

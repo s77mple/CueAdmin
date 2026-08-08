@@ -1,15 +1,32 @@
-"""用户 Schema"""
+"""用户 Schema — 创建/更新/查询的数据结构。
+
+三种 Schema 模式（本项目所有实体通用）：
+
+  XxxCreate  → POST 创建时的请求体（必填字段 = Field(...)）
+  XxxUpdate  → PUT 全量更新（所有字段必填，可空字段传 null）
+  XxxPatch   → PATCH 部分更新（所有字段可选，传了才改）
+  XxxRead    → 响应体（查询返回的字段）
+
+为什么分 Create / Update / Patch？
+  - Create：密码必传，username 不能改
+  - Update：密码可选（不传不改），username 可能变了
+  - Patch：所有字段都 optional，前端只传要改的字段
+"""
 
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
+
+# ============================================================
+# 1. UserCreate — 创建用户
+# ============================================================
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6, max_length=128)
     display_name: str = Field(..., min_length=1, max_length=50)
     phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$")
-    role_ids: list[int] = Field(default=[], max_length=100)
+    role_ids: list[int] = Field(default=[], max_length=100)     # 允许创建无角色用户
     department_id: int | None = None
 
     @field_validator("username")
@@ -37,8 +54,12 @@ class UserCreate(BaseModel):
         return v
 
 
+# ============================================================
+# 2. UserUpdate — 全量更新（PUT）
+# ============================================================
+
 class UserUpdate(BaseModel):
-    """全量更新（PUT）—— 除 password 外所有字段必传，可空字段传 null（password 不传则保持原密码）"""
+    """PUT 全量更新 — password 为空不修改，其余字段全量覆盖。"""
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
     password: str | None = Field(None, min_length=6, max_length=128, description="密码，留空不修改")
     display_name: str = Field(..., min_length=1, max_length=50, description="显示名")
@@ -63,14 +84,24 @@ class UserUpdate(BaseModel):
         return v
 
 
+# ============================================================
+# 3. UserPatch — 部分更新（PATCH）
+# ============================================================
+
 class UserPatch(BaseModel):
-    """部分更新（PATCH）—— 仅传需要修改的字段"""
+    """PATCH 部分更新 — 所有字段都 Optional。
+
+    model_dump(exclude_unset=True) 是关键：
+      前端只传 { is_active: false }
+      → data = {"is_active": False}
+      → API 层只改 is_active，其他字段不动
+    """
     username: str | None = Field(None, min_length=3, max_length=50)
     password: str | None = Field(None, min_length=6, max_length=128)
     display_name: str | None = Field(None, min_length=1, max_length=50)
     phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$")
     is_active: bool | None = None
-    role_ids: list[int] | None = Field(None, max_length=100)
+    role_ids: list[int] | None = Field(None, max_length=100)        # None = 没传，[] = 清空角色
     department_id: int | None = None
 
     @field_validator("username")
@@ -91,7 +122,12 @@ class UserPatch(BaseModel):
         return v
 
 
+# ============================================================
+# 4. 辅助 Schema
+# ============================================================
+
 class RoleBrief(BaseModel):
+    """角色简要信息 — 嵌套在用户响应中。"""
     id: int
     code: str
     name: str
@@ -99,7 +135,12 @@ class RoleBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ============================================================
+# 5. UserRead — 查询响应体
+# ============================================================
+
 class UserRead(BaseModel):
+    """用户查询返回的字段。"""
     id: int
     username: str
     display_name: str
@@ -110,16 +151,21 @@ class UserRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True}  # 允许从 ORM 对象自动转换
 
 
-# —————— 响应类型（具体类继承，绕开泛型 response_model 坑）——————
+# ============================================================
+# 6. 响应包装类型
+# ============================================================
+
 from app.schemas.response import ApiResponse, PageData
 
 
 class UserReadResponse(ApiResponse[UserRead]):
+    """单用户响应：GET /users/{id}、POST /users、PUT /users/{id}"""
     pass
 
 
 class UserListResponse(ApiResponse[PageData[UserRead]]):
+    """用户列表响应：GET /users"""
     pass

@@ -1,4 +1,35 @@
-"""认证业务逻辑。"""
+"""
+认证业务逻辑 — 登录的核心编排。
+
+一次登录的完整数据流：
+
+  #1 前端 POST /api/v1/auth/login { username, password }
+  #2 AuthService.login() 开始执行：
+     a. 从 DB 查用户（预加载角色+权限+菜单，一次查询搞定，避免 N+1）
+     b. 用户不存在 → 也对假哈希跑一次 bcrypt（防止时间差枚举用户名）
+     c. 用户存在 → verify_password() 比对 bcrypt 哈希
+     d. 检查是否有角色（没角色 = 没法登录）
+     e. 收集所有角色的权限 code → 去重排序
+     f. 收集角色菜单 → admin 拥有全部菜单，普通用户只看角色绑定的菜单
+     g. 补全缺失的父级菜单（子菜单的 parent 没分配给角色也能显示）
+     h. 签发 JWT（payload = {sub, username, jti, exp}）
+     i. 组装 LoginResponse（token + 用户信息 + 权限 + 角色 + 菜单）
+  #3 返回 JSON:
+     {
+       code: 0,
+       data: {
+         access_token: "eyJ...",
+         user: { id, username, display_name, ... },
+         permissions: ["user:list", "user:create", ...],
+         roles: [{ id: 1, code: "admin", name: "管理员" }],
+         menus: [{ id: 1, code: "users", name: "用户管理", path: "/users", ... }]
+       }
+     }
+  #4 前端收到后：
+     - token 存 localStorage
+     - 用户信息 + 角色 + 权限 存 pinia store
+     - 菜单传给 initRouter() 生成动态路由
+"""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,18 +42,27 @@ from app.core.security import verify_password, create_access_token
 from app.core.exceptions import BusinessException, ErrorCode
 
 
-# 防止用户名枚举：用户不存在时也用 bcrypt 消耗近似时间
+# 假哈希 — 用于用户不存在时消耗近似时间
+# 这是一个已知明文的 bcrypt("a") 结果，用于防时序攻击
 _DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
 
 
 class AuthService:
+    """#2 登录业务编排。
+
+    不是在 API 层直接写逻辑，而是抽到 Service 层：
+      - 方便单元测试（不需要启动 FastAPI 就能测登录逻辑）
+      - 逻辑复用（以后可能有其他入口需要登录）
+    """
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def login(self, username: str, password: str, client: str | None = None) -> LoginResponse:
-        # 1. 用户名在创建时已校验不允许空格，此处无需 strip
 
-        # 2. 从数据库加载用户，同时预加载角色、权限、菜单（一次查询，避免后续 N+1）
+        # ---- #2a 一次查询预加载所有关联数据 ----
+        # selectinload = 用第二条 SELECT IN (...) 查询关联数据
+        # 登录只需要一次主查询 + 2 次 IN 查询（roles→permissions + roles→menus）
         stmt = (
             select(User)
             .options(
@@ -34,26 +74,32 @@ class AuthService:
         result = await self.db.execute(stmt)
         user = result.scalars().first()
 
-        # 3. 用户不存在：也跑一次 bcrypt，防止通过响应时间差异枚举用户名
+        # ---- #2b 防用户名枚举 ----
+        # 即使用户不存在，也跑一次 bcrypt（耗时约 100ms），
+        # 让攻击者无法通过响应时间判断用户名是否存在
         if user is None:
             await verify_password(password, _DUMMY_HASH)
             raise BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, "用户名或密码错误")
 
-        # 4. 验证密码（bcrypt 比对）
+        # ---- #2c 验证密码 ----
         if not await verify_password(password, user.password_hash):
             raise BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS, "用户名或密码错误")
 
-        # 5. 检查是否分配了角色（没角色无法登录，因为权限和菜单都来自角色）
+        # ---- #2d 检查是否有角色 ----
         if not user.roles:
             raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色，请联系管理员")
 
-        # 6. 从所有角色中收集权限 code，去重排序
+        # ---- #2e 收集权限 ----
+        # 从所有角色收集权限 code，去重 + 排序
+        # 例如：["menu:create", "menu:delete", "menu:list", "menu:update", ...]
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 
-        # 7. 收集菜单：系统角色拥有全部菜单，否则仅角色绑定的菜单
-        seen: set[str] = set()
+        # ---- #2f-g 收集菜单 ----
+        seen: set[str] = set()       # 用 code 去重
         menus: list[dict] = []
+
         if any(role.code == "admin" for role in user.roles):
+            # admin 角色 → 直接查全部菜单，不需要按角色筛选
             stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
             result = await self.db.execute(stmt)
             all_menus = result.scalars().all()
@@ -65,6 +111,7 @@ class AuthService:
                 })
         else:
             seen_ids: set[int] = set()
+            # 遍历用户所有角色的所有菜单
             for role in user.roles:
                 for m in role.menus:
                     if m.code not in seen:
@@ -75,20 +122,28 @@ class AuthService:
                             "path": m.path, "component": m.component,
                             "parent_id": m.parent_id, "sort_order": m.sort_order,
                         })
-            # 补全缺失的父级菜单：子菜单被分配给了角色但其父级目录未被分配
+
+            # ---- #2g 补全缺失的父级菜单 ----
+            # 场景：角色分配了子菜单 /users/index 但没分配父菜单 /users
+            # 前端树形菜单需要完整的父子链才能正确渲染
             while True:
+                # 找出所有菜单的 parent_id，检查哪些不在已有菜单中
                 missing = {
                     m["parent_id"]
                     for m in menus
                     if m["parent_id"] is not None and m["parent_id"] not in seen_ids
                 }
                 if not missing:
-                    break
+                    break  # 所有父级都已存在
+
+                # 批量查缺的父菜单
                 stmt = select(Menu).where(Menu.id.in_(missing))
                 result = await self.db.execute(stmt)
                 parents = result.scalars().all()
                 if not parents:
-                    break
+                    break  # 理论上不会发生（parent_id 指向不存在的记录）
+
+                # 把父菜单加进去，下一轮循环继续检查它们的父级
                 for p in parents:
                     if p.id not in seen_ids:
                         seen_ids.add(p.id)
@@ -98,12 +153,19 @@ class AuthService:
                             "parent_id": p.parent_id, "sort_order": p.sort_order,
                         })
 
+        # 按 sort_order 排序
         menus.sort(key=lambda m: m["sort_order"])
 
-        # 8. 签发 JWT（payload 包含 user_id、username、唯一 jti、签发时间、过期时间）
+        # ---- #2h 签发 JWT ----
         token = create_access_token(user.id, user.username)
 
-        # 9. 组装登录响应：token + 用户信息 + 权限列表 + 角色列表 + 菜单列表
+        # ---- #2i 组装响应 ----
+        # 前端拿到这个响应后：
+        #   1. access_token → 存 localStorage
+        #   2. user → 存 pinia user store
+        #   3. permissions → 存 pinia，用于 v-perms 指令判断按钮显隐
+        #   4. roles → 存 pinia
+        #   5. menus → 传给 initRouter() 生成动态路由
         return LoginResponse(
             access_token=token,
             user=UserRead.model_validate(user),

@@ -1,4 +1,19 @@
-"""统一响应结构 — 泛型，所有接口复用。"""
+"""
+统一响应结构 — 所有 API 返回的 JSON 格式都一样。
+
+前端收到的永远是：
+{
+  "code": 0,           // 0 = 成功，非 0 = 错误码（见 exceptions.py）
+  "message": "操作成功", // 给人看的提示信息
+  "data": { ... },     // 真正的业务数据（可能是对象、数组、null）
+  "details": {}        // 额外信息（错误详情、受影响行数等）
+}
+
+为什么不用 HTTP 状态码区分成功/失败？
+  前端只用 axios 拦截器处理网络错误（断网、超时），
+  业务错误统一走 code 字段判断，
+  不需要在 200/400/422/500 之间跳来跳去。
+"""
 
 from typing import Generic, TypeVar
 
@@ -8,6 +23,8 @@ T = TypeVar("T")
 
 
 class ApiResponse(BaseModel, Generic[T]):
+    """通用响应包装 — 所有 API 都用这个返回。"""
+
     code: int = 0
     message: str = "操作成功"
     data: T | None = None
@@ -15,14 +32,25 @@ class ApiResponse(BaseModel, Generic[T]):
 
     @classmethod
     def ok(cls, data: T | None = None, message: str = "操作成功") -> "ApiResponse[T]":
+        """快捷创建成功响应。"""
         return cls(code=0, message=message, data=data)
 
     @classmethod
     def fail(cls, code: int, message: str, details: dict | None = None) -> "ApiResponse":
+        """快捷创建失败响应。"""
         return cls(code=code, message=message, data=None, details=details or {})
 
 
 class PageData(BaseModel, Generic[T]):
+    """分页响应 — 列表接口专用。
+
+    前端拿到后：
+      items → 表格数据
+      total → 分页组件显示总条数
+      page / page_size → 当前页码和每页条数
+      has_more → 是否还有下一页（可用来判断要不要继续加载）
+    """
+
     items: list[T]
     total: int
     page: int

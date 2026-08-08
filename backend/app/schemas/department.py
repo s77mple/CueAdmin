@@ -1,4 +1,11 @@
-"""部门 Schema"""
+"""部门 Schema — 创建/更新/查询的数据结构。
+
+部门管理的特点：
+  - 树形结构（与菜单相同的自引用模式）
+  - 删除部门 → 子部门变顶级（SET NULL）
+  - 删除部门 → 用户的 department_id 变 NULL（SET NULL）
+  - 不允许产生循环引用
+"""
 
 from pydantic import BaseModel, Field
 
@@ -6,13 +13,13 @@ from pydantic import BaseModel, Field
 class DepartmentCreate(BaseModel):
     code: str = Field(..., min_length=1, max_length=50)
     name: str = Field(..., min_length=1, max_length=50)
-    parent_id: int | None = None
+    parent_id: int | None = None             # null = 顶级部门
     sort_order: int = Field(0, ge=0)
     description: str | None = Field(None, max_length=500)
 
 
 class DepartmentUpdate(BaseModel):
-    """全量更新（PUT）—— 所有字段必传，可空字段传 null（code 不可修改）"""
+    """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
     name: str = Field(..., min_length=1, max_length=50, description="部门名称")
     parent_id: int | None = Field(..., description="父部门 ID，顶级部门传 null")
     sort_order: int = Field(..., ge=0, description="排序号")
@@ -20,14 +27,19 @@ class DepartmentUpdate(BaseModel):
 
 
 class DepartmentPatch(BaseModel):
-    """部分更新（PATCH）—— 仅传需要修改的字段"""
+    """PATCH 部分更新 — 只传要改的字段。"""
     name: str | None = Field(None, min_length=1, max_length=50)
     parent_id: int | None = None
     sort_order: int | None = Field(None, ge=0)
     description: str | None = Field(None, max_length=500)
 
 
+# ============================================================
+# 响应 Schema
+# ============================================================
+
 class DepartmentItem(BaseModel):
+    """部门列表项 — 扁平列表，前端转树。"""
     id: int
     code: str
     name: str
@@ -42,6 +54,7 @@ class DepartmentListResponse(BaseModel):
 
 
 class DepartmentBrief(BaseModel):
+    """部门简要信息 — 嵌套在用户响应中。"""
     id: int
     code: str
     name: str
@@ -50,7 +63,7 @@ class DepartmentBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# —————— 响应类型 ——————
+# —————— 响应包装 ——————
 from app.schemas.response import ApiResponse
 
 

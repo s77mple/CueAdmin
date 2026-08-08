@@ -1,4 +1,20 @@
-"""通用分页查询工具。"""
+"""
+通用分页查询工具 — 对任意 SQLAlchemy SELECT 做 COUNT + 分页。
+
+用法：
+  stmt = select(User).options(selectinload(User.roles))
+  result = await paginate(db, stmt, page=1, page_size=20)
+  # result = PageData(items=[...], total=50, page=1, page_size=20, has_more=True)
+
+分页实现要点：
+  #1 COUNT 用 DISTINCT 子查询：防止 JOIN 导致重复计数
+     例如按 role_id 筛选用户 → JOIN user_roles → 同一用户多角色多行
+     COUNT(DISTINCT ...) 确保每个用户只算一次
+
+  #2 数据查询也用 DISTINCT：防止 JOIN 返回重复行
+
+  #3 参数兜底：page < 1 → 强制为 1；page_size > 100 → 强制为 100
+"""
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,36 +28,32 @@ async def paginate(
     page: int,
     page_size: int,
 ) -> PageData:
-    """对任意 SELECT 查询做分页，COUNT 用子查询避免 JOIN 重复计数。
+    """#1 对任意 SELECT 语句做分页。
 
-    Args:
-        db: 异步数据库会话。
-        stmt: 任意 SQLAlchemy Select 语句（支持 JOIN、WHERE、ORDER BY 等，不要带 LIMIT/OFFSET）。
-        page: 页码，从 1 开始。
-        page_size: 每页条数。
-
-    Returns:
-        PageData: 分页结果，items 为 ORM 对象列表。
+    不修改原始 stmt（.distinct() 和 .subquery() 返回新对象）。
     """
-    # 参数校验 — 防止非法输入
+
+    # #1a 参数校验
     page = max(1, page)
     page_size = max(1, min(page_size, 100))
 
-    # COUNT — 先 DISTINCT 再套子查询，避免 JOIN 导致重复计数
-    # 例如 list_users 按 role_id 过滤时 JOIN user_roles，同一个用户多角色会多行
+    # #1b COUNT — DISTINCT 后再子查询
+    # 为什么：原始 stmt 可能有 JOIN，导致一行变多行
+    # 先 DISTINCT（去重），再 COUNT（计数），结果准确
     count_subq = stmt.distinct().subquery()
     count_stmt = select(func.count()).select_from(count_subq)
     total = (await db.execute(count_stmt)).scalar() or 0
 
-    # 分页数据 — 同样 DISTINCT 避免 JOIN 返回重复行
+    # #1c 分页数据 — 同样 DISTINCT 避免重复行
     page_stmt = stmt.distinct().offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(page_stmt)
     items = list(result.scalars().all())
 
+    # #1d 组装分页响应
     return PageData(
         items=items,
         total=total,
         page=page,
         page_size=page_size,
-        has_more=page * page_size < total,
+        has_more=page * page_size < total,  # 前端可以用这个判断要不要显示"加载更多"
     )

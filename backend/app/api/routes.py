@@ -1,4 +1,38 @@
-"""动态路由 API — 返回 Pure Admin 格式的路由数据，供前端 initRouter 使用。"""
+"""
+动态路由 API — 返回 Pure Admin 格式的菜单路由数据。
+
+这是前端 initRouter() 的数据源，整个前端导航菜单由这个接口决定。
+
+前端动态路由生成流程：
+  #1 用户登录成功 → 拿到 token + menus
+    或：刷新页面 → router.beforeEach → getMe() → 拿到 menus
+  #2 getAsyncRoutes() 调用 GET /api/v1/routes
+  #3 后端返回 Pure Admin 格式的路由 JSON:
+     [
+       {
+         "path": "/users",
+         "name": "users",
+         "redirect": "/users/index",
+         "meta": { "icon": "...", "title": "用户管理", "rank": 2 },
+         "children": [
+           {
+             "path": "/users/index",
+             "name": "users_index",
+             "component": "system/users/index",
+             "meta": { "title": "用户列表", "showParent": true }
+           }
+         ]
+       }
+     ]
+  #4 前端 addAsyncRoutes() 匹配 component 字符串到 Vue 文件
+  #5 router.addRoute() 动态注册
+
+Pure Admin 路由格式说明：
+  - 目录菜单（有 children）：有 redirect，无 component
+  - 叶子菜单：有 component，无 redirect
+  - meta.rank → 侧边栏排序（越小越前）
+  - meta.showParent → 让单子父菜单不折叠（父标题不会被隐藏）
+"""
 
 from typing import Annotated
 
@@ -15,27 +49,23 @@ from app.schemas.response import ApiResponse
 router = APIRouter()
 
 
+# ============================================================
+# 1. 核心函数 — 扁平菜单列表 → Pure Admin 路由树
+# ============================================================
+
 def _build_routes(menus: list) -> list[dict]:
-    """将扁平菜单列表转成 Pure Admin 动态路由树。
+    """#1 将扁平菜单列表转成 Pure Admin 格式的路由树。
 
-    Pure Admin 期望的格式::
+    输入：[{id, code, name, icon, path, component, parent_id, sort_order}, ...]
+    输出：[{path, name, redirect?, component?, meta, children?}, ...]
 
-        {
-            "path": "/users",
-            "name": "Users",
-            "redirect": "/users/index",
-            "meta": {"icon": "...", "title": "...", "rank": 2},
-            "children": [
-                {
-                    "path": "/users/index",
-                    "name": "UserList",
-                    "component": "system/users/index",
-                    "meta": {"title": "用户管理"}
-                }
-            ]
-        }
+    步骤：
+      a. 按 parent_id 分组建立父子关系（result = 树的数组）
+      b. 按 sort_order 递归排序
+      c. 转为 Pure Admin 路由格式（带循环检测）
     """
-    # 按 parent_id 分组，建立树
+
+    # ---- #1a 按 parent_id 构建树 ----
     menu_map: dict[int, dict] = {}
     top_nodes: list[dict] = []
 
@@ -53,7 +83,8 @@ def _build_routes(menus: list) -> list[dict]:
         }
         menu_map[m["id"]] = node
 
-    # 构建父子关系
+    # parent_id 在 menu_map 中 → 是某节点的子节点
+    # parent_id 不在 menu_map 中 → 顶级节点
     for node in menu_map.values():
         pid = node.get("parent_id")
         if pid is not None and pid in menu_map:
@@ -61,7 +92,7 @@ def _build_routes(menus: list) -> list[dict]:
         else:
             top_nodes.append(node)
 
-    # 按 sort_order 排序
+    # ---- #1b 递归排序 ----
     def sort_children(nodes: list[dict]):
         nodes.sort(key=lambda n: n.get("sort_order", 0))
         for n in nodes:
@@ -70,20 +101,30 @@ def _build_routes(menus: list) -> list[dict]:
 
     sort_children(top_nodes)
 
-    # 转换为 Pure Admin 格式（带循环检测）
+    # ---- #1c 转 Pure Admin 路由格式 ----
     def to_route(node: dict, seen: set | None = None) -> dict:
+        """递归转换单个节点为 Pure Admin 路由格式。
+
+        seen 集合用于循环检测（防御数据异常）。
+        seen.copy() 确保兄弟节点之间不互相干扰。
+        """
         if seen is None:
             seen = set()
         node_id = node["id"]
         if node_id in seen:
-            raise BusinessException(ErrorCode.CONFLICT, f"菜单 parent_id 存在循环引用: id={node_id} code={node.get('code')} name={node.get('name')}")
+            raise BusinessException(
+                ErrorCode.CONFLICT,
+                f"菜单 parent_id 存在循环引用: id={node_id} code={node.get('code')} name={node.get('name')}"
+            )
         seen.add(node_id)
 
+        # 递归处理子节点
         children_routes = [to_route(c, seen.copy()) for c in node["children"]] if node["children"] else []
 
+        # 构建路由对象
         route: dict = {
             "path": node["path"] or "",
-            "name": node["code"],
+            "name": node["code"],  # 用菜单 code 作为路由 name（Pure Admin 要求 name 唯一）
             "meta": {
                 "title": node["name"],
                 "rank": node.get("sort_order", 0),
@@ -94,14 +135,14 @@ def _build_routes(menus: list) -> list[dict]:
             route["meta"]["icon"] = node["icon"]
 
         if children_routes:
-            # 子路由加 showParent，防止 Pure Admin 把单子父菜单折叠（父标题被隐藏只显示子标题）
+            # 父菜单 = 目录路由
+            # showParent 防止 Pure Admin 把单子父菜单折叠（只显示子标题，隐藏父标题）
             for c in children_routes:
                 c["meta"]["showParent"] = True
             route["children"] = children_routes
-            # redirect 默认取第一个子级的 path
-            route["redirect"] = children_routes[0]["path"]
+            route["redirect"] = children_routes[0]["path"]  # 点击父菜单 → 自动跳到第一个子菜单
         else:
-            # 叶子节点：必须指定 component，否则 path 匹配不到 Vue 文件
+            # 叶子菜单 = 页面路由
             if node.get("component"):
                 route["component"] = node["component"]
             else:
@@ -112,13 +153,22 @@ def _build_routes(menus: list) -> list[dict]:
     return [to_route(n) for n in top_nodes]
 
 
+# ============================================================
+# 2. GET /routes — 获取当前用户的动态路由
+# ============================================================
+
 @router.get("", response_model=ApiResponse[list], summary="获取当前用户动态路由")
 async def get_routes(
     db: DbSession,
-    user: Annotated[User, Security(get_current_user)],
+    user: Annotated[User, Security(get_current_user)],  # 仅认证不鉴权（不需要 scope）
 ):
-    """返回当前用户角色的菜单，格式适配 Pure Admin 动态路由。"""
-    # admin 角色拥有全部菜单权限
+    """#2 返回当前用户有权限看到的菜单，格式适配 Pure Admin。
+
+    前端调用时机：
+      - 登录成功后 → getAsyncRoutes()
+      - 刷新页面后 → router.beforeEach 检测到无路由数据 → getMe() → getAsyncRoutes()
+    """
+    # admin 角色拥有全部菜单
     if any(role.code == "admin" for role in user.roles):
         stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
         result = await db.execute(stmt)
@@ -144,8 +194,9 @@ async def get_routes(
                         "parent_id": m.parent_id, "sort_order": m.sort_order,
                     })
 
-        # 补全缺失的父级菜单：子菜单被分配给了角色但其父级目录未被分配
-        # 例如用户有 /system/users 但没有 /system（目录菜单），会导致树结构断裂
+        # 补全缺失的父级菜单
+        # 场景：角色有 /users/index 但没 /users → 父级缺失 → 树断裂
+        # 自动补全：查 parent_id 不在已有菜单中的，从 DB 拉回来
         while True:
             missing = {
                 m["parent_id"]

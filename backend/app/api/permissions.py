@@ -1,4 +1,12 @@
-"""权限码管理 API"""
+"""
+权限码管理 API — 细粒度操作权限的 CRUD。
+
+权限的特殊处理：
+  - 权限 code 修改后 → 清除所有关联用户的权限缓存
+    因为缓存的 key 是 perm:{user_id}，value 是 code 集合，
+    code 改了意味着缓存里旧 code 失效。
+  - 删除权限 → 删前清除缓存（删后关联表 CASCADE 查不到关联角色）
+"""
 
 from typing import Annotated
 
@@ -19,8 +27,17 @@ from app.core.logger import logger
 router = APIRouter()
 
 
+# ============================================================
+# 1. 辅助函数 — 清除关联用户的权限缓存
+# ============================================================
+
 async def _clear_perm_cache(db: DbSession, redis_client: aioredis.Redis, perm_id: int):
-    """删除权限或修改 code 后，清除所有关联用户的权限缓存。"""
+    """#1 权限变更后，找出所有拥有该权限的用户，清除他们的 Redis 缓存。
+
+    查询路径：
+      perm_id → role_permissions 表 → role_id → user_roles 表 → user_id
+      这是两次 JOIN，DISTINCT 去重。
+    """
     try:
         rows = (await db.execute(
             select(user_roles.c.user_id)
@@ -47,11 +64,16 @@ class PermissionScope:
     DELETE = "permission:delete"
 
 
+# ============================================================
+# 2. GET /permissions — 权限列表
+# ============================================================
+
 @router.get("", response_model=PermissionListApiResponse, summary="权限列表")
 async def list_permissions(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
 ):
+    """#2 按 resource + action 排序，方便前端展示分组。"""
     result = await db.execute(
         select(Permission).order_by(Permission.resource, Permission.action)
     )
@@ -70,12 +92,17 @@ async def list_permissions(
     return ApiResponse.ok(data=data)
 
 
+# ============================================================
+# 3. POST /permissions — 创建权限
+# ============================================================
+
 @router.post("", response_model=PermissionBriefResponse, status_code=201, summary="创建权限")
 async def create_permission(
     body: PermissionCreate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.CREATE])],
 ):
+    """#3 创建权限 — 双重唯一性保护。"""
     if (await db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
         raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
     perm = Permission(
@@ -93,6 +120,10 @@ async def create_permission(
     return ApiResponse.ok(data=perm, message="创建成功")
 
 
+# ============================================================
+# 4. PUT /permissions/{perm_id} — 全量更新
+# ============================================================
+
 @router.put("/{perm_id}", response_model=PermissionBriefResponse, summary="全量更新权限")
 async def update_permission(
     perm_id: int,
@@ -101,13 +132,15 @@ async def update_permission(
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    """PUT 全量更新 —— 前端传所有字段（可空字段传 null），直接覆盖"""
+    """#4 PUT 全量更新 — code 改了需要清缓存。"""
     result = await db.execute(
         select(Permission).where(Permission.id == perm_id).with_for_update()
     )
     perm = result.scalars().first()
     if not perm:
         raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
+
+    # code 变更 → 缓存需要失效（缓存里存的是旧 code）
     code_changed = False
     if body.code != perm.code:
         if (await db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
@@ -115,7 +148,7 @@ async def update_permission(
         perm.code = body.code
         code_changed = True
 
-    # 全量赋值
+    # 全量覆盖
     perm.name = body.name
     perm.resource = body.resource
     perm.action = body.action
@@ -131,6 +164,10 @@ async def update_permission(
     return ApiResponse.ok(data=perm, message="更新成功")
 
 
+# ============================================================
+# 5. PATCH /permissions/{perm_id} — 部分更新
+# ============================================================
+
 @router.patch("/{perm_id}", response_model=PermissionBriefResponse, summary="部分更新权限")
 async def patch_permission(
     perm_id: int,
@@ -139,7 +176,7 @@ async def patch_permission(
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    """PATCH 部分更新 —— 仅更新传了的字段（可空字段传 null 清除，必填字段不允许 null）"""
+    """#5 PATCH 部分更新 — 必填字段（code/name/resource/action）不允许传 null。"""
     result = await db.execute(
         select(Permission).where(Permission.id == perm_id).with_for_update()
     )
@@ -183,6 +220,10 @@ async def patch_permission(
     return ApiResponse.ok(data=perm, message="更新成功")
 
 
+# ============================================================
+# 6. DELETE /permissions/{perm_id} — 删除权限
+# ============================================================
+
 @router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(
     perm_id: int,
@@ -190,13 +231,19 @@ async def delete_permission(
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.DELETE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
+    """#6 删除权限 — 删前清除缓存（关键！）。
+
+    为什么删前清除？因为删除后 role_permissions 关联表的记录会 CASCADE 删除，
+    再查 role_permissions WHERE permission_id=X 就查不到关联角色了。
+    """
     result = await db.execute(
         select(Permission).where(Permission.id == perm_id).with_for_update()
     )
     perm = result.scalars().first()
     if not perm:
         raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
-    await _clear_perm_cache(db, redis_client, perm_id)  # 删前清除（删后关联表 CASCADE 查不到）
-    await db.delete(perm)
+
+    await _clear_perm_cache(db, redis_client, perm_id)  # 先清缓存
+    await db.delete(perm)                                # 再删记录
     await db.commit()
     return ApiResponse.ok(message="删除成功")

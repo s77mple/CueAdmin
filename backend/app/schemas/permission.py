@@ -1,4 +1,13 @@
-"""权限 Schema"""
+"""权限 Schema — 创建/更新/查询的数据结构。
+
+权限码格式：{resource}:{action}
+  resource: user, role, menu, permission, department
+  action:   list, create, update, delete
+  → 5 资源 × 4 操作 = 20 个权限码
+
+前端用法：
+  v-perms="['user:create']" → 检查当前用户是否有此权限
+"""
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +21,7 @@ class PermissionCreate(BaseModel):
 
 
 class PermissionUpdate(BaseModel):
-    """全量更新（PUT）—— 所有字段必传，可空字段传 null（code 允许修改）"""
+    """PUT 全量更新 — code 允许修改，所有字段必传。"""
     code: str = Field(..., min_length=1, max_length=100, description="权限码")
     name: str = Field(..., min_length=1, max_length=100, description="权限名称")
     resource: str = Field(..., min_length=1, max_length=50, description="资源标识")
@@ -21,14 +30,20 @@ class PermissionUpdate(BaseModel):
 
 
 class PermissionPatch(BaseModel):
-    """部分更新（PATCH）—— 仅传需要修改的字段"""
+    """PATCH 部分更新 — 只传要改的字段。"""
     code: str | None = Field(None, min_length=1, max_length=100)
     name: str | None = Field(None, min_length=1, max_length=100)
     resource: str | None = Field(None, min_length=1, max_length=50)
     action: str | None = Field(None, min_length=1, max_length=50)
     description: str | None = Field(None, max_length=200)
 
+
+# ============================================================
+# 响应 Schema
+# ============================================================
+
 class PermissionItem(BaseModel):
+    """权限列表项。"""
     id: int
     code: str
     name: str
@@ -36,12 +51,14 @@ class PermissionItem(BaseModel):
     action: str
     description: str | None = None
 
+
 class PermissionListResponse(BaseModel):
     items: list[PermissionItem]
     total: int
 
 
 class PermissionBrief(BaseModel):
+    """权限简要信息 — 嵌套在角色响应中。"""
     id: int
     code: str
     name: str
@@ -50,7 +67,7 @@ class PermissionBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# —————— 响应类型 ——————
+# —————— 响应包装 ——————
 from app.schemas.response import ApiResponse
 
 
