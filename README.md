@@ -1,6 +1,6 @@
 # CueAdmin — 开箱即用的后台管理框架
 
-基于 **FastAPI + Vue 3** 的通用后台管理系统，内置 RBAC 权限、JWT 认证、用户/角色/菜单管理。从业务项目中剥离而来，开箱即用，新项目只需添加业务代码。
+基于 **FastAPI + Vue 3** 的通用后台管理系统，内置 RBAC 权限、JWT 认证、用户/角色/菜单管理。后端框架从业务项目中剥离而来，前端基于 [vue-pure-admin](https://github.com/pure-admin/vue-pure-admin) 进行定制开发，开箱即用，新项目只需添加业务代码。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
