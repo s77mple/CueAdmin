@@ -150,7 +150,7 @@ useEventListener(document, "keydown", ({ code }) => {
       </div>
       <div class="login-box">
         <div class="login-form">
-          <avatar class="avatar" />
+          <img :src="avatar" class="avatar" />
           <Motion>
             <h2 class="outline-hidden">
               <TypeIt
