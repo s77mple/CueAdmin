@@ -57,6 +57,8 @@ class MenuItem(BaseModel):
     parent_id: int | None = None
     sort_order: int
 
+    model_config = {"from_attributes": True}
+
 
 class MenuListResponse(BaseModel):
     items: list[MenuItem]

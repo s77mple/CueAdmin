@@ -16,15 +16,15 @@ import time
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Body, Depends
 from jose import JWTError
-from sqlalchemy import select
 
 from app.core.database import DbSession
 from app.core.dependencies import CurrentUser, get_redis, security_scheme
 from app.core.security import decode_token
-from app.models import User, Menu
+from app.models import User
 from app.schemas.auth import LoginRequest, LoginApiResponse, MeApiResponse, MeResponse
 from app.schemas.response import ApiResponse
 from app.services.auth_service import AuthService
+from app.services.menu_service import collect_user_menus
 from app.core.logger import logger
 from app.core.exceptions import BusinessException, ErrorCode
 
@@ -169,60 +169,11 @@ async def me(user: CurrentUser, db: DbSession):
     # 收集权限（所有角色权限取并集，去重排序）
     permissions = sorted({p.code for role in user.roles for p in role.permissions})
 
-    # admin 角色拥有全部菜单
-    if any(role.code == "admin" for role in user.roles):
-        stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
-        result = await db.execute(stmt)
-        all_menus = result.scalars().all()
-        menus = [
-            {
-                "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
-                "path": m.path, "component": m.component,
-                "parent_id": m.parent_id, "sort_order": m.sort_order,
-            }
-            for m in all_menus
-        ]
-    else:
-        seen: set[str] = set()
-        seen_ids: set[int] = set()
-        menus: list[dict] = []
-        for role in user.roles:
-            for m in role.menus:
-                if m.code not in seen:
-                    seen.add(m.code)
-                    seen_ids.add(m.id)
-                    menus.append({
-                        "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
-                        "path": m.path, "component": m.component,
-                        "parent_id": m.parent_id, "sort_order": m.sort_order,
-                    })
-        # 补全缺失的父级菜单（与 auth_service 相同逻辑）
-        while True:
-            missing = {
-                m["parent_id"]
-                for m in menus
-                if m["parent_id"] is not None and m["parent_id"] not in seen_ids
-            }
-            if not missing:
-                break
-            stmt = select(Menu).where(Menu.id.in_(missing))
-            result = await db.execute(stmt)
-            parents = result.scalars().all()
-            if not parents:
-                break
-            for p in parents:
-                if p.id not in seen_ids:
-                    seen_ids.add(p.id)
-                    menus.append({
-                        "id": p.id, "code": p.code, "name": p.name, "icon": p.icon,
-                        "path": p.path, "component": p.component,
-                        "parent_id": p.parent_id, "sort_order": p.sort_order,
-                    })
-
-    menus.sort(key=lambda m: m["sort_order"])
+    # 收集菜单（统一收口到 menu_service）
+    menus = await collect_user_menus(db, user)
     return ApiResponse.ok(data=MeResponse(
         user=user,
         permissions=permissions,
-        roles=[{"id": r.id, "code": r.code, "name": r.name} for r in user.roles],
+        roles=list(user.roles),
         menus=menus,
     ))

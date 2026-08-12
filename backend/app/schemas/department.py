@@ -47,6 +47,8 @@ class DepartmentItem(BaseModel):
     sort_order: int
     description: str | None = None
 
+    model_config = {"from_attributes": True}
+
 
 class DepartmentListResponse(BaseModel):
     items: list[DepartmentItem]

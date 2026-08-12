@@ -14,7 +14,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.api.router import api_router
@@ -22,7 +24,7 @@ from app.core.logger import logger
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.error_handler import business_exception_handler, unhandled_exception_handler
 from app.schemas.response import ApiResponse
-from app.core.dependencies import close_redis
+from app.core.dependencies import close_redis, get_redis
 from app.core.database import async_engine
 
 
@@ -42,7 +44,13 @@ async def lifespan(app: FastAPI):
 
 
 # 2. 创建 FastAPI 应用实例 — 所有请求/响应/中间件都挂在这上面
-app = FastAPI(title=settings.app_name, docs_url="/docs", lifespan=lifespan)
+#    request_max_size=10MB：防止攻击者发送超大请求体耗尽服务器内存
+app = FastAPI(
+    title=settings.app_name,
+    docs_url="/docs",
+    lifespan=lifespan,
+    request_max_size=10 * 1024 * 1024,  # 10 MB
+)
 
 
 # 3. Pydantic 参数校验失败的处理
@@ -77,6 +85,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 5b. GZip 压缩 — 对大于 1KB 的 JSON 响应自动压缩，减少带宽消耗
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 
 # 6. 请求日志中间件 — 记录每个请求的 方法、路径、耗时、响应状态
 @app.middleware("http")
@@ -92,6 +103,45 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# 7. 注册所有 API 路由 — 统一前缀 /api/v1
+# 7. 健康检查端点 — 供负载均衡 / K8s 探针使用
+@app.get("/health", tags=["系统"])
+async def health_check():
+    """检查数据库和 Redis 是否连通。
+
+    返回格式：
+      200 OK → {"status": "ok", "database": "ok", "redis": "ok"}
+      503    → {"status": "degraded", "database": "error", "redis": "ok"}
+    """
+    db_ok = False
+    redis_ok = False
+
+    # 检查数据库
+    try:
+        async with async_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception as e:
+        logger.warning(f"健康检查：数据库不可用 — {e}")
+
+    # 检查 Redis
+    try:
+        r = await get_redis()
+        await r.ping()
+        redis_ok = True
+    except Exception as e:
+        logger.warning(f"健康检查：Redis 不可用 — {e}")
+
+    all_ok = db_ok and redis_ok
+    return JSONResponse(
+        status_code=200 if all_ok else 503,
+        content={
+            "status": "ok" if all_ok else "degraded",
+            "database": "ok" if db_ok else "error",
+            "redis": "ok" if redis_ok else "error",
+        },
+    )
+
+
+# 8. 注册所有 API 路由 — 统一前缀 /api/v1
 #    例如 GET /api/v1/users 会路由到 app/api/users.py 里的 list_users 函数
 app.include_router(api_router, prefix="/api/v1")

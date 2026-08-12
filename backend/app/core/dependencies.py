@@ -68,6 +68,8 @@ async def get_redis() -> aioredis.Redis:
                     decode_responses=True,        # 自动把 bytes 转成 str
                     socket_connect_timeout=3,      # 3 秒连不上就报错
                     socket_keepalive=True,         # 保持长连接
+                    retry_on_timeout=True,         # 超时自动重试
+                    health_check_interval=30,      # 每 30 秒检测连接是否存活
                 )
     return _redis_pool
 

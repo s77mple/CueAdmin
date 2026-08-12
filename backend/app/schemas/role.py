@@ -51,6 +51,8 @@ class RoleItem(BaseModel):
     permissions: list[PermissionBrief] = []
     menus: list[MenuBrief] = []
 
+    model_config = {"from_attributes": True}
+
 
 class RoleListResponse(BaseModel):
     items: list[RoleItem]

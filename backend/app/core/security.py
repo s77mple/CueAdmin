@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import uuid
-from jose import jwt
+from jose import jwt, JWTError
 
 from app.core.config import settings
 
@@ -91,7 +91,6 @@ def decode_token(token: str) -> dict:
       ExpiredSignatureError → 告诉前端 token 过期
       JWTError             → token 无效（签名不对、格式错误）
     """
-    from jose import JWTError
     try:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     except JWTError:

@@ -51,6 +51,8 @@ class PermissionItem(BaseModel):
     action: str
     description: str | None = None
 
+    model_config = {"from_attributes": True}
+
 
 class PermissionListResponse(BaseModel):
     items: list[PermissionItem]

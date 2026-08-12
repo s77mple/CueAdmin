@@ -35,11 +35,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import User, Role, Menu
+from app.models import User, Role
 from app.schemas.auth import LoginResponse
 from app.schemas.user import UserRead
 from app.core.security import verify_password, create_access_token
 from app.core.exceptions import BusinessException, ErrorCode
+from app.services.menu_service import collect_user_menus
 
 
 # 假哈希 — 用于用户不存在时消耗近似时间
@@ -94,67 +95,8 @@ class AuthService:
         # 例如：["menu:create", "menu:delete", "menu:list", "menu:update", ...]
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 
-        # ---- #2f-g 收集菜单 ----
-        seen: set[str] = set()       # 用 code 去重
-        menus: list[dict] = []
-
-        if any(role.code == "admin" for role in user.roles):
-            # admin 角色 → 直接查全部菜单，不需要按角色筛选
-            stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
-            result = await self.db.execute(stmt)
-            all_menus = result.scalars().all()
-            for m in all_menus:
-                menus.append({
-                    "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
-                    "path": m.path, "component": m.component,
-                    "parent_id": m.parent_id, "sort_order": m.sort_order,
-                })
-        else:
-            seen_ids: set[int] = set()
-            # 遍历用户所有角色的所有菜单
-            for role in user.roles:
-                for m in role.menus:
-                    if m.code not in seen:
-                        seen.add(m.code)
-                        seen_ids.add(m.id)
-                        menus.append({
-                            "id": m.id, "code": m.code, "name": m.name, "icon": m.icon,
-                            "path": m.path, "component": m.component,
-                            "parent_id": m.parent_id, "sort_order": m.sort_order,
-                        })
-
-            # ---- #2g 补全缺失的父级菜单 ----
-            # 场景：角色分配了子菜单 /users/index 但没分配父菜单 /users
-            # 前端树形菜单需要完整的父子链才能正确渲染
-            while True:
-                # 找出所有菜单的 parent_id，检查哪些不在已有菜单中
-                missing = {
-                    m["parent_id"]
-                    for m in menus
-                    if m["parent_id"] is not None and m["parent_id"] not in seen_ids
-                }
-                if not missing:
-                    break  # 所有父级都已存在
-
-                # 批量查缺的父菜单
-                stmt = select(Menu).where(Menu.id.in_(missing))
-                result = await self.db.execute(stmt)
-                parents = result.scalars().all()
-                if not parents:
-                    break  # 理论上不会发生（parent_id 指向不存在的记录）
-
-                # 把父菜单加进去，下一轮循环继续检查它们的父级
-                for p in parents:
-                    if p.id not in seen_ids:
-                        seen_ids.add(p.id)
-                        menus.append({
-                            "id": p.id, "code": p.code, "name": p.name, "icon": p.icon,
-                            "path": p.path, "component": p.component,
-                            "parent_id": p.parent_id, "sort_order": p.sort_order,
-                        })
-
-        # 按 sort_order 排序
-        menus.sort(key=lambda m: m["sort_order"])
+        # ---- #2f-g 收集菜单（统一收口到 menu_service）----
+        menus = await collect_user_menus(self.db, user)
 
         # ---- #2h 签发 JWT ----
         token = create_access_token(user.id, user.username)
