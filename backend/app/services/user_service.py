@@ -129,6 +129,7 @@ class UserService:
     async def update_user(self, user_id: int, body) -> User:
         """PUT 全量更新 — 所有字段覆盖写入。"""
         target = await self.get_user_for_update(user_id)
+        self._guard_superadmin(target)
 
         # 用户名
         if body.username != target.username:
@@ -177,6 +178,7 @@ class UserService:
     async def patch_user(self, user_id: int, body) -> User:
         """PATCH 部分更新 — 只改传了的字段。"""
         target = await self.get_user_for_update(user_id)
+        self._guard_superadmin(target)
         data = body.model_dump(exclude_unset=True)
 
         if "username" in data:
@@ -288,8 +290,9 @@ class UserService:
             if not dept:
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {department_id}")
 
-    async def _resolve_roles(self, target: User, role_ids: list[int]):
+    async def _resolve_roles(self, target: User, role_ids: list[int] | None):
         """验证角色 ID 存在并赋值，包含最后管理员保护。"""
+        role_ids = role_ids or []  # None（未传）与空列表均视为清空角色
         roles = (await self.db.execute(
             select(Role).where(Role.id.in_(role_ids))
         )).scalars().all()

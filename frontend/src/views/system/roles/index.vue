@@ -2,6 +2,8 @@
 import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
+import type { PaginationProps } from "@pureadmin/table";
+import { PureTableBar } from "@/components/RePureTableBar";
 import { getRoleList, createRole, updateRole, deleteRole } from "@/api/roles";
 import { getPermissionList } from "@/api/permissions";
 import { getMenuList } from "@/api/menus";
@@ -9,6 +11,7 @@ import { handleTree } from "@/utils/tree";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
+const pagination = reactive<PaginationProps>({ total: 0, pageSize: 20, currentPage: 1, background: true });
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增角色");
 const permOptions = ref<any[]>([]);
@@ -34,6 +37,16 @@ const resourceLabelMap: Record<string, string> = {
   department: "部门管理",
 };
 
+const columns: TableColumnList = [
+  { label: "ID", prop: "id", width: 80 },
+  { label: "编码", prop: "code" },
+  { label: "名称", prop: "name" },
+  { label: "描述", prop: "description" },
+  { label: "权限", slot: "perms", minWidth: 160 },
+  { label: "菜单", slot: "menus", minWidth: 160 },
+  { label: "操作", slot: "operation", width: 180, fixed: "right" },
+];
+
 const permissionGroups = computed(() => {
   const groups: Record<string, any[]> = {};
   for (const p of permOptions.value) {
@@ -48,14 +61,17 @@ const permissionGroups = computed(() => {
   }));
 });
 
-async function load() {
+async function onSearch() {
   loading.value = true;
   try {
-    const res = await getRoleList();
-    if (res.code === 0) list.value = res.data?.items ?? [];
+    const res = await getRoleList({ page: pagination.currentPage, page_size: pagination.pageSize });
+    if (res.code === 0) { list.value = res.data?.items ?? []; pagination.total = res.data?.total ?? 0; }
     else ElMessage.error(res.message || "加载角色列表失败");
   } finally { loading.value = false; }
 }
+
+function handleSizeChange(val: number) { pagination.pageSize = val; pagination.currentPage = 1; onSearch(); }
+function handleCurrentChange(val: number) { pagination.currentPage = val; onSearch(); }
 
 // 懒加载：首次打开弹窗时才请求，之后复用缓存
 const optionsLoaded = ref(false);
@@ -108,14 +124,16 @@ async function handleSubmit() {
       menu_ids: checkedMenuIds,
     };
     if (form.id) {
-      await updateRole(form.id, data);
+      const res: any = await updateRole(form.id, data);
+      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
       ElMessage.success("更新成功");
     } else {
-      await createRole({ ...data, code: form.code });
+      const res: any = await createRole({ ...data, code: form.code });
+      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
-    load();
+    onSearch();
   } catch (err: any) {
     if (err?.message) ElMessage.error(err.message);
   }
@@ -125,7 +143,7 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除角色 "${row.name}"？`, "提示", { type: "warning" });
     const res: any = await deleteRole(row.id);
-    if (res.code === 0) { ElMessage.success(res.message || "已删除"); load(); }
+    if (res.code === 0) { ElMessage.success(res.message || "已删除"); onSearch(); }
     else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
@@ -181,95 +199,101 @@ function toggleGroup(resource: string) {
   }
 }
 
-onMounted(() => { load(); });
+onMounted(() => { onSearch(); });
 </script>
 
 <template>
   <div style="padding: 20px">
     <el-button v-perms="['role:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增角色</el-button>
 
-    <el-table v-loading="loading" :data="list" border stripe style="margin-top: 16px">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="code" label="编码" />
-      <el-table-column prop="name" label="名称" />
-      <el-table-column prop="description" label="描述" />
-      <el-table-column label="权限" min-width="160">
-        <template #default="{ row }">
-          <template v-if="row.is_system">
-            <el-tag size="small" class="group-badge" effect="plain">全部权限</el-tag>
-          </template>
-          <template v-else-if="row.permissions?.length">
-            <div class="table-tag-group">
-              <el-popover
-                v-for="g in getPermGroups(row.permissions)"
-                :key="g.resource"
-                placement="top"
-                :width="240"
-                trigger="click"
-              >
-                <template #reference>
-                  <el-tag size="small" class="group-badge" effect="plain">
-                    {{ g.label }} ({{ g.count }})
-                  </el-tag>
-                </template>
-                <div class="popover-perm-list">
-                  <div class="popover-group-title">{{ g.label }}</div>
-                  <div v-for="p in g.permissions" :key="p.id" class="popover-item">
-                    <span class="popover-name">{{ p.name }}</span>
-                    <code class="popover-code">{{ p.code }}</code>
-                  </div>
-                </div>
-              </el-popover>
-            </div>
-          </template>
-          <span v-else style="color: #c0c4cc">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="菜单" min-width="160">
-        <template #default="{ row }">
-          <template v-if="row.is_system">
-            <el-tag size="small" class="group-badge" effect="plain">全部菜单</el-tag>
-          </template>
-          <template v-else-if="row.menus?.length">
-            <div class="table-tag-group">
-              <el-popover
-                v-for="m in getMenuGroups(row.menus)"
-                :key="m.id"
-                placement="top"
-                :width="220"
-                trigger="click"
-              >
-                <template #reference>
-                  <el-tag size="small" class="group-badge" effect="plain">
-                    {{ m.name }}<template v-if="m.children.length">(+{{ m.children.length }})</template>
-                  </el-tag>
-                </template>
-                <div class="popover-perm-list">
-                  <div class="popover-group-title">{{ m.name }}</div>
-                  <div class="popover-item">
-                    <code class="popover-code">{{ m.code }}</code>
-                  </div>
-                  <template v-if="m.children.length">
-                    <div class="popover-group-title" style="margin-top: 8px">子菜单</div>
-                    <div v-for="c in m.children" :key="c.id" class="popover-item" style="padding-left: 12px">
-                      <span class="popover-name">└ {{ c.name }}</span>
-                      <code class="popover-code">{{ c.code }}</code>
-                    </div>
+    <PureTableBar title="角色列表" :columns="columns" @refresh="onSearch">
+      <template v-slot="{ size, dynamicColumns }">
+        <pure-table
+          row-key="id"
+          align-whole="center"
+          showOverflowTooltip
+          :loading="loading"
+          :size="size"
+          :data="list"
+          :columns="dynamicColumns"
+          :pagination="{ ...pagination, size }"
+          :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--el-text-color-primary)' }"
+          @page-size-change="handleSizeChange"
+          @page-current-change="handleCurrentChange"
+        >
+          <template #perms="{ row }">
+            <template v-if="row.is_system">
+              <el-tag size="small" class="group-badge" effect="plain">全部权限</el-tag>
+            </template>
+            <template v-else-if="row.permissions?.length">
+              <div class="table-tag-group">
+                <el-popover
+                  v-for="g in getPermGroups(row.permissions)"
+                  :key="g.resource"
+                  placement="top"
+                  :width="240"
+                  trigger="click"
+                >
+                  <template #reference>
+                    <el-tag size="small" class="group-badge" effect="plain">
+                      {{ g.label }} ({{ g.count }})
+                    </el-tag>
                   </template>
-                </div>
-              </el-popover>
-            </div>
+                  <div class="popover-perm-list">
+                    <div class="popover-group-title">{{ g.label }}</div>
+                    <div v-for="p in g.permissions" :key="p.id" class="popover-item">
+                      <span class="popover-name">{{ p.name }}</span>
+                      <code class="popover-code">{{ p.code }}</code>
+                    </div>
+                  </div>
+                </el-popover>
+              </div>
+            </template>
+            <span v-else style="color: #c0c4cc">—</span>
           </template>
-          <span v-else style="color: #c0c4cc">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button v-if="!row.is_system" v-perms="['role:update']" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="!row.is_system" v-perms="['role:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+          <template #menus="{ row }">
+            <template v-if="row.is_system">
+              <el-tag size="small" class="group-badge" effect="plain">全部菜单</el-tag>
+            </template>
+            <template v-else-if="row.menus?.length">
+              <div class="table-tag-group">
+                <el-popover
+                  v-for="m in getMenuGroups(row.menus)"
+                  :key="m.id"
+                  placement="top"
+                  :width="220"
+                  trigger="click"
+                >
+                  <template #reference>
+                    <el-tag size="small" class="group-badge" effect="plain">
+                      {{ m.name }}<template v-if="m.children.length">(+{{ m.children.length }})</template>
+                    </el-tag>
+                  </template>
+                  <div class="popover-perm-list">
+                    <div class="popover-group-title">{{ m.name }}</div>
+                    <div class="popover-item">
+                      <code class="popover-code">{{ m.code }}</code>
+                    </div>
+                    <template v-if="m.children.length">
+                      <div class="popover-group-title" style="margin-top: 8px">子菜单</div>
+                      <div v-for="c in m.children" :key="c.id" class="popover-item" style="padding-left: 12px">
+                        <span class="popover-name">└ {{ c.name }}</span>
+                        <code class="popover-code">{{ c.code }}</code>
+                      </div>
+                    </template>
+                  </div>
+                </el-popover>
+              </div>
+            </template>
+            <span v-else style="color: #c0c4cc">—</span>
+          </template>
+          <template #operation="{ row }">
+            <el-button v-if="!row.is_system" v-perms="['role:update']" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-if="!row.is_system" v-perms="['role:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </pure-table>
+      </template>
+    </PureTableBar>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="750px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">

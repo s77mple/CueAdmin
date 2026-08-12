@@ -1,8 +1,8 @@
 import { http } from "@/utils/http";
-import type { ApiResult } from "./types";
+import type { ApiResult, PageData } from "./types";
 
-export const getRoleList = () =>
-  http.request<ApiResult<any>>("get", "/api/v1/roles");
+export const getRoleList = (params?: object) =>
+  http.request<ApiResult<PageData<any>>>("get", "/api/v1/roles", { params });
 export const createRole = (data?: object) =>
   http.request<ApiResult<any>>("post", "/api/v1/roles", { data });
 export const updateRole = (id: number, data?: object) =>

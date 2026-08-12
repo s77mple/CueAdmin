@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
+import { PureTableBar } from "@/components/RePureTableBar";
 import { getDepartmentList, createDepartment, updateDepartment, deleteDepartment } from "@/api/departments";
 import { handleTree } from "@/utils/tree";
 
@@ -12,6 +13,26 @@ const dialogTitle = ref("新增部门");
 
 const deptTree = computed(() => handleTree(list.value, "id", "parent_id", "children"));
 
+const columns: TableColumnList = [
+  { label: "ID", prop: "id", width: 80 },
+  { label: "编码", prop: "code" },
+  { label: "名称", prop: "name" },
+  { label: "排序", prop: "sort_order", width: 80 },
+  { label: "描述", prop: "description" },
+  { label: "操作", slot: "operation", width: 180, fixed: "right" },
+];
+
+const pureTableRef = ref();
+const treeBarRef = computed(() => {
+  const el = pureTableRef.value?.getTableRef?.();
+  if (!el) return null;
+  return {
+    data: deptTree.value,
+    size: "default",
+    toggleRowExpansion: (row: any, expanded: boolean) => el.toggleRowExpansion(row, expanded),
+  };
+});
+
 const form = reactive({ id: 0, code: "", name: "", parent_id: null as number | null, sort_order: 0, description: "" });
 const formRef = ref<FormInstance>();
 
@@ -20,7 +41,7 @@ const rules: FormRules = {
   name: [{ required: true, message: "请输入部门名称", trigger: "blur" }],
 };
 
-async function load() {
+async function onSearch() {
   loading.value = true;
   try {
     const res = await getDepartmentList();
@@ -56,14 +77,16 @@ async function handleSubmit() {
       description: form.description || null,
     };
     if (form.id) {
-      await updateDepartment(form.id, data);
+      const res: any = await updateDepartment(form.id, data);
+      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
       ElMessage.success("更新成功");
     } else {
-      await createDepartment({ ...data, code: form.code });
+      const res: any = await createDepartment({ ...data, code: form.code });
+      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
-    load();
+    onSearch();
   } catch (err: any) {
     if (err?.message) ElMessage.error(err.message);
   }
@@ -73,25 +96,23 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除部门 "${row.name}"？`, "提示", { type: "warning" });
     const res: any = await deleteDepartment(row.id);
-    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); load(); }
+    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); onSearch(); }
     else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
 function getDescendantIds(nodeId: number): Set<number> {
   const ids = new Set<number>();
-  const visited = new Set<number>();
-  const walk = (items: any[]) => {
-    for (const item of items) {
-      if (visited.has(item.id)) continue;
+  const visited = new Set<number>([nodeId]);
+  const collect = (parentId: number) => {
+    for (const item of list.value) {
+      if (item.parent_id !== parentId || visited.has(item.id)) continue;
       visited.add(item.id);
-      if (item.parent_id === nodeId) {
-        ids.add(item.id);
-        walk(list.value);
-      }
+      ids.add(item.id);
+      collect(item.id);
     }
   };
-  walk(list.value);
+  collect(nodeId);
   return ids;
 }
 
@@ -101,26 +122,35 @@ function parentOptions(currentId = 0) {
   return list.value.filter((m: any) => !excludeIds.has(m.id)).map((m: any) => ({ label: m.name, value: m.id }));
 }
 
-onMounted(load);
+onMounted(onSearch);
 </script>
 
 <template>
   <div>
     <el-button v-perms="['department:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增部门</el-button>
 
-    <el-table v-loading="loading" :data="deptTree" border stripe row-key="id" :tree-props="{ children: 'children' }">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="code" label="编码" />
-      <el-table-column prop="name" label="名称" />
-      <el-table-column prop="sort_order" label="排序" width="80" />
-      <el-table-column prop="description" label="描述" />
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button v-perms="['department:update']" type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button v-perms="['department:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <PureTableBar title="部门列表" :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
+      <template v-slot="{ size, dynamicColumns }">
+        <pure-table
+          ref="pureTableRef"
+          row-key="id"
+          :tree-props="{ children: 'children', hasChildren: 'hasChildren', checkStrictly: false }"
+          default-expand-all
+          align-whole="center"
+          showOverflowTooltip
+          :loading="loading"
+          :size="size"
+          :data="deptTree"
+          :columns="dynamicColumns"
+          :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--el-text-color-primary)' }"
+        >
+          <template #operation="{ row }">
+            <el-button v-perms="['department:update']" type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-perms="['department:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </pure-table>
+      </template>
+    </PureTableBar>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="550px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">

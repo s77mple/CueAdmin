@@ -54,11 +54,6 @@ class PermissionItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class PermissionListResponse(BaseModel):
-    items: list[PermissionItem]
-    total: int
-
-
 class PermissionBrief(BaseModel):
     """权限简要信息 — 嵌套在角色响应中。"""
     id: int
@@ -70,10 +65,10 @@ class PermissionBrief(BaseModel):
 
 
 # —————— 响应包装 ——————
-from app.schemas.response import ApiResponse
+from app.schemas.response import ApiResponse, PageData
 
 
-class PermissionListApiResponse(ApiResponse[PermissionListResponse]):
+class PermissionListApiResponse(ApiResponse[PageData[PermissionItem]]):
     pass
 
 

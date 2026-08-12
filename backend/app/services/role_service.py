@@ -13,7 +13,9 @@ from sqlalchemy.orm import selectinload
 from app.models import Role, Permission, Menu
 from app.models.associations import user_roles
 from app.core.exceptions import BusinessException, ErrorCode
+from app.core.paginate import paginate
 from app.core.logger import logger
+from app.schemas.response import PageData
 
 
 class RoleService:
@@ -33,16 +35,14 @@ class RoleService:
     # 查询
     # ============================================================
 
-    async def list_roles(self) -> list[Role]:
-        """返回全部角色（预加载权限和菜单）。"""
+    async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData:
+        """分页返回角色（预加载权限和菜单）。角色数量少，默认 page_size=100 一次返回全部。"""
         stmt = (
             select(Role)
             .options(selectinload(Role.permissions), selectinload(Role.menus))
             .order_by(Role.id.asc())
-            .limit(500)
         )
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        return await paginate(self.db, stmt, page, page_size)
 
     async def get_role_for_update(self, role_id: int) -> Role:
         """带行级锁获取角色。"""

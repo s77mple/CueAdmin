@@ -54,11 +54,6 @@ class RoleItem(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class RoleListResponse(BaseModel):
-    items: list[RoleItem]
-    total: int
-
-
 class RoleBrief(BaseModel):
     """角色简要信息 — 嵌套在用户响应中。"""
     id: int
@@ -69,10 +64,10 @@ class RoleBrief(BaseModel):
 
 
 # —————— 响应包装 ——————
-from app.schemas.response import ApiResponse
+from app.schemas.response import ApiResponse, PageData
 
 
-class RoleListApiResponse(ApiResponse[RoleListResponse]):
+class RoleListApiResponse(ApiResponse[PageData[RoleItem]]):
     pass
 
 

@@ -10,7 +10,7 @@
 from typing import Annotated
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Query, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
@@ -18,7 +18,7 @@ from app.models import User
 from app.schemas.response import ApiResponse
 from app.schemas.role import (
     RoleCreate, RoleUpdate, RolePatch,
-    RoleListResponse, RoleListApiResponse, RoleBriefResponse,
+    RoleListApiResponse, RoleBriefResponse,
 )
 from app.services.role_service import RoleService
 
@@ -40,10 +40,11 @@ class RoleScope:
 async def list_roles(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=100),
 ):
-    roles = await RoleService(db).list_roles()
-    data = RoleListResponse(items=roles, total=len(roles))
-    return ApiResponse.ok(data=data)
+    result = await RoleService(db).list_roles(page, page_size)
+    return ApiResponse.ok(data=result)
 
 
 # ============================================================

@@ -2,15 +2,15 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
+import type { PaginationProps } from "@pureadmin/table";
+import { PureTableBar } from "@/components/RePureTableBar";
 import { getUserList, createUser, updateUser, patchUser, deleteUser, hardDeleteUser } from "@/api/users";
 import { getRoleList } from "@/api/roles";
 import { getDepartmentList } from "@/api/departments";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = ref(20);
+const pagination = reactive<PaginationProps>({ total: 0, pageSize: 20, currentPage: 1, background: true });
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
 const roleOptions = ref<any[]>([]);
@@ -49,23 +49,37 @@ const rules = reactive<FormRules>({
   ],
 });
 
-async function load() {
+const columns: TableColumnList = [
+  { label: "ID", prop: "id", width: 80 },
+  { label: "用户名", prop: "username" },
+  { label: "显示名", prop: "display_name" },
+  { label: "手机号", prop: "phone" },
+  { label: "部门", slot: "department" },
+  { label: "状态", slot: "status", width: 100 },
+  { label: "创建时间", prop: "created_at", width: 180 },
+  { label: "操作", slot: "operation", width: 220, fixed: "right" },
+];
+
+async function onSearch() {
   loading.value = true;
   try {
-    const params: any = { page: page.value, page_size: pageSize.value };
+    const params: any = { page: pagination.currentPage, page_size: pagination.pageSize };
     if (statusFilter.value === "active") params.is_active = true;
     else if (statusFilter.value === "disabled") params.is_active = false;
     // "all" 不传 is_active，查全部
     const res = await getUserList(params);
-    if (res.code === 0) { list.value = res.data?.items ?? []; total.value = res.data?.total ?? 0; }
+    if (res.code === 0) { list.value = res.data?.items ?? []; pagination.total = res.data?.total ?? 0; }
     else { ElMessage.error(res.message || "加载用户列表失败"); }
   } finally { loading.value = false; }
 }
 
+function handleSizeChange(val: number) { pagination.pageSize = val; pagination.currentPage = 1; onSearch(); }
+function handleCurrentChange(val: number) { pagination.currentPage = val; onSearch(); }
+
 function onStatusChange(val: "active" | "disabled" | "all") {
   statusFilter.value = val;
-  page.value = 1;
-  load();
+  pagination.currentPage = 1;
+  onSearch();
 }
 
 async function loadRoles() {
@@ -105,7 +119,7 @@ async function handleSubmit() {
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
-    load();
+    onSearch();
   } catch (err: any) {
     if (err?.message) { ElMessage.error(err.message); }
   }
@@ -118,12 +132,12 @@ async function handleDisable(row: any) {
     if (row.is_active) {
       // 禁用：调用 DELETE（软删除）
       const res: any = await deleteUser(row.id);
-      if (res.code === 0) { ElMessage.success(res.message || "已禁用"); load(); }
+      if (res.code === 0) { ElMessage.success(res.message || "已禁用"); onSearch(); }
       else { ElMessage.error(res.message || "操作失败"); }
     } else {
       // 重新启用：调用 PATCH
       const res: any = await patchUser(row.id, { is_active: true });
-      if (res.code === 0) { ElMessage.success("已启用"); load(); }
+      if (res.code === 0) { ElMessage.success("已启用"); onSearch(); }
       else { ElMessage.error(res.message || "操作失败"); }
     }
   } catch { /* 用户取消或拦截器已弹 toast */ }
@@ -137,13 +151,12 @@ async function handleHardDelete(row: any) {
       { type: "error", confirmButtonText: "彻底删除", cancelButtonText: "取消" },
     );
     const res: any = await hardDeleteUser(row.id);
-    if (res.code === 0) { ElMessage.success(res.message || "已彻底删除"); load(); }
+    if (res.code === 0) { ElMessage.success(res.message || "已彻底删除"); onSearch(); }
     else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
-function handlePageChange(p: number) { page.value = p; load(); }
-onMounted(() => { load(); loadRoles(); });
+onMounted(() => { onSearch(); loadRoles(); });
 </script>
 
 <template>
@@ -157,50 +170,52 @@ onMounted(() => { load(); loadRoles(); });
       </el-radio-group>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="用户名" />
-      <el-table-column prop="display_name" label="显示名" />
-      <el-table-column prop="phone" label="手机号" />
-      <el-table-column label="部门">
-        <template #default="{ row }">
-          {{ deptOptions.find((d: any) => d.id === row.department_id)?.name ?? "—" }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="is_active" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.is_active ? 'success' : 'danger'">{{ row.is_active ? "启用" : "禁用" }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column label="操作" width="220" fixed="right">
-        <template #default="{ row }">
-          <template v-if="row.username !== 'admin'">
-            <el-button v-perms="['user:update']" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button
-              v-perms="[row.is_active ? 'user:delete' : 'user:update']"
-              size="small"
-              :type="row.is_active ? 'warning' : 'success'"
-              @click="handleDisable(row)"
-            >
-              {{ row.is_active ? "禁用" : "启用" }}
-            </el-button>
-            <el-button
-              v-if="!row.is_active"
-              v-perms="['user:delete']"
-              type="danger"
-              size="small"
-              @click="handleHardDelete(row)"
-            >
-              删除
-            </el-button>
+    <PureTableBar title="用户列表" :columns="columns" @refresh="onSearch">
+      <template v-slot="{ size, dynamicColumns }">
+        <pure-table
+          row-key="id"
+          align-whole="center"
+          showOverflowTooltip
+          :loading="loading"
+          :size="size"
+          :data="list"
+          :columns="dynamicColumns"
+          :pagination="{ ...pagination, size }"
+          :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--el-text-color-primary)' }"
+          @page-size-change="handleSizeChange"
+          @page-current-change="handleCurrentChange"
+        >
+          <template #department="{ row }">
+            {{ deptOptions.find((d: any) => d.id === row.department_id)?.name ?? "—" }}
           </template>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <el-pagination style="margin-top: 16px; justify-content: flex-end" background layout="total, prev, pager, next"
-      :total="total" :page-size="pageSize" :current-page="page" @current-change="handlePageChange" />
+          <template #status="{ row }">
+            <el-tag :type="row.is_active ? 'success' : 'danger'">{{ row.is_active ? "启用" : "禁用" }}</el-tag>
+          </template>
+          <template #operation="{ row }">
+            <template v-if="row.username !== 'admin'">
+              <el-button v-perms="['user:update']" size="small" @click="openEdit(row)">编辑</el-button>
+              <el-button
+                v-perms="[row.is_active ? 'user:delete' : 'user:update']"
+                size="small"
+                :type="row.is_active ? 'warning' : 'success'"
+                @click="handleDisable(row)"
+              >
+                {{ row.is_active ? "禁用" : "启用" }}
+              </el-button>
+              <el-button
+                v-if="!row.is_active"
+                v-perms="['user:delete']"
+                type="danger"
+                size="small"
+                @click="handleHardDelete(row)"
+              >
+                删除
+              </el-button>
+            </template>
+          </template>
+        </pure-table>
+      </template>
+    </PureTableBar>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">

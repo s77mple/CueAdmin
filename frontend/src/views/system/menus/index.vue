@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
+import { PureTableBar } from "@/components/RePureTableBar";
 import { getMenuList, createMenu, updateMenu, deleteMenu } from "@/api/menus";
 import { handleTree } from "@/utils/tree";
 
@@ -11,6 +12,28 @@ const dialogVisible = ref(false);
 const dialogTitle = ref("新增菜单");
 
 const menuTree = computed(() => handleTree(list.value, "id", "parent_id", "children"));
+
+const columns: TableColumnList = [
+  { label: "ID", prop: "id", width: 80 },
+  { label: "编码", prop: "code" },
+  { label: "名称", prop: "name" },
+  { label: "图标", prop: "icon", width: 120 },
+  { label: "路径", prop: "path" },
+  { label: "组件", prop: "component" },
+  { label: "排序", prop: "sort_order", width: 80 },
+  { label: "操作", slot: "operation", width: 180, fixed: "right" },
+];
+
+const pureTableRef = ref();
+const treeBarRef = computed(() => {
+  const el = pureTableRef.value?.getTableRef?.();
+  if (!el) return null;
+  return {
+    data: menuTree.value,
+    size: "default",
+    toggleRowExpansion: (row: any, expanded: boolean) => el.toggleRowExpansion(row, expanded),
+  };
+});
 
 const form = reactive({ id: 0, code: "", name: "", icon: "", path: "", component: "", parent_id: null as number | null, sort_order: 0, children: [] as any[] });
 const formRef = ref<FormInstance>();
@@ -24,7 +47,7 @@ const childDefault = () => ({ code: "", name: "", path: "", component: "", sort_
 function addChild() { form.children.push(childDefault()); }
 function removeChild(index: number) { form.children.splice(index, 1); }
 
-async function load() {
+async function onSearch() {
   loading.value = true;
   try {
     const res = await getMenuList();
@@ -47,15 +70,20 @@ function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
-  await formRef.value.validate();
+  try {
+    await formRef.value.validate();
+  } catch {
+    return; // 表单校验失败，Element Plus 已显示行内错误
+  }
   try {
     // 编辑模式：不变
     if (form.id) {
       const data: any = { name: form.name, icon: form.icon || null, path: form.path || null, component: form.component || null, parent_id: form.parent_id ?? null, sort_order: form.sort_order };
-      await updateMenu(form.id, data);
+      const res: any = await updateMenu(form.id, data);
+      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
       ElMessage.success("更新成功");
       dialogVisible.value = false;
-      load();
+      onSearch();
       return;
     }
 
@@ -103,7 +131,7 @@ async function handleSubmit() {
   else ElMessage.warning(`父菜单已创建，但 ${failedCount}/${total} 个子菜单创建失败，请手动补建`);
 
   dialogVisible.value = false;
-  load();
+  onSearch();
   } catch { /* 拦截器已弹 toast */ }
 }
 
@@ -111,7 +139,7 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除菜单 "${row.name}"？`, "提示", { type: "warning" });
     const res: any = await deleteMenu(row.id);
-    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); load(); }
+    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); onSearch(); }
     else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
@@ -121,28 +149,35 @@ function parentOptions(currentId = 0) {
   return list.value.filter((m: any) => m.id !== currentId).map((m: any) => ({ label: m.name, value: m.id }));
 }
 
-onMounted(load);
+onMounted(onSearch);
 </script>
 
 <template>
   <div>
     <el-button v-perms="['menu:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增菜单</el-button>
 
-    <el-table v-loading="loading" :data="menuTree" border stripe row-key="id" :tree-props="{ children: 'children' }">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="code" label="编码" />
-      <el-table-column prop="name" label="名称" />
-      <el-table-column prop="icon" label="图标" width="120" />
-      <el-table-column prop="path" label="路径" />
-      <el-table-column prop="component" label="组件" />
-      <el-table-column prop="sort_order" label="排序" width="80" />
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button v-perms="['menu:update']" type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button v-perms="['menu:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <PureTableBar title="菜单列表" :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
+      <template v-slot="{ size, dynamicColumns }">
+        <pure-table
+          ref="pureTableRef"
+          row-key="id"
+          :tree-props="{ children: 'children', hasChildren: 'hasChildren', checkStrictly: false }"
+          default-expand-all
+          align-whole="center"
+          showOverflowTooltip
+          :loading="loading"
+          :size="size"
+          :data="menuTree"
+          :columns="dynamicColumns"
+          :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--el-text-color-primary)' }"
+        >
+          <template #operation="{ row }">
+            <el-button v-perms="['menu:update']" type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button v-perms="['menu:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </pure-table>
+      </template>
+    </PureTableBar>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="580px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
