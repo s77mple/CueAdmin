@@ -2,13 +2,11 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
-import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getPermissionList, createPermission, updatePermission, deletePermission } from "@/api/permissions";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
-const pagination = reactive<PaginationProps>({ total: 0, pageSize: 20, currentPage: 1, background: true });
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增权限");
 
@@ -74,14 +72,11 @@ const treeBarRef = computed(() => {
 async function onSearch() {
   loading.value = true;
   try {
-    const res = await getPermissionList({ page: pagination.currentPage, page_size: pagination.pageSize });
-    if (res.code === 0) { list.value = res.data?.items ?? []; pagination.total = res.data?.total ?? 0; }
+    const res = await getPermissionList();
+    if (res.code === 0) list.value = res.data?.items ?? [];
     else ElMessage.error(res.message || "加载权限列表失败");
   } finally { loading.value = false; }
 }
-
-function handleSizeChange(val: number) { pagination.pageSize = val; pagination.currentPage = 1; onSearch(); }
-function handleCurrentChange(val: number) { pagination.currentPage = val; onSearch(); }
 
 function openCreate() {
   dialogTitle.value = "新增权限";
@@ -145,10 +140,7 @@ onMounted(onSearch);
           :size="size"
           :data="treeData"
           :columns="dynamicColumns"
-          :pagination="{ ...pagination, size }"
           :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--el-text-color-primary)' }"
-          @page-size-change="handleSizeChange"
-          @page-current-change="handleCurrentChange"
         >
           <template #code="{ row }">
             <template v-if="row._isGroup">

@@ -5,14 +5,14 @@
 from typing import Annotated
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Query, Security
+from fastapi import APIRouter, Depends, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
 from app.models import User
 from app.schemas.permission import (
     PermissionCreate, PermissionUpdate, PermissionPatch,
-    PermissionListApiResponse, PermissionBriefResponse,
+    PermissionListResponse, PermissionListApiResponse, PermissionBriefResponse,
 )
 from app.schemas.response import ApiResponse
 from app.services.permission_service import PermissionService
@@ -35,11 +35,10 @@ class PermissionScope:
 async def list_permissions(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
-    page: int = Query(1, ge=1),
-    page_size: int = Query(100, ge=1, le=100),
 ):
-    result = await PermissionService(db).list_permissions(page, page_size)
-    return ApiResponse.ok(data=result)
+    perms = await PermissionService(db).list_permissions()
+    data = PermissionListResponse(items=perms, total=len(perms))
+    return ApiResponse.ok(data=data)
 
 
 # ============================================================

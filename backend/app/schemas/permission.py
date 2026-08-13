@@ -64,11 +64,17 @@ class PermissionBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PermissionListResponse(BaseModel):
+    """权限列表响应 — 扁平列表，前端按 resource 分组转树。"""
+    items: list[PermissionItem]
+    total: int
+
+
 # —————— 响应包装 ——————
-from app.schemas.response import ApiResponse, PageData
+from app.schemas.response import ApiResponse
 
 
-class PermissionListApiResponse(ApiResponse[PageData[PermissionItem]]):
+class PermissionListApiResponse(ApiResponse[PermissionListResponse]):
     pass
 
 

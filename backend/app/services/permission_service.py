@@ -12,9 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Permission
 from app.models.associations import user_roles, role_permissions
 from app.core.exceptions import BusinessException, ErrorCode
-from app.core.paginate import paginate
 from app.core.logger import logger
-from app.schemas.response import PageData
 
 
 class PermissionService:
@@ -28,10 +26,12 @@ class PermissionService:
     # 查询
     # ============================================================
 
-    async def list_permissions(self, page: int = 1, page_size: int = 100) -> PageData:
-        """分页返回权限（按 resource + action 排序）。权限码数量少，默认 page_size=100 一次返回全部。"""
-        stmt = select(Permission).order_by(Permission.resource, Permission.action)
-        return await paginate(self.db, stmt, page, page_size)
+    async def list_permissions(self) -> list[Permission]:
+        """返回全部权限（按 resource + action 排序）。权限码是固定枚举，一次全量返回，前端分组展示。"""
+        result = await self.db.execute(
+            select(Permission).order_by(Permission.resource, Permission.action).limit(500)
+        )
+        return list(result.scalars().all())
 
     async def get_permission_for_update(self, perm_id: int) -> Permission:
         """带行级锁获取权限。"""

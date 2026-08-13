@@ -1,8 +1,8 @@
 import { http } from "@/utils/http";
-import type { ApiResult, PageData } from "./types";
+import type { ApiResult } from "./types";
 
-export const getPermissionList = (params?: object) =>
-  http.request<ApiResult<PageData<any>>>("get", "/api/v1/permissions", { params });
+export const getPermissionList = () =>
+  http.request<ApiResult<any>>("get", "/api/v1/permissions");
 export const createPermission = (data?: object) =>
   http.request<ApiResult<any>>("post", "/api/v1/permissions", { data });
 export const updatePermission = (id: number, data?: object) =>
