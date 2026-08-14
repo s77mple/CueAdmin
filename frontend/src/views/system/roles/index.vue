@@ -9,6 +9,7 @@ import { getRoleList, createRole, updateRole, deleteRole } from "@/api/roles";
 import { getPermissionList } from "@/api/permissions";
 import { getMenuList } from "@/api/menus";
 import { handleTree } from "@/utils/tree";
+import { ErrorCode } from "@/constants/error-code";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -20,6 +21,36 @@ const menuOptions = ref<any[]>([]);
 
 const form = reactive({ id: 0, code: "", name: "", description: "", permission_codes: [] as string[], menu_ids: [] as number[] });
 const formRef = ref<FormInstance>();
+
+// 服务端唯一性冲突（13002 角色编码已存在）→ 字段级标红
+const fieldErrors = reactive({ code: "" });
+
+// 页面级单一 popover（virtual-ref 锚定被点击的标签）：表格单元格内不再渲染 el-popover，
+// 避免折叠侧边栏导致列宽重算时 ElTableBody 无限递归更新（见 columns 注释）
+const groupDetail = reactive({
+  visible: false,
+  ref: null as HTMLElement | null,
+  kind: "perm" as "perm" | "menu",
+  title: "",
+  permissions: [] as any[],
+  menu: null as any,
+});
+
+function openPermDetail(group: any, e: MouseEvent) {
+  groupDetail.kind = "perm";
+  groupDetail.title = group.label;
+  groupDetail.permissions = group.permissions;
+  groupDetail.ref = e.currentTarget as HTMLElement;
+  groupDetail.visible = true;
+}
+
+function openMenuDetail(m: any, e: MouseEvent) {
+  groupDetail.kind = "menu";
+  groupDetail.title = m.name;
+  groupDetail.menu = m;
+  groupDetail.ref = e.currentTarget as HTMLElement;
+  groupDetail.visible = true;
+}
 
 const rules: FormRules = {
   code: [{ required: true, message: "请输入角色编码", trigger: "blur" }],
@@ -94,6 +125,7 @@ async function loadOptions() {
 async function openCreate() {
   dialogTitle.value = "新增角色";
   Object.assign(form, { id: 0, code: "", name: "", description: "", permission_codes: [], menu_ids: [] });
+  fieldErrors.code = "";
   dialogVisible.value = true;
   await loadOptions();
   nextTick(() => menuTreeRef.value?.setCheckedKeys([]));
@@ -108,6 +140,7 @@ async function openEdit(row: any) {
     permission_codes: permCodes,
     menu_ids: menuIds,
   });
+  fieldErrors.code = "";
   dialogVisible.value = true;
   await loadOptions();
   nextTick(() => menuTreeRef.value?.setCheckedKeys(menuIds));
@@ -130,7 +163,14 @@ async function handleSubmit() {
       ElMessage.success("更新成功");
     } else {
       const res: any = await createRole({ ...data, code: form.code });
-      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
+      if (res.code !== 0) {
+        if (res.code === ErrorCode.ROLE_CODE_EXISTS) {
+          fieldErrors.code = res.message || "角色编码已存在";
+          return;
+        }
+        ElMessage.error(res.message || "创建失败");
+        return;
+      }
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -165,16 +205,33 @@ function getPermGroups(permissions: any[]) {
   }));
 }
 
-function getMenuGroups(menus: any[]) {
+// 与 departments/menus 页一致：树在 computed 里预构建，模板只做读取。
+// handleTree 会原地给节点挂 children，因此建树前先浅克隆一层，避免改写表格响应式行数据，
+// 否则渲染期改动数据会被模板依赖捕获，导致 ElTableBody 无限递归更新。
+function buildMenuGroups(menus: any[]) {
   if (!menus?.length) return [];
-  const tree = handleTree(menus, "id", "parent_id", "children");
+  const tree = handleTree(
+    menus.map(m => ({ ...m, children: undefined })),
+    "id",
+    "parent_id",
+    "children"
+  );
   return tree.map((node: any) => ({
     id: node.id,
     name: node.name,
     code: node.code,
-    children: node.children || [],
+    children: node.children || []
   }));
 }
+
+// 每个角色的菜单分组标签，随列表变化一次性预计算（不在单元格渲染期重复建树）
+const menuGroupsByRole = computed(() => {
+  const map: Record<number, any[]> = {};
+  for (const row of list.value) {
+    if (row.menus?.length) map[row.id] = buildMenuGroups(row.menus);
+  }
+  return map;
+});
 
 function isGroupAllChecked(resource: string): boolean {
   const group = permissionGroups.value.find(g => g.resource === resource);
@@ -229,26 +286,16 @@ onMounted(() => { onSearch(); });
             </template>
             <template v-else-if="row.permissions?.length">
               <div class="table-tag-group">
-                <el-popover
+                <el-tag
                   v-for="g in getPermGroups(row.permissions)"
                   :key="g.resource"
-                  placement="top"
-                  :width="240"
-                  trigger="click"
+                  size="small"
+                  class="group-badge"
+                  effect="plain"
+                  @click="openPermDetail(g, $event)"
                 >
-                  <template #reference>
-                    <el-tag size="small" class="group-badge" effect="plain">
-                      {{ g.label }} ({{ g.count }})
-                    </el-tag>
-                  </template>
-                  <div class="popover-perm-list">
-                    <div class="popover-group-title">{{ g.label }}</div>
-                    <div v-for="p in g.permissions" :key="p.id" class="popover-item">
-                      <span class="popover-name">{{ p.name }}</span>
-                      <code class="popover-code">{{ p.code }}</code>
-                    </div>
-                  </div>
-                </el-popover>
+                  {{ g.label }} ({{ g.count }})
+                </el-tag>
               </div>
             </template>
             <span v-else style="color: #c0c4cc">—</span>
@@ -259,32 +306,16 @@ onMounted(() => { onSearch(); });
             </template>
             <template v-else-if="row.menus?.length">
               <div class="table-tag-group">
-                <el-popover
-                  v-for="m in getMenuGroups(row.menus)"
+                <el-tag
+                  v-for="m in menuGroupsByRole[row.id] || []"
                   :key="m.id"
-                  placement="top"
-                  :width="220"
-                  trigger="click"
+                  size="small"
+                  class="group-badge"
+                  effect="plain"
+                  @click="openMenuDetail(m, $event)"
                 >
-                  <template #reference>
-                    <el-tag size="small" class="group-badge" effect="plain">
-                      {{ m.name }}<template v-if="m.children.length">(+{{ m.children.length }})</template>
-                    </el-tag>
-                  </template>
-                  <div class="popover-perm-list">
-                    <div class="popover-group-title">{{ m.name }}</div>
-                    <div class="popover-item">
-                      <code class="popover-code">{{ m.code }}</code>
-                    </div>
-                    <template v-if="m.children.length">
-                      <div class="popover-group-title" style="margin-top: 8px">子菜单</div>
-                      <div v-for="c in m.children" :key="c.id" class="popover-item" style="padding-left: 12px">
-                        <span class="popover-name">└ {{ c.name }}</span>
-                        <code class="popover-code">{{ c.code }}</code>
-                      </div>
-                    </template>
-                  </div>
-                </el-popover>
+                  {{ m.name }}<template v-if="m.children.length">(+{{ m.children.length }})</template>
+                </el-tag>
               </div>
             </template>
             <span v-else style="color: #c0c4cc">—</span>
@@ -299,8 +330,8 @@ onMounted(() => { onSearch(); });
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="750px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" prop="code">
-          <el-input v-model="form.code" />
+        <el-form-item v-if="!form.id" label="编码" prop="code" :error="fieldErrors.code">
+          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
         </el-form-item>
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />
@@ -351,6 +382,39 @@ onMounted(() => { onSearch(); });
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 页面级单一 popover：不在表格单元格内渲染 el-popover（折叠重算列宽时会触发 ElTableBody 无限递归），
+         点击权限/菜单标签后用 virtual-ref 锚定到该标签打开 -->
+    <el-popover
+      v-model:visible="groupDetail.visible"
+      :virtual-ref="groupDetail.ref"
+      virtual-triggering
+      placement="top"
+      :width="240"
+      trigger="click"
+    >
+      <div class="popover-perm-list">
+        <div class="popover-group-title">{{ groupDetail.title }}</div>
+        <template v-if="groupDetail.kind === 'perm'">
+          <div v-for="p in groupDetail.permissions" :key="p.id" class="popover-item">
+            <span class="popover-name">{{ p.name }}</span>
+            <code class="popover-code">{{ p.code }}</code>
+          </div>
+        </template>
+        <template v-else>
+          <div class="popover-item">
+            <code class="popover-code">{{ groupDetail.menu?.code }}</code>
+          </div>
+          <template v-if="groupDetail.menu?.children?.length">
+            <div class="popover-group-title" style="margin-top: 8px">子菜单</div>
+            <div v-for="c in groupDetail.menu.children" :key="c.id" class="popover-item" style="padding-left: 12px">
+              <span class="popover-name">└ {{ c.name }}</span>
+              <code class="popover-code">{{ c.code }}</code>
+            </div>
+          </template>
+        </template>
+      </div>
+    </el-popover>
   </div>
 </template>
 
