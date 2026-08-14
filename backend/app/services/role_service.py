@@ -97,37 +97,6 @@ class RoleService:
         return role
 
     # ============================================================
-    # 部分更新
-    # ============================================================
-
-    async def patch_role(self, role_id: int, body) -> Role:
-        """PATCH 部分更新 — 只改传了的字段。"""
-        role = await self.get_role_for_update(role_id)
-        self._guard_system(role)
-
-        data = body.model_dump(exclude_unset=True)
-        relations_changed = False
-
-        if "name" in data:
-            if data["name"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
-            role.name = data["name"]
-        if "description" in data:
-            role.description = data["description"]
-        if "permission_codes" in data:
-            await self._resolve_relations(role, permission_codes=data["permission_codes"])
-            relations_changed = True
-        if "menu_ids" in data:
-            await self._resolve_relations(role, menu_ids=data["menu_ids"])
-            relations_changed = True
-
-        await self.db.commit()
-
-        if relations_changed:
-            await self._clear_role_users_cache(role_id, role.code)
-        return role
-
-    # ============================================================
     # 删除
     # ============================================================
 

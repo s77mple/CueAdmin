@@ -304,38 +304,6 @@ class MenuService:
         return menu
 
     # ============================================================
-    # 部分更新
-    # ============================================================
-
-    async def patch_menu(self, menu_id: int, body) -> Menu:
-        """PATCH 部分更新。"""
-        menu = await self.get_menu_for_update(menu_id)
-        data = body.model_dump(exclude_unset=True)
-
-        if "name" in data:
-            if data["name"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
-            menu.name = data["name"]
-        if "icon" in data:
-            menu.icon = data["icon"]
-        if "path" in data:
-            menu.path = data["path"]
-        if "component" in data:
-            menu.component = data["component"]
-
-        if "parent_id" in data:
-            new_parent_id = data["parent_id"]
-            if new_parent_id is not None:
-                await self._validate_parent(menu_id, new_parent_id)
-            menu.parent_id = new_parent_id
-
-        if "sort_order" in data:
-            menu.sort_order = data["sort_order"]
-
-        await self.db.commit()
-        return menu
-
-    # ============================================================
     # 删除
     # ============================================================
 

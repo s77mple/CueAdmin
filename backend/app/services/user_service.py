@@ -14,7 +14,6 @@ from app.models import User, Role, Department
 from app.core.security import hash_password
 from app.core.paginate import paginate
 from app.core.exceptions import BusinessException, ErrorCode
-from app.core.logger import logger
 
 
 class UserService:
@@ -51,19 +50,6 @@ class UserService:
 
         stmt = stmt.order_by(User.id.asc())
         return await paginate(self.db, stmt, page, page_size)
-
-    async def get_user(self, user_id: int) -> User:
-        """获取单个用户详情（预加载角色和部门）。"""
-        stmt = (
-            select(User)
-            .options(selectinload(User.roles), selectinload(User.department))
-            .where(User.id == user_id)
-        )
-        result = await self.db.execute(stmt)
-        target = result.scalars().first()
-        if not target:
-            raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
-        return target
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""

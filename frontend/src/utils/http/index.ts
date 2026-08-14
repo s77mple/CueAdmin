@@ -117,6 +117,10 @@ class PureHttp {
     return this.request<T>("put", url, params, config);
   }
 
+  public patch<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
+    return this.request<T>("patch", url, params, config);
+  }
+
   public delete<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
     return this.request<T>("delete", url, params, config);
   }

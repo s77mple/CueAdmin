@@ -19,7 +19,7 @@ FastAPI 依赖注入模块 — 认证 + 鉴权的核心入口。
 
 两种使用方式：
   需要鉴权：user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])]
-  仅需认证：user: CurrentUser  （/me、/profile 等获取自己信息的接口）
+  仅需认证：user: CurrentUser  （/routes 等只需知道"是谁"的接口）
 """
 
 import asyncio
@@ -96,7 +96,7 @@ async def get_current_user(
     """#3 认证 + 鉴权一体化。
 
     路由上写 Security(get_current_user, scopes=[...]) 声明需要的权限，
-    scopes 为空时只做认证不校验权限（/me、/profile 等接口）。
+    scopes 为空时只做认证不校验权限（/routes 等接口）。
     """
 
     # ---- #3.1 解码 JWT ----
@@ -194,7 +194,7 @@ async def get_current_user(
 # ============================================================
 
 # 仅认证不鉴权：`user: CurrentUser`
-# 用于 /me、/profile 等只需要知道"是谁"的接口
+# 用于 /routes 等只需要知道"是谁"的接口
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 

@@ -22,12 +22,12 @@ from pydantic import BaseModel, Field, field_validator
 # ============================================================
 
 class UserCreate(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6, max_length=128)
-    display_name: str = Field(..., min_length=1, max_length=50)
-    phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$")
-    role_ids: list[int] = Field(default=[], max_length=100)     # 允许创建无角色用户
-    department_id: int | None = None
+    username: str = Field(..., min_length=3, max_length=50, description="用户名，至少 3 个字符")
+    password: str = Field(..., min_length=6, max_length=128, description="密码，至少 6 个字符")
+    display_name: str = Field(..., min_length=1, max_length=50, description="显示名")
+    phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$", description="手机号，无则不传")
+    role_ids: list[int] = Field(default=[], max_length=100, description="角色 ID 列表，可为空数组")     # 允许创建无角色用户
+    department_id: int | None = Field(None, description="部门 ID，无则不传")
 
     @field_validator("username")
     @classmethod
@@ -96,13 +96,13 @@ class UserPatch(BaseModel):
       → data = {"is_active": False}
       → API 层只改 is_active，其他字段不动
     """
-    username: str | None = Field(None, min_length=3, max_length=50)
-    password: str | None = Field(None, min_length=6, max_length=128)
-    display_name: str | None = Field(None, min_length=1, max_length=50)
-    phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$")
-    is_active: bool | None = None
-    role_ids: list[int] | None = Field(None, max_length=100)        # None = 没传，[] = 清空角色
-    department_id: int | None = None
+    username: str | None = Field(None, min_length=3, max_length=50, description="用户名")
+    password: str | None = Field(None, min_length=6, max_length=128, description="密码")
+    display_name: str | None = Field(None, min_length=1, max_length=50, description="显示名")
+    phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$", description="手机号")
+    is_active: bool | None = Field(None, description="是否启用")
+    role_ids: list[int] | None = Field(None, max_length=100, description="角色 ID 列表，传 [] 清空角色")        # None = 没传，[] = 清空角色
+    department_id: int | None = Field(None, description="部门 ID")
 
     @field_validator("username")
     @classmethod

@@ -4,13 +4,13 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Path, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas.menu import (
-    MenuCreate, MenuUpdate, MenuPatch,
+    MenuCreate, MenuUpdate,
     MenuListResponse, MenuListApiResponse, MenuBriefResponse,
 )
 from app.schemas.response import ApiResponse
@@ -60,7 +60,7 @@ async def create_menu(
 
 @router.put("/{menu_id}", response_model=MenuBriefResponse, summary="全量更新菜单")
 async def update_menu(
-    menu_id: int,
+    menu_id: Annotated[int, Path(description="菜单 ID")],
     body: MenuUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.UPDATE])],
@@ -70,27 +70,12 @@ async def update_menu(
 
 
 # ============================================================
-# PATCH /menus/{menu_id} — 部分更新
-# ============================================================
-
-@router.patch("/{menu_id}", response_model=MenuBriefResponse, summary="部分更新菜单")
-async def patch_menu(
-    menu_id: int,
-    body: MenuPatch,
-    db: DbSession,
-    user: Annotated[User, Security(get_current_user, scopes=[MenuScope.UPDATE])],
-):
-    menu = await MenuService(db).patch_menu(menu_id, body)
-    return ApiResponse.ok(data=menu, message="更新成功")
-
-
-# ============================================================
 # DELETE /menus/{menu_id} — 删除菜单
 # ============================================================
 
 @router.delete("/{menu_id}", response_model=ApiResponse, summary="删除菜单")
 async def delete_menu(
-    menu_id: int,
+    menu_id: Annotated[int, Path(description="菜单 ID")],
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.DELETE])],
 ):

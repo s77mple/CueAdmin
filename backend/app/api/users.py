@@ -18,7 +18,7 @@
 from typing import Annotated
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Query, Security
+from fastapi import APIRouter, Depends, Path, Query, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
@@ -46,28 +46,14 @@ class UserScope:
 async def list_users(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
-    role_id: int | None = Query(None),
+    role_id: int | None = Query(None, description="按角色 ID 筛选"),
     is_active: bool | None = Query(None, description="筛选启用/禁用状态，不传则查全部"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1, description="页码，从 1 开始"),
+    page_size: int = Query(20, ge=1, le=100, description="每页条数，最大 100"),
 ):
     svc = UserService(db)
     result = await svc.list_users(role_id=role_id, is_active=is_active, page=page, page_size=page_size)
     return ApiResponse.ok(data=result)
-
-
-# ============================================================
-# GET /users/{user_id} — 用户详情
-# ============================================================
-
-@router.get("/{user_id}", response_model=UserReadResponse, summary="用户详情")
-async def get_user(
-    user_id: int,
-    db: DbSession,
-    user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
-):
-    target = await UserService(db).get_user(user_id)
-    return ApiResponse.ok(data=target)
 
 
 # ============================================================
@@ -90,7 +76,7 @@ async def create_user(
 
 @router.put("/{user_id}", response_model=UserReadResponse, summary="全量更新用户")
 async def update_user(
-    user_id: int,
+    user_id: Annotated[int, Path(description="用户 ID")],
     body: UserUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
@@ -106,7 +92,7 @@ async def update_user(
 
 @router.patch("/{user_id}", response_model=UserReadResponse, summary="部分更新用户")
 async def patch_user(
-    user_id: int,
+    user_id: Annotated[int, Path(description="用户 ID")],
     body: UserPatch,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
@@ -122,7 +108,7 @@ async def patch_user(
 
 @router.delete("/{user_id}", response_model=ApiResponse, summary="禁用/删除用户")
 async def delete_user(
-    user_id: int,
+    user_id: Annotated[int, Path(description="用户 ID")],
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.DELETE])],
     hard: bool = Query(False, description="true=彻底删除（仅限已禁用的用户），默认 false=软禁用"),

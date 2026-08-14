@@ -5,13 +5,13 @@
 from typing import Annotated
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Path, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
 from app.models import User
 from app.schemas.permission import (
-    PermissionCreate, PermissionUpdate, PermissionPatch,
+    PermissionCreate, PermissionUpdate,
     PermissionListResponse, PermissionListApiResponse, PermissionBriefResponse,
 )
 from app.schemas.response import ApiResponse
@@ -61,7 +61,7 @@ async def create_permission(
 
 @router.put("/{perm_id}", response_model=PermissionBriefResponse, summary="全量更新权限")
 async def update_permission(
-    perm_id: int,
+    perm_id: Annotated[int, Path(description="权限 ID")],
     body: PermissionUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
@@ -72,28 +72,12 @@ async def update_permission(
 
 
 # ============================================================
-# PATCH /permissions/{perm_id} — 部分更新
-# ============================================================
-
-@router.patch("/{perm_id}", response_model=PermissionBriefResponse, summary="部分更新权限")
-async def patch_permission(
-    perm_id: int,
-    body: PermissionPatch,
-    db: DbSession,
-    user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
-):
-    perm = await PermissionService(db, redis_client).patch_permission(perm_id, body)
-    return ApiResponse.ok(data=perm, message="更新成功")
-
-
-# ============================================================
 # DELETE /permissions/{perm_id} — 删除权限
 # ============================================================
 
 @router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(
-    perm_id: int,
+    perm_id: Annotated[int, Path(description="权限 ID")],
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.DELETE])],
     redis_client: aioredis.Redis = Depends(get_redis),

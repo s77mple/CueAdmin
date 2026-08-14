@@ -97,49 +97,6 @@ class PermissionService:
         return perm
 
     # ============================================================
-    # 部分更新
-    # ============================================================
-
-    async def patch_permission(self, perm_id: int, body) -> Permission:
-        """PATCH 部分更新。"""
-        perm = await self.get_permission_for_update(perm_id)
-        data = body.model_dump(exclude_unset=True)
-        code_changed = False
-
-        if "code" in data:
-            if data["code"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "code 不能为 null")
-            if data["code"] != perm.code:
-                if (await self.db.execute(select(Permission).where(Permission.code == data["code"]))).scalars().first():
-                    raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
-                perm.code = data["code"]
-                code_changed = True
-        if "name" in data:
-            if data["name"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
-            perm.name = data["name"]
-        if "resource" in data:
-            if data["resource"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "resource 不能为 null")
-            perm.resource = data["resource"]
-        if "action" in data:
-            if data["action"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "action 不能为 null")
-            perm.action = data["action"]
-        if "description" in data:
-            perm.description = data["description"]
-
-        try:
-            await self.db.commit()
-        except IntegrityError:
-            await self.db.rollback()
-            raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
-
-        if code_changed:
-            await self._clear_perm_cache(perm_id)
-        return perm
-
-    # ============================================================
     # 删除
     # ============================================================
 

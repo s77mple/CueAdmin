@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, User
 from app.core.exceptions import BusinessException, ErrorCode
-from app.core.logger import logger
 
 
 class DepartmentService:
@@ -82,34 +81,6 @@ class DepartmentService:
         dept.parent_id = body.parent_id
         dept.sort_order = body.sort_order
         dept.description = body.description
-
-        await self.db.commit()
-        return dept
-
-    # ============================================================
-    # 部分更新
-    # ============================================================
-
-    async def patch_department(self, dept_id: int, body) -> Department:
-        """PATCH 部分更新。"""
-        dept = await self.get_department_for_update(dept_id)
-        data = body.model_dump(exclude_unset=True)
-
-        if "name" in data:
-            if data["name"] is None:
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, "name 不能为 null")
-            dept.name = data["name"]
-        if "description" in data:
-            dept.description = data["description"]
-
-        if "parent_id" in data:
-            new_parent_id = data["parent_id"]
-            if new_parent_id is not None:
-                await self._validate_parent(dept_id, new_parent_id)
-            dept.parent_id = new_parent_id
-
-        if "sort_order" in data:
-            dept.sort_order = data["sort_order"]
 
         await self.db.commit()
         return dept

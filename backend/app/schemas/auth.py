@@ -1,4 +1,4 @@
-"""认证相关 Schema — 登录/登出/me 的请求和响应数据结构。
+"""认证相关 Schema — 登录/登出的请求和响应数据结构。
 
 Schema 层的作用：
   - 定义 API 接受/返回什么字段、类型、校验规则
@@ -44,23 +44,9 @@ class LoginResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class MeResponse(BaseModel):
-    """/me 接口的响应 — 与 LoginResponse 结构相同（少 token）。"""
-    user: "UserRead"
-    permissions: list[str]
-    roles: list[RoleBrief]
-    menus: list[dict]
-
-    model_config = {"from_attributes": True}
-
-
 # —————— 响应包装类型 ——————
 # 解决 FastAPI response_model 泛型嵌套问题
 # 不定义这些类直接用 ApiResponse[LoginResponse] 作为 response_model 会报错
 
 class LoginApiResponse(ApiResponse[LoginResponse]):
-    pass
-
-
-class MeApiResponse(ApiResponse[MeResponse]):
     pass

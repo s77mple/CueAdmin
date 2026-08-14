@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field
 
 
 class PermissionCreate(BaseModel):
-    code: str = Field(..., min_length=1, max_length=100)
-    name: str = Field(..., min_length=1, max_length=100)
-    resource: str = Field(..., min_length=1, max_length=50)
-    action: str = Field(..., min_length=1, max_length=50)
-    description: str | None = Field(None, max_length=200)
+    code: str = Field(..., min_length=1, max_length=100, description="权限码，格式 {resource}:{action}")
+    name: str = Field(..., min_length=1, max_length=100, description="权限名称")
+    resource: str = Field(..., min_length=1, max_length=50, description="资源标识，如 user/role/menu")
+    action: str = Field(..., min_length=1, max_length=50, description="操作标识，如 list/create/update/delete")
+    description: str | None = Field(None, max_length=200, description="描述，无则不传")
 
 
 class PermissionUpdate(BaseModel):
@@ -27,15 +27,6 @@ class PermissionUpdate(BaseModel):
     resource: str = Field(..., min_length=1, max_length=50, description="资源标识")
     action: str = Field(..., min_length=1, max_length=50, description="操作标识")
     description: str | None = Field(..., max_length=200, description="描述，无则传 null")
-
-
-class PermissionPatch(BaseModel):
-    """PATCH 部分更新 — 只传要改的字段。"""
-    code: str | None = Field(None, min_length=1, max_length=100)
-    name: str | None = Field(None, min_length=1, max_length=100)
-    resource: str | None = Field(None, min_length=1, max_length=50)
-    action: str | None = Field(None, min_length=1, max_length=50)
-    description: str | None = Field(None, max_length=200)
 
 
 # ============================================================

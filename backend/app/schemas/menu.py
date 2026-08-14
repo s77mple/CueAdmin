@@ -13,13 +13,13 @@ from pydantic import BaseModel, Field
 
 
 class MenuCreate(BaseModel):
-    code: str = Field(..., min_length=1, max_length=50)
-    name: str = Field(..., min_length=1, max_length=50)
-    icon: str | None = Field(None, max_length=50)
-    path: str | None = Field(None, max_length=100)
-    component: str | None = Field(None, max_length=200)
-    parent_id: int | None = None              # null = 顶级菜单
-    sort_order: int = Field(0, ge=0)          # ge=0：不允许负数
+    code: str = Field(..., min_length=1, max_length=50, description="菜单编码，创建后不可修改")
+    name: str = Field(..., min_length=1, max_length=50, description="菜单名称")
+    icon: str | None = Field(None, max_length=50, description="图标，如 fa-solid:users")
+    path: str | None = Field(None, max_length=100, description="路由路径，如 /users")
+    component: str | None = Field(None, max_length=200, description="组件路径，如 system/users/index")
+    parent_id: int | None = Field(None, description="父菜单 ID，顶级菜单传 null")              # null = 顶级菜单
+    sort_order: int = Field(0, ge=0, description="排序号，越小越靠前")          # ge=0：不允许负数
 
 
 class MenuUpdate(BaseModel):
@@ -30,16 +30,6 @@ class MenuUpdate(BaseModel):
     component: str | None = Field(..., max_length=200, description="组件路径，无则传 null")
     parent_id: int | None = Field(..., description="父菜单 ID，顶级菜单传 null")
     sort_order: int = Field(..., ge=0, description="排序号")
-
-
-class MenuPatch(BaseModel):
-    """PATCH 部分更新 — 只传要改的字段（传 null 清除该字段）。"""
-    name: str | None = Field(None, min_length=1, max_length=50)
-    icon: str | None = Field(None, max_length=50)
-    path: str | None = Field(None, max_length=100)
-    component: str | None = Field(None, max_length=200)
-    parent_id: int | None = None
-    sort_order: int | None = Field(None, ge=0)
 
 
 # ============================================================

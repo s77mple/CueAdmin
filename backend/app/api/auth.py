@@ -1,5 +1,5 @@
 """
-认证 API — 登录 / 登出 / 获取当前用户信息 / 修改资料。
+认证 API — 登录 / 登出。
 
 前端登录的完整交互流程：
 
@@ -14,17 +14,15 @@
 
 import time
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends
 from jose import JWTError
 
 from app.core.database import DbSession
-from app.core.dependencies import CurrentUser, get_redis, security_scheme
+from app.core.dependencies import get_redis, security_scheme
 from app.core.security import decode_token
-from app.models import User
-from app.schemas.auth import LoginRequest, LoginApiResponse, MeApiResponse, MeResponse
+from app.schemas.auth import LoginRequest, LoginApiResponse
 from app.schemas.response import ApiResponse
 from app.services.auth_service import AuthService
-from app.services.menu_service import collect_user_menus
 from app.core.logger import logger
 from app.core.exceptions import BusinessException, ErrorCode
 
@@ -136,44 +134,3 @@ async def logout(
     except aioredis.RedisError:
         logger.warning("登出时 Redis 操作失败，跳过")
     return ApiResponse.ok(message="已登出")
-
-
-# ============================================================
-# 4. PUT /auth/profile — 修改个人资料
-# ============================================================
-
-@router.put("/profile", response_model=ApiResponse)
-async def update_profile(
-    db: DbSession,
-    user: CurrentUser,  # 仅认证不鉴权（知道是谁就行，不检查权限）
-    display_name: str = Body(..., embed=True, min_length=1, max_length=50),
-):
-    """#4 修改自己的显示名。不需要细粒度权限，登录即可。"""
-    user.display_name = display_name
-    await db.commit()
-    return ApiResponse.ok(data={"display_name": user.display_name})
-
-
-# ============================================================
-# 5. GET /auth/me — 获取当前用户信息（含菜单 + 权限）
-# ============================================================
-
-@router.get("/me", response_model=MeApiResponse)
-async def me(user: CurrentUser, db: DbSession):
-    """#5 前端刷新页面后调用此接口获取用户信息（token 还在 localStorage 里）。
-
-    前端初始化流程：
-      router.beforeEach → 无用户信息 → getMe() → 拿到 user/permissions/roles/menus
-      → 存 pinia store → initRouter(menus) → 生成动态路由 → 显示页面
-    """
-    # 收集权限（所有角色权限取并集，去重排序）
-    permissions = sorted({p.code for role in user.roles for p in role.permissions})
-
-    # 收集菜单（统一收口到 menu_service）
-    menus = await collect_user_menus(db, user)
-    return ApiResponse.ok(data=MeResponse(
-        user=user,
-        permissions=permissions,
-        roles=list(user.roles),
-        menus=menus,
-    ))

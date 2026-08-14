@@ -4,13 +4,13 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Security
+from fastapi import APIRouter, Path, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas.department import (
-    DepartmentCreate, DepartmentUpdate, DepartmentPatch,
+    DepartmentCreate, DepartmentUpdate,
     DepartmentListResponse, DepartmentListApiResponse, DepartmentBriefResponse,
 )
 from app.schemas.response import ApiResponse
@@ -60,7 +60,7 @@ async def create_department(
 
 @router.put("/{dept_id}", response_model=DepartmentBriefResponse, summary="全量更新部门")
 async def update_department(
-    dept_id: int,
+    dept_id: Annotated[int, Path(description="部门 ID")],
     body: DepartmentUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.UPDATE])],
@@ -70,27 +70,12 @@ async def update_department(
 
 
 # ============================================================
-# PATCH /departments/{dept_id} — 部分更新
-# ============================================================
-
-@router.patch("/{dept_id}", response_model=DepartmentBriefResponse, summary="部分更新部门")
-async def patch_department(
-    dept_id: int,
-    body: DepartmentPatch,
-    db: DbSession,
-    user: Annotated[User, Security(get_current_user, scopes=[DeptScope.UPDATE])],
-):
-    dept = await DepartmentService(db).patch_department(dept_id, body)
-    return ApiResponse.ok(data=dept, message="更新成功")
-
-
-# ============================================================
 # DELETE /departments/{dept_id} — 删除部门
 # ============================================================
 
 @router.delete("/{dept_id}", response_model=ApiResponse, summary="删除部门")
 async def delete_department(
-    dept_id: int,
+    dept_id: Annotated[int, Path(description="部门 ID")],
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.DELETE])],
 ):

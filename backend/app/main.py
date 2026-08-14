@@ -9,6 +9,8 @@
 转成统一的 { code, message, data } 格式返回，前端不用区分 HTTP 状态码。
 """
 
+import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -28,12 +30,37 @@ from app.core.dependencies import close_redis, get_redis
 from app.core.database import async_engine
 
 
+def _docs_base_url() -> str:
+    """推断后端地址，用于启动时打印文档链接。
+
+    端口优先取启动命令 --port / --host，其次取环境变量 PORT / HOST，
+    兜底 uvicorn 默认 127.0.0.1:8000。host 绑定 0.0.0.0 时提示换成
+    127.0.0.1，因为浏览器访问 0.0.0.0 通常不可用。
+    """
+    host, port = "127.0.0.1", 8000
+    argv = sys.argv
+    for i, arg in enumerate(argv):
+        if arg == "--host" and i + 1 < len(argv):
+            host = argv[i + 1]
+        elif arg == "--port" and i + 1 < len(argv):
+            port = argv[i + 1]
+    host = os.getenv("HOST", host)
+    port = os.getenv("PORT", port)
+    if host in ("0.0.0.0", "::"):
+        host = "127.0.0.1"
+    return f"http://{host}:{port}"
+
+
 # 1. 应用生命周期：启动时校验配置，关闭时释放数据库连接池和 Redis 连接池
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1a. 启动：检查 .env 里 jwt_secret 和 database_url 有没有配好
     settings.validate_secrets()
+    base = _docs_base_url()
     logger.info("应用启动完成")
+    logger.info(f"Swagger 文档: {base}/docs")
+    logger.info(f"ReDoc 文档:   {base}/redoc")
+    logger.info(f"OpenAPI JSON: {base}/openapi.json")
     yield
     # 1b. 关闭：先关 Redis，再关数据库（顺序不重要，都是独立资源）
     logger.info("正在关闭 Redis 连接池...")

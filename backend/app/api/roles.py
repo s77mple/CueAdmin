@@ -10,14 +10,14 @@
 from typing import Annotated
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Query, Security
+from fastapi import APIRouter, Depends, Path, Query, Security
 
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user, get_redis
 from app.models import User
 from app.schemas.response import ApiResponse
 from app.schemas.role import (
-    RoleCreate, RoleUpdate, RolePatch,
+    RoleCreate, RoleUpdate,
     RoleListApiResponse, RoleBriefResponse,
 )
 from app.services.role_service import RoleService
@@ -40,8 +40,8 @@ class RoleScope:
 async def list_roles(
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
-    page: int = Query(1, ge=1),
-    page_size: int = Query(100, ge=1, le=100),
+    page: int = Query(1, ge=1, description="页码，从 1 开始"),
+    page_size: int = Query(100, ge=1, le=100, description="每页条数，最大 100"),
 ):
     result = await RoleService(db).list_roles(page, page_size)
     return ApiResponse.ok(data=result)
@@ -67,7 +67,7 @@ async def create_role(
 
 @router.put("/{role_id}", response_model=RoleBriefResponse, summary="全量更新角色")
 async def update_role(
-    role_id: int,
+    role_id: Annotated[int, Path(description="角色 ID")],
     body: RoleUpdate,
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
@@ -78,28 +78,12 @@ async def update_role(
 
 
 # ============================================================
-# PATCH /roles/{role_id} — 部分更新
-# ============================================================
-
-@router.patch("/{role_id}", response_model=RoleBriefResponse, summary="部分更新角色")
-async def patch_role(
-    role_id: int,
-    body: RolePatch,
-    db: DbSession,
-    user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
-):
-    role = await RoleService(db, redis_client).patch_role(role_id, body)
-    return ApiResponse.ok(data=role, message="更新成功")
-
-
-# ============================================================
 # DELETE /roles/{role_id} — 删除角色
 # ============================================================
 
 @router.delete("/{role_id}", response_model=ApiResponse, summary="删除角色")
 async def delete_role(
-    role_id: int,
+    role_id: Annotated[int, Path(description="角色 ID")],
     db: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.DELETE])],
     redis_client: aioredis.Redis = Depends(get_redis),
