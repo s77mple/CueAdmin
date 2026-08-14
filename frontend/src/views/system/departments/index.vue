@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getDepartmentList, createDepartment, updateDepartment, deleteDepartment } from "@/api/departments";
@@ -127,9 +128,10 @@ onMounted(onSearch);
 
 <template>
   <div>
-    <el-button v-perms="['department:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增部门</el-button>
-
-    <PureTableBar title="部门列表" :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
+    <PureTableBar :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
+      <template #title>
+        <el-button v-perms="['department:create']" type="primary" :icon="Plus" @click="openCreate">新增部门</el-button>
+      </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           ref="pureTableRef"

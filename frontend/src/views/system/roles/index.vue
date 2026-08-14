@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
@@ -203,10 +204,11 @@ onMounted(() => { onSearch(); });
 </script>
 
 <template>
-  <div style="padding: 20px">
-    <el-button v-perms="['role:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增角色</el-button>
-
-    <PureTableBar title="角色列表" :columns="columns" @refresh="onSearch">
+  <div>
+    <PureTableBar :columns="columns" @refresh="onSearch">
+      <template #title>
+        <el-button v-perms="['role:create']" type="primary" :icon="Plus" @click="openCreate">新增角色</el-button>
+      </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           row-key="id"

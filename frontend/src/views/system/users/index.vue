@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
@@ -161,16 +162,17 @@ onMounted(() => { onSearch(); loadRoles(); });
 
 <template>
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-      <el-button v-perms="['user:create']" type="primary" @click="openCreate">新增用户</el-button>
-      <el-radio-group v-model="statusFilter" size="small" @change="onStatusChange">
-        <el-radio-button value="active">启用</el-radio-button>
-        <el-radio-button value="disabled">已禁用</el-radio-button>
-        <el-radio-button value="all">全部</el-radio-button>
-      </el-radio-group>
-    </div>
-
-    <PureTableBar title="用户列表" :columns="columns" @refresh="onSearch">
+    <PureTableBar :columns="columns" @refresh="onSearch">
+      <template #title>
+        <el-button v-perms="['user:create']" type="primary" :icon="Plus" @click="openCreate">新增用户</el-button>
+      </template>
+      <template #buttons>
+        <el-radio-group v-model="statusFilter" size="small" @change="onStatusChange">
+          <el-radio-button value="active">启用</el-radio-button>
+          <el-radio-button value="disabled">已禁用</el-radio-button>
+          <el-radio-button value="all">全部</el-radio-button>
+        </el-radio-group>
+      </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           row-key="id"

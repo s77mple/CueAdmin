@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getPermissionList, createPermission, updatePermission, deletePermission } from "@/api/permissions";
@@ -124,10 +125,11 @@ onMounted(onSearch);
 </script>
 
 <template>
-  <div style="padding: 20px">
-    <el-button v-perms="['permission:create']" type="primary" style="margin-bottom: 12px" @click="openCreate">新增权限</el-button>
-
-    <PureTableBar title="权限列表" :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
+  <div>
+    <PureTableBar :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
+      <template #title>
+        <el-button v-perms="['permission:create']" type="primary" :icon="Plus" @click="openCreate">新增权限</el-button>
+      </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
           ref="pureTableRef"
