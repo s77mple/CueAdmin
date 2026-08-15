@@ -60,18 +60,18 @@ class Base(DeclarativeBase):
 #
 #    FastAPI 的 Depends 机制：
 #      API 函数参数写 db: DbSession
-#      → FastAPI 调用 get_db() 拿到 session
+#      → FastAPI 调用 get_db_session() 拿到 session
 #      → API 函数执行完 → async with 退出 → session 自动 close
 #      如果中途抛异常 → async with 也会自动 close（类似 try/finally）
 #
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
 
 
 # 5. 类型别名 — 让 API 函数签名更简洁
 #
-#    之前: async def list_users(db: AsyncSession = Depends(get_db))
+#    之前: async def list_users(db: AsyncSession = Depends(get_db_session))
 #    现在: async def list_users(db: DbSession)
 #
-DbSession = Annotated[AsyncSession, Depends(get_db)]
+DbSession = Annotated[AsyncSession, Depends(get_db_session)]
