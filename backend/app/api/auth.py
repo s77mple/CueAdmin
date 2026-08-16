@@ -45,7 +45,7 @@ _LOGIN_LOCK_TTL = 900       # 锁定时间（15 分钟）
 @router.post("/login", response_model=LoginApiResponse)
 async def login(
     body: LoginRequest,                                    # 前端传来的 { username, password }
-    db: DbSession,                                         # 数据库会话（自动注入）
+    session: DbSession,                                         # 数据库会话（自动注入）
     redis_client: aioredis.Redis = Depends(get_redis),     # Redis（自动注入）
 ):
     """#2 登录接口。
@@ -72,7 +72,7 @@ async def login(
 
     # ---- #2b-c-d 执行登录 + 处理结果 ----
     try:
-        result = await AuthService(db).login(body.username, body.password, body.client)
+        result = await AuthService(session).login(body.username, body.password, body.client)
     except BusinessException as e:
         if e.code == ErrorCode.AUTH_INVALID_CREDENTIALS:
             # 登录失败 → 增加计数器

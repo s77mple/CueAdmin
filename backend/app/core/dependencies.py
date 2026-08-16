@@ -89,7 +89,7 @@ security_scheme = HTTPBearer()
 
 async def get_current_user(
     security_scopes: SecurityScopes,                              # FastAPI 自动注入 scopes 列表
-    db: DbSession,                                                # 数据库会话（自动注入）
+    session: DbSession,                                                # 数据库会话（自动注入）
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),  # token（自动注入）
     redis_client: aioredis.Redis = Depends(get_redis),            # Redis（自动注入）
 ) -> User:
@@ -151,7 +151,7 @@ async def get_current_user(
     if cached_perms is None:
         stmt = stmt.options(selectinload(User.roles).selectinload(Role.permissions))
     stmt = stmt.where(User.id == user_id)
-    result = await db.execute(stmt)
+    result = await session.execute(stmt)
     user = result.scalars().first()
 
     # ---- #3.6 校验用户状态 ----

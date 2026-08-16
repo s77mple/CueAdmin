@@ -38,12 +38,12 @@ class RoleScope:
 
 @router.get("", response_model=RoleListApiResponse, summary="角色列表")
 async def list_roles(
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
     page: int = Query(1, ge=1, description="页码，从 1 开始"),
     page_size: int = Query(100, ge=1, le=100, description="每页条数，最大 100"),
 ):
-    result = await RoleService(db).list_roles(page, page_size)
+    result = await RoleService(session).list_roles(page, page_size)
     return ApiResponse.ok(data=result)
 
 
@@ -54,10 +54,10 @@ async def list_roles(
 @router.post("", response_model=RoleBriefResponse, status_code=201, summary="创建角色")
 async def create_role(
     body: RoleCreate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.CREATE])],
 ):
-    role = await RoleService(db).create_role(body)
+    role = await RoleService(session).create_role(body)
     return ApiResponse.ok(data=role, message="创建成功")
 
 
@@ -69,11 +69,11 @@ async def create_role(
 async def update_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     body: RoleUpdate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    role = await RoleService(db, redis_client).update_role(role_id, body)
+    role = await RoleService(session, redis_client).update_role(role_id, body)
     return ApiResponse.ok(data=role, message="更新成功")
 
 
@@ -84,9 +84,9 @@ async def update_role(
 @router.delete("/{role_id}", response_model=ApiResponse, summary="删除角色")
 async def delete_role(
     role_id: Annotated[int, Path(description="角色 ID")],
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.DELETE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    message = await RoleService(db, redis_client).delete_role(role_id)
+    message = await RoleService(session, redis_client).delete_role(role_id)
     return ApiResponse.ok(message=message)

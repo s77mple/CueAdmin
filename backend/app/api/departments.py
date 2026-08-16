@@ -32,10 +32,10 @@ class DeptScope:
 
 @router.get("", response_model=DepartmentListApiResponse, summary="部门列表")
 async def list_departments(
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.LIST])],
 ):
-    departments = await DepartmentService(db).list_departments()
+    departments = await DepartmentService(session).list_departments()
     data = DepartmentListResponse(items=departments, total=len(departments))
     return ApiResponse.ok(data=data)
 
@@ -47,10 +47,10 @@ async def list_departments(
 @router.post("", response_model=DepartmentBriefResponse, status_code=201, summary="创建部门")
 async def create_department(
     body: DepartmentCreate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.CREATE])],
 ):
-    dept = await DepartmentService(db).create_department(body)
+    dept = await DepartmentService(session).create_department(body)
     return ApiResponse.ok(data=dept, message="创建成功")
 
 
@@ -62,10 +62,10 @@ async def create_department(
 async def update_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
     body: DepartmentUpdate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.UPDATE])],
 ):
-    dept = await DepartmentService(db).update_department(dept_id, body)
+    dept = await DepartmentService(session).update_department(dept_id, body)
     return ApiResponse.ok(data=dept, message="更新成功")
 
 
@@ -76,8 +76,8 @@ async def update_department(
 @router.delete("/{dept_id}", response_model=ApiResponse, summary="删除部门")
 async def delete_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.DELETE])],
 ):
-    result = await DepartmentService(db).delete_department(dept_id)
+    result = await DepartmentService(session).delete_department(dept_id)
     return ApiResponse.ok(message=result["message"])

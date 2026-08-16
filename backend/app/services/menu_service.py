@@ -20,7 +20,7 @@ from app.core.logger import logger
 from app.core.exceptions import BusinessException, ErrorCode
 
 
-async def collect_user_menus(db: AsyncSession, user: User) -> list[dict]:
+async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
     """收集用户有权限看到的菜单（扁平列表，含自动补全的父级菜单）。
 
     处理三种情况：
@@ -35,7 +35,7 @@ async def collect_user_menus(db: AsyncSession, user: User) -> list[dict]:
     # ---- admin 拥有全部菜单 ----
     if any(role.code == "admin" for role in user.roles):
         stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
-        result = await db.execute(stmt)
+        result = await session.execute(stmt)
         all_menus = result.scalars().all()
         menus = [
             _menu_to_dict(m) for m in all_menus
@@ -66,7 +66,7 @@ async def collect_user_menus(db: AsyncSession, user: User) -> list[dict]:
                 break
 
             stmt = select(Menu).where(Menu.id.in_(missing))
-            result = await db.execute(stmt)
+            result = await session.execute(stmt)
             parents = result.scalars().all()
             if not parents:
                 break  # 孤立引用（parent_id 指向不存在的记录）
@@ -230,8 +230,8 @@ class MenuService:
       - MenuService 是菜单的增删改查业务逻辑（被 /menus 端点使用）
     """
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
     # ============================================================
     # 查询
@@ -239,14 +239,14 @@ class MenuService:
 
     async def list_menus(self) -> list[Menu]:
         """返回全部菜单（扁平列表，前端用 parent_id 转树）。"""
-        result = await self.db.execute(
+        result = await self.session.execute(
             select(Menu).order_by(Menu.sort_order, Menu.id).limit(500)
         )
         return list(result.scalars().all())
 
     async def get_menu_for_update(self, menu_id: int) -> Menu:
         """带行级锁获取菜单。"""
-        result = await self.db.execute(
+        result = await self.session.execute(
             select(Menu).where(Menu.id == menu_id).with_for_update()
         )
         menu = result.scalars().first()
@@ -260,11 +260,11 @@ class MenuService:
 
     async def create_menu(self, body) -> Menu:
         """创建菜单 — 验证父菜单 + 双重唯一性保护。"""
-        if (await self.db.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
+        if (await self.session.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
 
         if body.parent_id is not None:
-            parent = (await self.db.execute(select(Menu).where(Menu.id == body.parent_id))).scalars().first()
+            parent = (await self.session.execute(select(Menu).where(Menu.id == body.parent_id))).scalars().first()
             if not parent:
                 raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
 
@@ -273,13 +273,13 @@ class MenuService:
             path=body.path, component=body.component,
             parent_id=body.parent_id, sort_order=body.sort_order,
         )
-        self.db.add(menu)
+        self.session.add(menu)
         try:
-            await self.db.commit()
+            await self.session.commit()
         except IntegrityError:
-            await self.db.rollback()
+            await self.session.rollback()
             raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
-        await self.db.refresh(menu)
+        await self.session.refresh(menu)
         return menu
 
     # ============================================================
@@ -300,7 +300,7 @@ class MenuService:
         menu.parent_id = body.parent_id
         menu.sort_order = body.sort_order
 
-        await self.db.commit()
+        await self.session.commit()
         return menu
 
     # ============================================================
@@ -312,7 +312,7 @@ class MenuService:
         menu = await self.get_menu_for_update(menu_id)
 
         # 子菜单变顶级
-        children = (await self.db.execute(
+        children = (await self.session.execute(
             select(Menu).where(Menu.parent_id == menu_id).with_for_update()
         )).scalars().all()
         child_info = None
@@ -322,8 +322,8 @@ class MenuService:
             for child in children:
                 child.parent_id = None
 
-        await self.db.delete(menu)
-        await self.db.commit()
+        await self.session.delete(menu)
+        await self.session.commit()
 
         if child_info:
             return {
@@ -341,7 +341,7 @@ class MenuService:
         if new_parent_id == menu_id:
             raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
 
-        parent = (await self.db.execute(select(Menu).where(Menu.id == new_parent_id))).scalars().first()
+        parent = (await self.session.execute(select(Menu).where(Menu.id == new_parent_id))).scalars().first()
         if not parent:
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {new_parent_id}")
 
@@ -359,7 +359,7 @@ class MenuService:
                 logger.warning(f"菜单表存在循环引用: menu_id={menu_id} 的祖先链中出现重复节点 {current_id}")
                 break
             visited.add(current_id)
-            result = await self.db.execute(
+            result = await self.session.execute(
                 select(Menu.parent_id).where(Menu.id == current_id)
             )
             row = result.first()

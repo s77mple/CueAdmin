@@ -3,7 +3,7 @@
 
 用法：
   stmt = select(User).options(selectinload(User.roles))
-  result = await paginate(db, stmt, page=1, page_size=20)
+  result = await paginate(session, stmt, page=1, page_size=20)
   # result = PageData(items=[...], total=50, page=1, page_size=20, has_more=True)
 
 分页实现要点：
@@ -23,7 +23,7 @@ from app.schemas.response import PageData
 
 
 async def paginate(
-    db: AsyncSession,
+    session: AsyncSession,
     stmt: Select,
     page: int,
     page_size: int,
@@ -42,11 +42,11 @@ async def paginate(
     # 先 DISTINCT（去重），再 COUNT（计数），结果准确
     count_subq = stmt.distinct().subquery()
     count_stmt = select(func.count()).select_from(count_subq)
-    total = (await db.execute(count_stmt)).scalar() or 0
+    total = (await session.execute(count_stmt)).scalar() or 0
 
     # #1c 分页数据 — 同样 DISTINCT 避免重复行
     page_stmt = stmt.distinct().offset((page - 1) * page_size).limit(page_size)
-    result = await db.execute(page_stmt)
+    result = await session.execute(page_stmt)
     items = list(result.scalars().all())
 
     # #1d 组装分页响应
