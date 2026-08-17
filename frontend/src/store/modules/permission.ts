@@ -10,7 +10,6 @@ import {
   formatFlatteningRoutes
 } from "../utils";
 import { useMultiTagsStoreHook } from "./multiTags";
-import { handleTree } from "@/utils/tree";
 
 export const usePermissionStore = defineStore("pure-permission", {
   state: () => ({
@@ -32,34 +31,6 @@ export const usePermissionStore = defineStore("pure-permission", {
       this.flatteningRoutes = formatFlatteningRoutes(
         this.constantMenus.concat(routes) as any
       );
-    },
-    /** 从后端 menus 数据构建动态侧边栏 */
-    handleMenus(menus: any[]) {
-      if (!menus || !menus.length) {
-        this.handleWholeMenus([]);
-        return;
-      }
-      try {
-        const menuTree = handleTree(menus, "id", "parent_id", "children");
-        const toRoute = (node: any): any => ({
-          path: node.path,
-          name: node.code,
-          redirect: node.children?.length ? node.children[0].path : undefined,
-          meta: {
-            icon: node.icon,
-            title: node.name,
-            rank: node.sort_order,
-            roles: []
-          },
-          children: node.children?.map(toRoute)
-        });
-        const routes = menuTree.map(toRoute);
-        this.wholeMenus = filterTree(ascending(routes));
-        this.flatteningRoutes = formatFlatteningRoutes(routes);
-      } catch (e) {
-        console.warn("动态菜单构建失败，回退到静态菜单", e);
-        this.handleWholeMenus([]);
-      }
     },
     /** 监听缓存页面是否存在于标签页，不存在则删除 */
     clearCache() {
