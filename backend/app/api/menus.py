@@ -1,8 +1,8 @@
 """
 菜单管理 API — 薄控制器，业务逻辑全部委托给 MenuService。
 
-同时包含动态路由端点（GET /routes），返回 Pure Admin 格式的导航菜单数据，
-是前端 initRouter() 的数据源。见文件末尾的 get_routes()。
+注意：动态路由端点（GET /routes）已移到 me.py（当前用户模块），
+因为 /routes 返回的是当前用户的路由 + 权限 + 角色，属于"当前用户"而非"菜单管理"。
 """
 
 from typing import Annotated
@@ -17,12 +17,9 @@ from app.schemas.menu import (
     MenuListResponse, MenuListApiResponse, MenuBriefResponse,
 )
 from app.schemas.response import ApiResponse
-from app.services.menu_service import (
-    MenuService, collect_user_menus, build_routes,
-)
+from app.services.menu_service import MenuService
 
 router = APIRouter()
-routes_router = APIRouter()  # 动态路由，单独挂载 /routes（前端导航数据源）
 
 
 class MenuScope:
@@ -86,26 +83,3 @@ async def delete_menu(
 ):
     result = await MenuService(session).delete_menu(menu_id)
     return ApiResponse.ok(message=result["message"])
-
-
-# ============================================================
-# GET /routes — 获取当前用户的动态路由
-# ============================================================
-
-@routes_router.get("", response_model=ApiResponse[list], summary="获取当前用户动态路由")
-async def get_routes(
-    session: DbSession,
-    user: Annotated[User, Security(get_current_user)],  # 仅认证不鉴权（不需要 scope）
-):
-    """返回当前用户有权限看到的菜单，格式适配 Pure Admin。
-
-    前端调用时机：
-      - 登录成功后 → getAsyncRoutes()
-      - 刷新页面后 → router.beforeEach 检测到无路由数据 → getMe() → getAsyncRoutes()
-
-    菜单收集和路由构建统一收口到 menu_service，与 login、/me 共用。
-    遇到循环引用时跳过问题节点（graceful degradation），不崩溃。
-    """
-    menus = await collect_user_menus(session, user)
-    routes = build_routes(menus)
-    return ApiResponse.ok(data=routes)
