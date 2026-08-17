@@ -59,6 +59,20 @@ export function removeToken() {
   storageLocal().removeItem(userKey);
 }
 
+/** 刷新时用 /routes 返回值回写当前用户的权限与角色（保留 accessToken/username） */
+export function updateUserAuth(data: {
+  permissions?: Array<string>;
+  roles?: Array<string>;
+}) {
+  const cur = storageLocal().getItem<DataInfo>(userKey);
+  if (!cur) return;
+  const permissions = data.permissions ?? cur.permissions ?? [];
+  const roles = data.roles ?? cur.roles ?? [];
+  useUserStoreHook().SET_PERMS(permissions);
+  useUserStoreHook().SET_ROLES(roles);
+  storageLocal().setItem(userKey, { ...cur, permissions, roles });
+}
+
 /** 格式化 token（JWT 格式） */
 export const formatToken = (token: string): string => {
   return "Bearer " + token;
