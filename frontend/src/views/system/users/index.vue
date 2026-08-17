@@ -8,6 +8,7 @@ import { PureTableBar } from "@/components/RePureTableBar";
 import { getUserList, createUser, updateUser, patchUser, deleteUser, hardDeleteUser } from "@/api/users";
 import { getRoleList } from "@/api/roles";
 import { getDepartmentList } from "@/api/departments";
+import { ErrorCode } from "@/constants/error-code";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -22,6 +23,9 @@ const statusFilter = ref<"active" | "disabled" | "all">("active");
 
 const form = reactive({ id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [] as number[], department_id: null as number | null });
 const formRef = ref<FormInstance>();
+
+// 服务端唯一性冲突（12002 用户名已存在）→ 字段级标红
+const fieldErrors = reactive({ username: "" });
 
 const rules = reactive<FormRules>({
   username: [
@@ -39,9 +43,9 @@ const rules = reactive<FormRules>({
     },
   ],
   password: [
+    { required: true, message: "请输入密码", trigger: "blur" },
     { validator: (_rule, value, callback) => {
-      if (!form.id && !value) callback(new Error("请输入密码"));
-      else if (value && value.length < 6) callback(new Error("密码至少 6 个字符"));
+      if (value && value.length < 6) callback(new Error("密码至少 6 个字符"));
       else callback();
     }, trigger: "blur" },
   ],
@@ -94,29 +98,43 @@ async function loadRoles() {
 function openCreate() {
   dialogTitle.value = "新增用户";
   Object.assign(form, { id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [], department_id: null });
+  fieldErrors.username = "";
   dialogVisible.value = true;
 }
 
 function openEdit(row: any) {
   dialogTitle.value = "编辑用户";
   Object.assign(form, { id: row.id, username: row.username, password: "", display_name: row.display_name, phone: row.phone ?? "", is_active: row.is_active, role_ids: row.roles?.map((r: any) => r.id) ?? [], department_id: row.department_id ?? null });
+  fieldErrors.username = "";
   dialogVisible.value = true;
+}
+
+/** 保存失败：唯一性冲突（用户名已存在）标红字段，其余走 toast */
+function onSaveFail(res: any, fallback: string) {
+  if (res.code === ErrorCode.USERNAME_ALREADY_EXISTS) {
+    fieldErrors.username = res.message || "用户名已存在";
+    return;
+  }
+  ElMessage.error(res.message || fallback);
 }
 
 async function handleSubmit() {
   if (!formRef.value) return;
+  // 每次提交前清空上次的字段级错误：el-form-item 的 error 是 watch 属性，
+  // 同值重复赋值不会触发显示，否则连续提交相同用户名时错误只会出现一次
+  fieldErrors.username = "";
   try {
     await formRef.value.validate();
     const data: any = { display_name: form.display_name, phone: form.phone || null, role_ids: form.role_ids, department_id: form.department_id ?? null, is_active: form.is_active };
     if (form.id) {
       data.username = form.username.trim();
       const res = await updateUser(form.id, data);
-      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
+      if (res.code !== 0) { onSaveFail(res, "更新失败"); return; }
       ElMessage.success("更新成功");
     } else {
       data.username = form.username.trim(); data.password = form.password;
       const res = await createUser(data);
-      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
+      if (res.code !== 0) { onSaveFail(res, "创建失败"); return; }
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -221,8 +239,8 @@ onMounted(() => { onSearch(); loadRoles(); });
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" />
+        <el-form-item label="用户名" prop="username" :error="fieldErrors.username">
+          <el-input v-model="form.username" @input="fieldErrors.username = ''" />
         </el-form-item>
         <el-form-item v-if="!form.id" label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password />

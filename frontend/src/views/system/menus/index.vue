@@ -6,6 +6,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getMenuList, createMenu, updateMenu, deleteMenu } from "@/api/menus";
 import { handleTree } from "@/utils/tree";
+import { ErrorCode } from "@/constants/error-code";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -39,6 +40,9 @@ const treeBarRef = computed(() => {
 const form = reactive({ id: 0, code: "", name: "", icon: "", path: "", component: "", parent_id: null as number | null, sort_order: 0, children: [] as any[] });
 const formRef = ref<FormInstance>();
 
+// 服务端唯一性冲突（14002 菜单编码已存在）→ 字段级标红
+const fieldErrors = reactive({ code: "" });
+
 const rules: FormRules = {
   code: [{ required: true, message: "请输入菜单编码", trigger: "blur" }],
   name: [{ required: true, message: "请输入菜单名称", trigger: "blur" }],
@@ -60,6 +64,7 @@ async function onSearch() {
 function openCreate() {
   dialogTitle.value = "新增菜单";
   Object.assign(form, { id: 0, code: "", name: "", icon: "", path: "", component: "", parent_id: null, sort_order: 0, children: [] });
+  fieldErrors.code = "";
   dialogVisible.value = true;
 }
 
@@ -71,6 +76,9 @@ function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
+  // 每次提交前清空字段级错误：el-form-item 的 error 是 watch 属性，
+  // 同值重复赋值不会触发显示，否则连续提交相同编码时错误只会出现一次
+  fieldErrors.code = "";
   try {
     await formRef.value.validate();
   } catch {
@@ -104,6 +112,10 @@ async function handleSubmit() {
   };
   const parentRes: any = await createMenu(parentData);
   if (parentRes.code !== 0) {
+    if (parentRes.code === ErrorCode.MENU_CODE_EXISTS) {
+      fieldErrors.code = parentRes.message || "菜单编码已存在";
+      return;
+    }
     ElMessage.error(parentRes.message || "父菜单创建失败");
     return;
   }
@@ -183,8 +195,8 @@ onMounted(onSearch);
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="580px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" prop="code">
-          <el-input v-model="form.code" />
+        <el-form-item v-if="!form.id" label="编码" prop="code" :error="fieldErrors.code">
+          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
         </el-form-item>
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />

@@ -5,6 +5,7 @@ import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getPermissionList, createPermission, updatePermission, deletePermission } from "@/api/permissions";
+import { ErrorCode } from "@/constants/error-code";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -13,6 +14,9 @@ const dialogTitle = ref("新增权限");
 
 const form = reactive({ id: 0, code: "", name: "", resource: "", action: "", description: "" });
 const formRef = ref<FormInstance>();
+
+// 服务端唯一性冲突（15002 权限码已存在）→ 字段级标红
+const fieldErrors = reactive({ code: "" });
 
 const rules: FormRules = {
   code: [{ required: true, message: "请输入权限编码", trigger: "blur" }],
@@ -82,27 +86,41 @@ async function onSearch() {
 function openCreate() {
   dialogTitle.value = "新增权限";
   Object.assign(form, { id: 0, code: "", name: "", resource: "", action: "", description: "" });
+  fieldErrors.code = "";
   dialogVisible.value = true;
 }
 
 function openEdit(row: any) {
   dialogTitle.value = "编辑权限";
   Object.assign(form, { id: row.id, code: row.code, name: row.name, resource: row.resource, action: row.action, description: row.description ?? "" });
+  fieldErrors.code = "";
   dialogVisible.value = true;
+}
+
+/** 保存失败：唯一性冲突（权限码已存在）标红字段，其余走 toast */
+function onSaveFail(res: any, fallback: string) {
+  if (res.code === ErrorCode.PERM_CODE_EXISTS) {
+    fieldErrors.code = res.message || "权限编码已存在";
+    return;
+  }
+  ElMessage.error(res.message || fallback);
 }
 
 async function handleSubmit() {
   if (!formRef.value) return;
+  // 每次提交前清空字段级错误：el-form-item 的 error 是 watch 属性，
+  // 同值重复赋值不会触发显示，否则连续提交相同编码时错误只会出现一次
+  fieldErrors.code = "";
   try {
     await formRef.value.validate();
     const data: any = { code: form.code, name: form.name, resource: form.resource, action: form.action, description: form.description || null };
     if (form.id) {
       const res: any = await updatePermission(form.id, data);
-      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
+      if (res.code !== 0) { onSaveFail(res, "更新失败"); return; }
       ElMessage.success("更新成功");
     } else {
       const res: any = await createPermission(data);
-      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
+      if (res.code !== 0) { onSaveFail(res, "创建失败"); return; }
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -172,8 +190,8 @@ onMounted(onSearch);
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="权限码" prop="code">
-          <el-input v-model="form.code" placeholder="如 user:list" />
+        <el-form-item label="权限码" prop="code" :error="fieldErrors.code">
+          <el-input v-model="form.code" placeholder="如 user:list" @input="fieldErrors.code = ''" />
         </el-form-item>
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />

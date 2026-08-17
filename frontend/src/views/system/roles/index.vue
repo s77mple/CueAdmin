@@ -148,6 +148,9 @@ async function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
+  // 每次提交前清空字段级错误：el-form-item 的 error 是 watch 属性，
+  // 同值重复赋值不会触发显示，否则连续提交相同编码时错误只会出现一次
+  fieldErrors.code = "";
   try {
     await formRef.value.validate();
     const checkedMenuIds = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];

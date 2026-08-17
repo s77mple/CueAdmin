@@ -6,6 +6,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getDepartmentList, createDepartment, updateDepartment, deleteDepartment } from "@/api/departments";
 import { handleTree } from "@/utils/tree";
+import { ErrorCode } from "@/constants/error-code";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -37,6 +38,9 @@ const treeBarRef = computed(() => {
 const form = reactive({ id: 0, code: "", name: "", parent_id: null as number | null, sort_order: 0, description: "" });
 const formRef = ref<FormInstance>();
 
+// 服务端唯一性冲突（18002 部门编码已存在）→ 字段级标红
+const fieldErrors = reactive({ code: "" });
+
 const rules: FormRules = {
   code: [{ required: true, message: "请输入部门编码", trigger: "blur" }],
   name: [{ required: true, message: "请输入部门名称", trigger: "blur" }],
@@ -54,6 +58,7 @@ async function onSearch() {
 function openCreate() {
   dialogTitle.value = "新增部门";
   Object.assign(form, { id: 0, code: "", name: "", parent_id: null, sort_order: 0, description: "" });
+  fieldErrors.code = "";
   dialogVisible.value = true;
 }
 
@@ -69,6 +74,9 @@ function openEdit(row: any) {
 
 async function handleSubmit() {
   if (!formRef.value) return;
+  // 每次提交前清空字段级错误：el-form-item 的 error 是 watch 属性，
+  // 同值重复赋值不会触发显示，否则连续提交相同编码时错误只会出现一次
+  fieldErrors.code = "";
   try {
     await formRef.value.validate();
     const data: any = {
@@ -83,7 +91,14 @@ async function handleSubmit() {
       ElMessage.success("更新成功");
     } else {
       const res: any = await createDepartment({ ...data, code: form.code });
-      if (res.code !== 0) { ElMessage.error(res.message || "创建失败"); return; }
+      if (res.code !== 0) {
+        if (res.code === ErrorCode.DEPT_CODE_EXISTS) {
+          fieldErrors.code = res.message || "部门编码已存在";
+          return;
+        }
+        ElMessage.error(res.message || "创建失败");
+        return;
+      }
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -156,8 +171,8 @@ onMounted(onSearch);
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="550px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" prop="code">
-          <el-input v-model="form.code" />
+        <el-form-item v-if="!form.id" label="编码" prop="code" :error="fieldErrors.code">
+          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
         </el-form-item>
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" />
