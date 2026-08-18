@@ -105,8 +105,14 @@ class UserService:
             await self.db.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
-        await self.db.refresh(new_user)
-        return new_user
+        # commit 后重新查询并 eager load roles + department：
+        # 否则响应序列化时访问 new_user.roles 会触发 async lazy-load（MissingGreenlet 崩溃）
+        result = await self.db.execute(
+            select(User)
+            .options(selectinload(User.roles), selectinload(User.department))
+            .where(User.id == new_user.id)
+        )
+        return result.scalars().first()
 
     # ============================================================
     # 全量更新

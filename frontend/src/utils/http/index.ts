@@ -13,6 +13,7 @@ import { stringify } from "qs";
 import { message } from "@/utils/message";
 import { getToken, formatToken, removeToken } from "@/utils/auth";
 import { router } from "@/router";
+import { ErrorCode } from "@/constants/error-code";
 
 const defaultConfig: AxiosRequestConfig = {
   timeout: 10000,
@@ -61,13 +62,17 @@ class PureHttp {
     PureHttp.axiosInstance.interceptors.response.use(
       (response: PureHttpResponse) => {
         const res = response.data;
-        if (res.code === 11002 || res.code === 11003 || res.code === 11005) {
+        if (
+          res.code === ErrorCode.AUTH_TOKEN_EXPIRED ||
+          res.code === ErrorCode.AUTH_TOKEN_REVOKED ||
+          res.code === ErrorCode.AUTH_TOKEN_INVALID
+        ) {
           message("登录已过期，请重新登录", { type: "warning" });
           removeToken();
           router.push("/login");
           return Promise.reject(new Error(res.message));
         }
-        if (res.code === 16001) {
+        if (res.code === ErrorCode.ACCESS_DENIED) {
           message("权限不足", { type: "error" });
           return Promise.reject(new Error(res.message));
         }

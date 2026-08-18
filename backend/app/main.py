@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"Swagger 文档: {base}/docs")
     logger.info(f"ReDoc 文档:   {base}/redoc")
     logger.info(f"OpenAPI JSON: {base}/openapi.json")
+    logger.info(f"错误码字典:   {base}/api/v1/meta/error-codes")
     yield
     # 1b. 关闭：先关 Redis，再关数据库（顺序不重要，都是独立资源）
     logger.info("正在关闭 Redis 连接池...")

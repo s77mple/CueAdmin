@@ -24,9 +24,11 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
       port: VITE_PORT,
       host: "0.0.0.0",
       // 本地跨域代理 — /api 开头的请求转发到 FastAPI 后端
+      // 注意：必须用 127.0.0.1 而非 localhost —— Windows 下 localhost 会优先解析成 ::1（IPv6），
+      //       而后端只监听 IPv4，每次新建连接都白等 ~2s 才回退 127.0.0.1
       proxy: {
         "/api": {
-          target: "http://localhost:8000",
+          target: "http://127.0.0.1:8000",
           changeOrigin: true,
         }
       },

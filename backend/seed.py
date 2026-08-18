@@ -10,7 +10,7 @@
 
 种子数据内容：
   1. 20 个权限（user/role/menu/permission/department × list/create/update/delete）
-  2. 10 个菜单（5 个模块 × 2 级：目录 + 列表页）
+  2. 12 个菜单（6 个模块 × 2 级：目录 + 列表页）
   3. 1 个角色（admin 管理员，拥有全部权限和菜单）
   4. 4 个初始部门（总经理室、技术部、市场部、财务部）
   5. 1 个管理员用户（admin / admin123）
@@ -95,13 +95,18 @@ MENUS = [
     # 部门管理
     ("departments",  "部门管理", "fa-solid:building",   "/departments",       None,                    None,    6),
     ("departments_index", "部门列表", None,             "/departments/index", "system/departments/index","departments", 1),
+
+    # 错误码字典（开发工具 — 只读，给联调用）
+    ("error-codes",       "错误码字典", "fa-solid:book",     "/error-codes",            None,                         None,    7),
+    ("error-codes_index", "错误码列表", None,                "/error-codes/index",      "system/error-codes/index",  "error-codes", 1),
 ]
 
 # admin 角色拥有所有菜单
 ROLE_MENUS = {
     "admin": ["users", "users_index", "roles", "roles_index",
               "menus", "menus_index", "permissions", "permissions_index",
-              "departments", "departments_index"],
+              "departments", "departments_index",
+              "error-codes", "error-codes_index"],
 }
 
 
@@ -238,7 +243,7 @@ def seed(db: Session):
 默认账号: admin / admin123
 角色: 管理员(admin)
 权限: 全部 20 项权限
-菜单: 全部 10 个菜单
+菜单: 全部 12 个菜单
 部门: 4 个初始部门
 """)
 
