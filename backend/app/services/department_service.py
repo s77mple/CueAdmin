@@ -15,8 +15,8 @@ from app.core.exceptions import BusinessException, ErrorCode
 class DepartmentService:
     """部门管理业务逻辑。"""
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
     # ============================================================
     # 查询
@@ -24,14 +24,14 @@ class DepartmentService:
 
     async def list_departments(self) -> list[Department]:
         """返回全部部门（扁平列表，前端用 parent_id 转树）。"""
-        result = await self.db.execute(
+        result = await self.session.execute(
             select(Department).order_by(Department.sort_order, Department.id).limit(500)
         )
         return list(result.scalars().all())
 
     async def get_department_for_update(self, dept_id: int) -> Department:
         """带行级锁获取部门。"""
-        result = await self.db.execute(
+        result = await self.session.execute(
             select(Department).where(Department.id == dept_id).with_for_update()
         )
         dept = result.scalars().first()
@@ -45,11 +45,11 @@ class DepartmentService:
 
     async def create_department(self, body) -> Department:
         """创建部门 — 验证父部门 + 双重唯一性保护。"""
-        if (await self.db.execute(select(Department).where(Department.code == body.code))).scalars().first():
+        if (await self.session.execute(select(Department).where(Department.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
 
         if body.parent_id is not None:
-            parent = (await self.db.execute(select(Department).where(Department.id == body.parent_id))).scalars().first()
+            parent = (await self.session.execute(select(Department).where(Department.id == body.parent_id))).scalars().first()
             if not parent:
                 raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
 
@@ -57,13 +57,13 @@ class DepartmentService:
             code=body.code, name=body.name, parent_id=body.parent_id,
             sort_order=body.sort_order, description=body.description,
         )
-        self.db.add(dept)
+        self.session.add(dept)
         try:
-            await self.db.commit()
+            await self.session.commit()
         except IntegrityError:
-            await self.db.rollback()
+            await self.session.rollback()
             raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
-        await self.db.refresh(dept)
+        await self.session.refresh(dept)
         return dept
 
     # ============================================================
@@ -82,7 +82,7 @@ class DepartmentService:
         dept.sort_order = body.sort_order
         dept.description = body.description
 
-        await self.db.commit()
+        await self.session.commit()
         return dept
 
     # ============================================================
@@ -94,7 +94,7 @@ class DepartmentService:
         dept = await self.get_department_for_update(dept_id)
 
         # 子部门变顶级
-        children = (await self.db.execute(
+        children = (await self.session.execute(
             select(Department).where(Department.parent_id == dept_id).with_for_update()
         )).scalars().all()
         child_info = None
@@ -105,12 +105,12 @@ class DepartmentService:
                 child.parent_id = None
 
         # 统计受影响用户
-        user_count = (await self.db.execute(
+        user_count = (await self.session.execute(
             select(func.count()).select_from(User).where(User.department_id == dept_id)
         )).scalar() or 0
 
-        await self.db.delete(dept)
-        await self.db.commit()
+        await self.session.delete(dept)
+        await self.session.commit()
 
         parts = []
         if child_info and child_info["count"] > 0:
@@ -134,7 +134,7 @@ class DepartmentService:
         if new_parent_id == dept_id:
             raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
 
-        parent = (await self.db.execute(select(Department).where(Department.id == new_parent_id))).scalars().first()
+        parent = (await self.session.execute(select(Department).where(Department.id == new_parent_id))).scalars().first()
         if not parent:
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {new_parent_id}")
 
@@ -151,7 +151,7 @@ class DepartmentService:
             if current_id in visited:
                 break
             visited.add(current_id)
-            result = await self.db.execute(
+            result = await self.session.execute(
                 select(Department.parent_id).where(Department.id == current_id)
             )
             row = result.first()

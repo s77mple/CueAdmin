@@ -7,7 +7,6 @@ export type LoginResult = ApiResult<{
   user: { id: number; username: string; display_name: string; phone: string | null; is_active: boolean };
   permissions: string[];
   roles: { id: number; code: string; name: string }[];
-  menus: { code: string; name: string; icon: string; path: string; parent_id: number | null; sort_order: number }[];
 }>;
 
 export const getLogin = (data?: object) =>

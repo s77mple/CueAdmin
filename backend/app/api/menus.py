@@ -1,5 +1,8 @@
 """
 菜单管理 API — 薄控制器，业务逻辑全部委托给 MenuService。
+
+注意：动态路由端点（GET /routes）已移到 me.py（当前用户模块），
+因为 /routes 返回的是当前用户的路由 + 权限 + 角色，属于"当前用户"而非"菜单管理"。
 """
 
 from typing import Annotated
@@ -32,10 +35,10 @@ class MenuScope:
 
 @router.get("", response_model=MenuListApiResponse, summary="菜单列表")
 async def list_menus(
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
 ):
-    menus = await MenuService(db).list_menus()
+    menus = await MenuService(session).list_menus()
     data = MenuListResponse(items=menus, total=len(menus))
     return ApiResponse.ok(data=data)
 
@@ -47,10 +50,10 @@ async def list_menus(
 @router.post("", response_model=MenuBriefResponse, status_code=201, summary="创建菜单")
 async def create_menu(
     body: MenuCreate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.CREATE])],
 ):
-    menu = await MenuService(db).create_menu(body)
+    menu = await MenuService(session).create_menu(body)
     return ApiResponse.ok(data=menu, message="创建成功")
 
 
@@ -62,12 +65,11 @@ async def create_menu(
 async def update_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
     body: MenuUpdate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.UPDATE])],
 ):
-    menu = await MenuService(db).update_menu(menu_id, body)
+    menu = await MenuService(session).update_menu(menu_id, body)
     return ApiResponse.ok(data=menu, message="更新成功")
-
 
 # ============================================================
 # DELETE /menus/{menu_id} — 删除菜单
@@ -76,8 +78,8 @@ async def update_menu(
 @router.delete("/{menu_id}", response_model=ApiResponse, summary="删除菜单")
 async def delete_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.DELETE])],
 ):
-    result = await MenuService(db).delete_menu(menu_id)
+    result = await MenuService(session).delete_menu(menu_id)
     return ApiResponse.ok(message=result["message"])

@@ -127,7 +127,7 @@ DEPARTMENTS = [
 # 4. 种子数据主函数
 # ============================================================
 
-def seed(db: Session):
+def seed(session: Session):
     """#4 幂等初始化：已存在的记录跳过，不重复创建。"""
 
     print("=== 开始种子数据初始化 ===")
@@ -136,12 +136,12 @@ def seed(db: Session):
     print("\n[1/5] 创建权限...")
     perm_map: dict[str, Permission] = {}
     for code, name, resource, action in PERMISSIONS:
-        perm = db.query(Permission).filter(Permission.code == code).first()
+        perm = session.query(Permission).filter(Permission.code == code).first()
         if not perm:
             perm = Permission(code=code, name=name, resource=resource, action=action)
-            db.add(perm)
+            session.add(perm)
         perm_map[code] = perm
-    db.flush()
+    session.flush()
     print(f"  -> 共 {len(perm_map)} 项权限")
 
     # ---- #4.2 创建菜单 ----
@@ -150,14 +150,14 @@ def seed(db: Session):
 
     # 第一遍：创建所有菜单（parent_id 先留空）
     for code, name, icon, path, component, _parent_code, sort_order in MENUS:
-        menu = db.query(Menu).filter(Menu.code == code).first()
+        menu = session.query(Menu).filter(Menu.code == code).first()
         if not menu:
             menu = Menu(
                 code=code, name=name, icon=icon,
                 path=path, component=component,
                 parent_id=None, sort_order=sort_order,
             )
-            db.add(menu)
+            session.add(menu)
         else:
             # 已存在 → 只更新可变字段（code 不变）
             menu.icon = icon
@@ -167,14 +167,14 @@ def seed(db: Session):
             menu.sort_order = sort_order
         menu_map[code] = menu
 
-    db.flush()
+    session.flush()
 
     # 第二遍：根据 parent_code 回填 parent_id
     # 两遍的原因：第一遍插入时 parent_code 对应的菜单可能还没创建
     for code, name, icon, path, component, parent_code, sort_order in MENUS:
         if parent_code and parent_code in menu_map:
             menu_map[code].parent_id = menu_map[parent_code].id
-    db.flush()
+    session.flush()
     print(f"  -> 共 {len(menu_map)} 个菜单")
 
     # ---- #4.3 创建角色 ----
@@ -183,12 +183,12 @@ def seed(db: Session):
     for code, name, desc, is_sys in [
         ("admin", "管理员", "系统管理员", True),
     ]:
-        role = db.query(Role).filter(Role.code == code).first()
+        role = session.query(Role).filter(Role.code == code).first()
         if not role:
             role = Role(code=code, name=name, description=desc, is_system=is_sys)
-            db.add(role)
+            session.add(role)
         roles[code] = role
-    db.flush()
+    session.flush()
 
     # ---- #4.4 关联角色 → 权限 + 菜单 ----
     print("\n[4/6] 关联角色权限和菜单...")
@@ -203,40 +203,40 @@ def seed(db: Session):
         menus = [menu_map[c] for c in menu_codes if c in menu_map]
         role.menus = menus
         print(f"  -> {role.name}: {len(menus)} 个菜单")
-    db.flush()
+    session.flush()
 
     # ---- #4.5 创建初始部门 ----
     print("\n[5/6] 创建初始部门...")
     dept_map: dict[str, Department] = {}
     for code, name, parent_code, sort_order, desc in DEPARTMENTS:
-        dept = db.query(Department).filter(Department.code == code).first()
+        dept = session.query(Department).filter(Department.code == code).first()
         if not dept:
             dept = Department(
                 code=code, name=name, parent_id=None,
                 sort_order=sort_order, description=desc,
             )
-            db.add(dept)
+            session.add(dept)
         dept_map[code] = dept
-    db.flush()
+    session.flush()
     print(f"  -> 共 {len(dept_map)} 个部门")
 
     # ---- #4.6 创建管理员 ----
     print("\n[6/6] 创建管理员...")
-    user = db.query(User).filter(User.username == "admin").first()
+    user = session.query(User).filter(User.username == "admin").first()
     if not user:
         user = User(
             username="admin",
             password_hash=_hash_password_sync("admin123"),  # 同步版 bcrypt（脚本环境不需要异步）
             display_name="管理员",
         )
-        db.add(user)
+        session.add(user)
     # 关联角色和部门（已存在也重新关联，确保数据一致）
     user.roles = [roles["admin"]]
     if dept_map.get("ceo"):
         user.department_id = dept_map["ceo"].id
-    db.flush()
+    session.flush()
 
-    db.commit()
+    session.commit()
 
     print("\n=== 种子数据初始化完成 ===")
     print("""
@@ -252,8 +252,8 @@ if __name__ == "__main__":
     # 自动建表（开发环境，生产用 Alembic 迁移）
     Base.metadata.create_all(bind=_sync_engine)
 
-    db = SyncSession()
+    session = SyncSession()
     try:
-        seed(db)
+        seed(session)
     finally:
-        db.close()
+        session.close()

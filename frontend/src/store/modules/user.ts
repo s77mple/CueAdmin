@@ -12,8 +12,6 @@ export const useUserStore = defineStore("pure-user", {
     permissions: storageLocal().getItem<DataInfo>(userKey)?.permissions ?? [],
     // 角色
     roles: storageLocal().getItem<DataInfo>(userKey)?.roles ?? [],
-    // 动态菜单
-    menus: storageLocal().getItem<DataInfo>(userKey)?.menus ?? [],
     // 登录页显示哪个组件（0：登录）
     currentPage: 0,
   }),
@@ -30,10 +28,6 @@ export const useUserStore = defineStore("pure-user", {
     SET_ROLES(roles: Array<string>) {
       this.roles = roles;
     },
-    /** 存储动态菜单 */
-    SET_MENUS(menus: Array<any>) {
-      this.menus = menus;
-    },
     /** 存储登录页面显示哪个组件 */
     SET_CURRENTPAGE(value: number) {
       this.currentPage = value;
@@ -49,7 +43,6 @@ export const useUserStore = defineStore("pure-user", {
                 username: res.data.user?.display_name ?? res.data.user?.username,
                 permissions: res.data.permissions ?? [],
                 roles: res.data.roles?.map((r: any) => r.code) ?? [],
-                menus: res.data.menus ?? [],
               });
               resolve(res);
             } else {

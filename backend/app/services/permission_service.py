@@ -18,8 +18,8 @@ from app.core.logger import logger
 class PermissionService:
     """权限码管理业务逻辑。"""
 
-    def __init__(self, db: AsyncSession, redis_client: aioredis.Redis | None = None):
-        self.db = db
+    def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
+        self.session = session
         self.redis = redis_client
 
     # ============================================================
@@ -28,14 +28,14 @@ class PermissionService:
 
     async def list_permissions(self) -> list[Permission]:
         """返回全部权限（按 resource + action 排序）。权限码是固定枚举，一次全量返回，前端分组展示。"""
-        result = await self.db.execute(
+        result = await self.session.execute(
             select(Permission).order_by(Permission.resource, Permission.action).limit(500)
         )
         return list(result.scalars().all())
 
     async def get_permission_for_update(self, perm_id: int) -> Permission:
         """带行级锁获取权限。"""
-        result = await self.db.execute(
+        result = await self.session.execute(
             select(Permission).where(Permission.id == perm_id).with_for_update()
         )
         perm = result.scalars().first()
@@ -49,7 +49,7 @@ class PermissionService:
 
     async def create_permission(self, body) -> Permission:
         """创建权限 — 双重唯一性保护。"""
-        if (await self.db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
+        if (await self.session.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
 
         perm = Permission(
@@ -57,13 +57,13 @@ class PermissionService:
             resource=body.resource, action=body.action,
             description=body.description,
         )
-        self.db.add(perm)
+        self.session.add(perm)
         try:
-            await self.db.commit()
+            await self.session.commit()
         except IntegrityError:
-            await self.db.rollback()
+            await self.session.rollback()
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
-        await self.db.refresh(perm)
+        await self.session.refresh(perm)
         return perm
 
     # ============================================================
@@ -76,7 +76,7 @@ class PermissionService:
         code_changed = False
 
         if body.code != perm.code:
-            if (await self.db.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
+            if (await self.session.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
                 raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
             perm.code = body.code
             code_changed = True
@@ -87,9 +87,9 @@ class PermissionService:
         perm.description = body.description
 
         try:
-            await self.db.commit()
+            await self.session.commit()
         except IntegrityError:
-            await self.db.rollback()
+            await self.session.rollback()
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
 
         if code_changed:
@@ -105,8 +105,8 @@ class PermissionService:
         perm = await self.get_permission_for_update(perm_id)
 
         await self._clear_perm_cache(perm_id)  # 先清缓存
-        await self.db.delete(perm)              # 再删记录
-        await self.db.commit()
+        await self.session.delete(perm)              # 再删记录
+        await self.session.commit()
         return "删除成功"
 
     # ============================================================
@@ -119,7 +119,7 @@ class PermissionService:
         查询路径：perm_id → role_permissions → user_roles → user_id
         """
         try:
-            rows = (await self.db.execute(
+            rows = (await self.session.execute(
                 select(user_roles.c.user_id)
                 .join(role_permissions, role_permissions.c.role_id == user_roles.c.role_id)
                 .where(role_permissions.c.permission_id == perm_id)

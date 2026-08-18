@@ -11,11 +11,6 @@ export interface DataInfo {
   permissions?: Array<string>;
   /** 角色 */
   roles?: Array<string>;
-  /** 动态菜单 */
-  menus?: Array<{
-    code: string; name: string; icon: string; path: string;
-    parent_id: number | null; sort_order: number;
-  }>;
 }
 
 export const userKey = "user-info";
@@ -39,9 +34,8 @@ export function setToken(data: {
   username?: string;
   permissions?: Array<string>;
   roles?: Array<string>;
-  menus?: Array<any>;
 }) {
-  const { accessToken, username, permissions, roles, menus } = data;
+  const { accessToken, username, permissions, roles } = data;
 
   // token 存 cookie
   Cookies.set(TokenKey, JSON.stringify({ accessToken }));
@@ -53,9 +47,8 @@ export function setToken(data: {
   if (username) useUserStoreHook().SET_USERNAME(username);
   if (permissions) useUserStoreHook().SET_PERMS(permissions);
   if (roles) useUserStoreHook().SET_ROLES(roles);
-  if (menus) useUserStoreHook().SET_MENUS(menus);
   storageLocal().setItem(userKey, {
-    accessToken, username, permissions, roles: roles ?? [], menus: menus ?? [],
+    accessToken, username, permissions, roles: roles ?? [],
   });
 }
 
@@ -64,6 +57,20 @@ export function removeToken() {
   Cookies.remove(TokenKey);
   Cookies.remove(multipleTabsKey);
   storageLocal().removeItem(userKey);
+}
+
+/** 刷新时用 /routes 返回值回写当前用户的权限与角色（保留 accessToken/username） */
+export function updateUserAuth(data: {
+  permissions?: Array<string>;
+  roles?: Array<string>;
+}) {
+  const cur = storageLocal().getItem<DataInfo>(userKey);
+  if (!cur) return;
+  const permissions = data.permissions ?? cur.permissions ?? [];
+  const roles = data.roles ?? cur.roles ?? [];
+  useUserStoreHook().SET_PERMS(permissions);
+  useUserStoreHook().SET_ROLES(roles);
+  storageLocal().setItem(userKey, { ...cur, permissions, roles });
 }
 
 /** 格式化 token（JWT 格式） */

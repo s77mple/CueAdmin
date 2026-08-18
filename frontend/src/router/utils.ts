@@ -18,7 +18,7 @@ import {
 } from "@pureadmin/utils";
 import { getConfig } from "@/config";
 import { buildHierarchyTree } from "@/utils/tree";
-import { userKey, type DataInfo } from "@/utils/auth";
+import { userKey, type DataInfo, updateUserAuth } from "@/utils/auth";
 import { type menuType, routerArrays } from "@/layout/types";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { usePermissionStoreHook } from "@/store/modules/permission";
@@ -217,8 +217,12 @@ function initRouter() {
         getAsyncRoutes()
           .then(({ code, data }) => {
             if (code === 0) {
-              handleAsyncRoutes(cloneDeep(data));
-              storageLocal().setItem(key, data);
+              handleAsyncRoutes(cloneDeep(data.routes));
+              storageLocal().setItem(key, data.routes);
+              updateUserAuth({
+                permissions: data.permissions,
+                roles: data.roles.map(r => r.code)
+              });
             }
             resolve(router);
           })
@@ -233,7 +237,11 @@ function initRouter() {
       getAsyncRoutes()
         .then(({ code, data }) => {
           if (code === 0) {
-            handleAsyncRoutes(cloneDeep(data));
+            handleAsyncRoutes(cloneDeep(data.routes));
+            updateUserAuth({
+              permissions: data.permissions,
+              roles: data.roles.map(r => r.code)
+            });
           }
           resolve(router);
         })

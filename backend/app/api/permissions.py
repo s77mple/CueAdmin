@@ -33,10 +33,10 @@ class PermissionScope:
 
 @router.get("", response_model=PermissionListApiResponse, summary="权限列表")
 async def list_permissions(
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
 ):
-    perms = await PermissionService(db).list_permissions()
+    perms = await PermissionService(session).list_permissions()
     data = PermissionListResponse(items=perms, total=len(perms))
     return ApiResponse.ok(data=data)
 
@@ -48,10 +48,10 @@ async def list_permissions(
 @router.post("", response_model=PermissionBriefResponse, status_code=201, summary="创建权限")
 async def create_permission(
     body: PermissionCreate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.CREATE])],
 ):
-    perm = await PermissionService(db).create_permission(body)
+    perm = await PermissionService(session).create_permission(body)
     return ApiResponse.ok(data=perm, message="创建成功")
 
 
@@ -63,11 +63,11 @@ async def create_permission(
 async def update_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     body: PermissionUpdate,
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    perm = await PermissionService(db, redis_client).update_permission(perm_id, body)
+    perm = await PermissionService(session, redis_client).update_permission(perm_id, body)
     return ApiResponse.ok(data=perm, message="更新成功")
 
 
@@ -78,9 +78,9 @@ async def update_permission(
 @router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
-    db: DbSession,
+    session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.DELETE])],
     redis_client: aioredis.Redis = Depends(get_redis),
 ):
-    message = await PermissionService(db, redis_client).delete_permission(perm_id)
+    message = await PermissionService(session, redis_client).delete_permission(perm_id)
     return ApiResponse.ok(message=message)

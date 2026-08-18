@@ -56,8 +56,8 @@ class AuthService:
       - 逻辑复用（以后可能有其他入口需要登录）
     """
 
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
     async def login(self, username: str, password: str, client: str | None = None) -> LoginResponse:
 
@@ -72,7 +72,7 @@ class AuthService:
             )
             .where(User.username == username, User.is_active == True)
         )
-        result = await self.db.execute(stmt)
+        result = await self.session.execute(stmt)
         user = result.scalars().first()
 
         # ---- #2b 防用户名枚举 ----
@@ -96,7 +96,7 @@ class AuthService:
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 
         # ---- #2f-g 收集菜单（统一收口到 menu_service）----
-        menus = await collect_user_menus(self.db, user)
+        menus = await collect_user_menus(self.session, user)
 
         # ---- #2h 签发 JWT ----
         token = create_access_token(user.id, user.username)

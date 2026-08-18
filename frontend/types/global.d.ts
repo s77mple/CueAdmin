@@ -70,6 +70,8 @@ declare global {
     VITE_CDN: boolean;
     VITE_HIDE_HOME: string;
     VITE_COMPRESSION: ViteCompression;
+    /** 后端 API 地址，可选。不配则为空 → 前端走相对路径 + Vite proxy / nginx 反代 */
+    VITE_API_BASE_URL?: string;
   }
 
   /**

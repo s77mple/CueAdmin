@@ -12,15 +12,23 @@
 
 ## 功能一览
 
-> 📸 **截图示例**：以下为实际运行截图（图片放在 `docs/images/` 目录，Markdown 中用相对路径引用）。
+> 📸 **截图示例**：以下为实际运行截图（存放于 `docs/images/` 目录，Markdown 相对路径引用）。
 
-![登录页](docs/images/login.png)
+| 登录页 | 仪表盘 |
+|:---:|:---:|
+| ![登录页](docs/images/login.png) | ![仪表盘](docs/images/dashboard.png) |
 
-![仪表盘](docs/images/dashboard.png)
+| 用户管理 | 角色管理 |
+|:---:|:---:|
+| ![用户管理](docs/images/users.png) | ![角色管理](docs/images/roles.png) |
 
-![用户管理](docs/images/users.png)
+| 菜单管理 | 权限管理 |
+|:---:|:---:|
+| ![菜单管理](docs/images/menus.png) | ![权限管理](docs/images/permissions.png) |
 
-![角色管理](docs/images/roles.png)
+| 部门管理 |  |
+|:---:|:---:|
+| ![部门管理](docs/images/departments.png) |  |
 
 | 模块 | 功能 |
 |------|------|
