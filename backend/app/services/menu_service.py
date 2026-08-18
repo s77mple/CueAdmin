@@ -226,7 +226,7 @@ class MenuService:
     """菜单管理 CRUD 业务逻辑。
 
     与上方的 collect_user_menus / build_routes 不同：
-      - collect_user_menus / build_routes 是跨模块工具函数（被 login、/me、/routes 共用）
+      - collect_user_menus / build_routes 是跨模块工具函数（被 /routes 的 me.py 使用）
       - MenuService 是菜单的增删改查业务逻辑（被 /menus 端点使用）
     """
 

@@ -5,15 +5,13 @@
 
   #1 前端 POST /api/v1/auth/login { username, password }
   #2 AuthService.login() 开始执行：
-     a. 从 DB 查用户（预加载角色+权限+菜单，一次查询搞定，避免 N+1）
+     a. 从 DB 查用户（预加载角色+权限，一次查询搞定，避免 N+1）
      b. 用户不存在 → 也对假哈希跑一次 bcrypt（防止时间差枚举用户名）
      c. 用户存在 → verify_password() 比对 bcrypt 哈希
      d. 检查是否有角色（没角色 = 没法登录）
      e. 收集所有角色的权限 code → 去重排序
-     f. 收集角色菜单 → admin 拥有全部菜单，普通用户只看角色绑定的菜单
-     g. 补全缺失的父级菜单（子菜单的 parent 没分配给角色也能显示）
-     h. 签发 JWT（payload = {sub, username, jti, exp}）
-     i. 组装 LoginResponse（token + 用户信息 + 权限 + 角色 + 菜单）
+     f. 签发 JWT（payload = {sub, username, jti, exp}）
+     g. 组装 LoginResponse（token + 用户信息 + 权限 + 角色）
   #3 返回 JSON:
      {
        code: 0,
@@ -21,14 +19,16 @@
          access_token: "eyJ...",
          user: { id, username, display_name, ... },
          permissions: ["user:list", "user:create", ...],
-         roles: [{ id: 1, code: "admin", name: "管理员" }],
-         menus: [{ id: 1, code: "users", name: "用户管理", path: "/users", ... }]
+         roles: [{ id: 1, code: "admin", name: "管理员" }]
        }
      }
   #4 前端收到后：
      - token 存 localStorage
      - 用户信息 + 角色 + 权限 存 pinia store
-     - 菜单传给 initRouter() 生成动态路由
+     - 动态路由 + 侧边栏菜单由 GET /api/v1/routes 提供（me.py），登录不再下发
+
+  注：登录不再返回 menus —— 菜单收集统一收口到 menu_service 的 collect_user_menus()，
+  但只在 /routes（me.py）被调用。登录响应保持精简，避免同一份菜单塞两遍。
 """
 
 from sqlalchemy import select
@@ -40,7 +40,6 @@ from app.schemas.auth import LoginResponse
 from app.schemas.user import UserRead
 from app.core.security import verify_password, create_access_token
 from app.core.exceptions import BusinessException, ErrorCode
-from app.services.menu_service import collect_user_menus
 
 
 # 假哈希 — 用于用户不存在时消耗近似时间
@@ -63,12 +62,12 @@ class AuthService:
 
         # ---- #2a 一次查询预加载所有关联数据 ----
         # selectinload = 用第二条 SELECT IN (...) 查询关联数据
-        # 登录只需要一次主查询 + 2 次 IN 查询（roles→permissions + roles→menus）
+        # 登录只需一次主查询 + 1 次 IN 查询（roles→permissions）
+        # 菜单不在这里加载：登录响应不含 menus，动态路由统一走 /routes（me.py）
         stmt = (
             select(User)
             .options(
                 selectinload(User.roles).selectinload(Role.permissions),
-                selectinload(User.roles).selectinload(Role.menus),
             )
             .where(User.username == username, User.is_active == True)
         )
@@ -95,23 +94,18 @@ class AuthService:
         # 例如：["menu:create", "menu:delete", "menu:list", "menu:update", ...]
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
 
-        # ---- #2f-g 收集菜单（统一收口到 menu_service）----
-        menus = await collect_user_menus(self.session, user)
-
-        # ---- #2h 签发 JWT ----
+        # ---- #2f 签发 JWT ----
         token = create_access_token(user.id, user.username)
 
-        # ---- #2i 组装响应 ----
+        # ---- #2g 组装响应 ----
         # 前端拿到这个响应后：
         #   1. access_token → 存 localStorage
         #   2. user → 存 pinia user store
         #   3. permissions → 存 pinia，用于 v-perms 指令判断按钮显隐
         #   4. roles → 存 pinia
-        #   5. menus → 传给 initRouter() 生成动态路由
         return LoginResponse(
             access_token=token,
             user=UserRead.model_validate(user),
             permissions=permissions,
             roles=[{"id": r.id, "code": r.code, "name": r.name} for r in user.roles],
-            menus=menus,
         )

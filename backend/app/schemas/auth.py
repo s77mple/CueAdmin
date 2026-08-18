@@ -8,8 +8,10 @@ Schema 层的作用：
 登录流程的数据形状：
   请求 → LoginRequest { username, password }
   响应 → ApiResponse<LoginResponse> {
-           data: { access_token, user, permissions, roles, menus }
+           data: { access_token, user, permissions, roles }
          }
+
+注意：登录响应不含 menus —— 动态路由/菜单统一走 GET /api/v1/routes（me.py）。
 """
 
 from pydantic import BaseModel, Field
@@ -33,13 +35,13 @@ class LoginResponse(BaseModel):
     user        → pinia user store（显示头像、用户名等）
     permissions → pinia permission store（v-perms 指令判断按钮显隐）
     roles       → pinia role store
-    menus       → initRouter() 生成动态路由
+
+    不含 menus：动态路由/菜单由 GET /api/v1/routes 提供（me.py），登录不再重复下发。
     """
     access_token: str
     user: "UserRead"
     permissions: list[str]
     roles: list[RoleBrief] = []
-    menus: list[dict] = []
 
     model_config = {"from_attributes": True}
 
