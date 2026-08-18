@@ -17,7 +17,7 @@ from fastapi import APIRouter, Security
 from app.core.database import DbSession
 from app.core.dependencies import get_current_user
 from app.models import User
-from app.schemas.auth import RoutesResponse, RoutesApiResponse
+from app.schemas.me import RoutesResponse, RoutesApiResponse
 from app.schemas.response import ApiResponse
 from app.services.menu_service import collect_user_menus, build_routes
 

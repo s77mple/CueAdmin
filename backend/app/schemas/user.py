@@ -16,6 +16,8 @@
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.role import RoleBrief
+
 
 # ============================================================
 # 1. UserCreate — 创建用户
@@ -123,17 +125,8 @@ class UserPatch(BaseModel):
 
 
 # ============================================================
-# 4. 辅助 Schema
+# 4. 辅助 Schema（RoleBrief 统一用 app.schemas.role 的，不重复定义）
 # ============================================================
-
-class RoleBrief(BaseModel):
-    """角色简要信息 — 嵌套在用户响应中。"""
-    id: int
-    code: str
-    name: str
-
-    model_config = {"from_attributes": True}
-
 
 # ============================================================
 # 5. UserRead — 查询响应体

@@ -52,19 +52,3 @@ class LoginResponse(BaseModel):
 
 class LoginApiResponse(ApiResponse[LoginResponse]):
     pass
-
-
-class RoutesResponse(BaseModel):
-    """动态路由响应 — /routes 返回的数据。
-
-    routes      → 前端 initRouter() 生成动态路由 + 侧边栏
-    permissions → 回写 pinia，刷新按钮权限（改了权限不用重新登录）
-    roles       → 回写 pinia，刷新角色（admin 判断 + 侧边栏过滤）
-    """
-    routes: list[dict] = []
-    permissions: list[str] = []
-    roles: list[RoleBrief] = []
-
-
-class RoutesApiResponse(ApiResponse[RoutesResponse]):
-    pass
