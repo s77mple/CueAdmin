@@ -6,23 +6,25 @@
   - is_system 角色不允许删除和修改 code
 """
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 
 class RoleCreate(BaseModel):
-    code: str = Field(..., min_length=2, max_length=50, description="角色编码，创建后不可修改")
-    name: str = Field(..., min_length=2, max_length=50, description="角色名称")
-    description: str | None = Field(None, max_length=200, description="描述，无则不传")
-    permission_codes: list[str] = Field(default_factory=list, max_length=200, description="权限 code 列表，可为空数组")   # 权限用 code（语义化）
-    menu_ids: list[int] = Field(default_factory=list, max_length=200, description="菜单 ID 列表，可为空数组")           # 菜单用 id（更稳定）
+    code: Annotated[str, Field(min_length=2, max_length=50, description="角色编码，创建后不可修改")]
+    name: Annotated[str, Field(min_length=2, max_length=50, description="角色名称")]
+    description: Annotated[str | None, Field(max_length=200, description="描述，无则不传")] = None
+    permission_codes: Annotated[list[str], Field(default_factory=list, max_length=200, description="权限 code 列表，可为空数组")]  # 权限用 code（语义化）
+    menu_ids: Annotated[list[int], Field(default_factory=list, max_length=200, description="菜单 ID 列表，可为空数组")]  # 菜单用 id（更稳定）
 
 
 class RoleUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
-    name: str = Field(..., min_length=2, max_length=50, description="角色名称")
-    description: str | None = Field(..., max_length=200, description="描述，无则传 null")
-    permission_codes: list[str] = Field(..., max_length=200, description="权限 code 列表，可为空数组")
-    menu_ids: list[int] = Field(..., max_length=200, description="菜单 ID 列表，可为空数组")
+    name: Annotated[str, Field(min_length=2, max_length=50, description="角色名称")]
+    description: Annotated[str | None, Field(max_length=200, description="描述，无则传 null")]
+    permission_codes: Annotated[list[str], Field(max_length=200, description="权限 code 列表，可为空数组")]
+    menu_ids: Annotated[list[int], Field(max_length=200, description="菜单 ID 列表，可为空数组")]
 
 
 # ============================================================
@@ -40,8 +42,8 @@ class RoleItem(BaseModel):
     name: str
     description: str | None = None
     is_system: bool
-    permissions: list[PermissionBrief] = Field(default_factory=list)
-    menus: list[MenuBrief] = Field(default_factory=list)
+    permissions: Annotated[list[PermissionBrief], Field(default_factory=list)]
+    menus: Annotated[list[MenuBrief], Field(default_factory=list)]
 
     model_config = {"from_attributes": True}
 

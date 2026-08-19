@@ -7,23 +7,25 @@
   - 不允许产生循环引用
 """
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 
 class DepartmentCreate(BaseModel):
-    code: str = Field(..., min_length=1, max_length=50, description="部门编码，创建后不可修改")
-    name: str = Field(..., min_length=1, max_length=50, description="部门名称")
-    parent_id: int | None = Field(None, description="父部门 ID，顶级部门传 null")             # null = 顶级部门
-    sort_order: int = Field(0, ge=0, description="排序号，越小越靠前")
-    description: str | None = Field(None, max_length=500, description="描述，无则不传")
+    code: Annotated[str, Field(min_length=1, max_length=50, description="部门编码，创建后不可修改")]
+    name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
+    parent_id: Annotated[int | None, Field(description="父部门 ID，顶级部门传 null")] = None  # null = 顶级部门
+    sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0
+    description: Annotated[str | None, Field(max_length=500, description="描述，无则不传")] = None
 
 
 class DepartmentUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
-    name: str = Field(..., min_length=1, max_length=50, description="部门名称")
-    parent_id: int | None = Field(..., description="父部门 ID，顶级部门传 null")
-    sort_order: int = Field(..., ge=0, description="排序号")
-    description: str | None = Field(..., max_length=500, description="描述，无则传 null")
+    name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
+    parent_id: Annotated[int | None, Field(description="父部门 ID，顶级部门传 null")]
+    sort_order: Annotated[int, Field(ge=0, description="排序号")]
+    description: Annotated[str | None, Field(max_length=500, description="描述，无则传 null")]
 
 
 # ============================================================

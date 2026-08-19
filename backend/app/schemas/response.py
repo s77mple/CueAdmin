@@ -15,7 +15,7 @@
   不需要在 200/400/422/500 之间跳来跳去。
 """
 
-from typing import Generic, TypeVar
+from typing import Annotated, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -28,7 +28,7 @@ class ApiResponse(BaseModel, Generic[T]):
     code: int = 0
     message: str = "操作成功"
     data: T | None = None
-    details: dict = Field(default_factory=dict)
+    details: Annotated[dict, Field(default_factory=dict)]
 
     @classmethod
     def ok(cls, data: T | None = None, message: str = "操作成功") -> "ApiResponse[T]":

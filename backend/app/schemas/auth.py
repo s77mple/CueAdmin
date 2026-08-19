@@ -14,6 +14,8 @@ Schema 层的作用：
 注意：登录响应不含 menus —— 动态路由/菜单统一走 GET /api/v1/routes（me.py）。
 """
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 from app.schemas.role import RoleBrief
@@ -22,9 +24,9 @@ from app.schemas.user import UserRead
 
 class LoginRequest(BaseModel):
     """登录请求 — 前端登录表单提交的数据。"""
-    username: str = Field(..., min_length=1, max_length=50, description="用户名")
-    password: str = Field(..., min_length=1, max_length=128, description="密码")
-    client: str | None = Field(None, max_length=50, description="客户端标识（预留，暂时不用）")
+    username: Annotated[str, Field(min_length=1, max_length=50, description="用户名")]
+    password: Annotated[str, Field(min_length=1, max_length=128, description="密码")]
+    client: Annotated[str | None, Field(max_length=50, description="客户端标识（预留，暂时不用）")] = None
 
 
 class LoginResponse(BaseModel):
@@ -40,6 +42,6 @@ class LoginResponse(BaseModel):
     access_token: str
     user: UserRead
     permissions: list[str]
-    roles: list[RoleBrief] = Field(default_factory=list)
+    roles: Annotated[list[RoleBrief], Field(default_factory=list)]
 
     model_config = {"from_attributes": True}

@@ -9,27 +9,29 @@
   例 component="system/users/index" → /src/views/system/users/index.vue
 """
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 
 class MenuCreate(BaseModel):
-    code: str = Field(..., min_length=1, max_length=50, description="菜单编码，创建后不可修改")
-    name: str = Field(..., min_length=1, max_length=50, description="菜单名称")
-    icon: str | None = Field(None, max_length=50, description="图标，如 fa-solid:users")
-    path: str | None = Field(None, max_length=100, description="路由路径，如 /users")
-    component: str | None = Field(None, max_length=200, description="组件路径，如 system/users/index")
-    parent_id: int | None = Field(None, description="父菜单 ID，顶级菜单传 null")              # null = 顶级菜单
-    sort_order: int = Field(0, ge=0, description="排序号，越小越靠前")          # ge=0：不允许负数
+    code: Annotated[str, Field(min_length=1, max_length=50, description="菜单编码，创建后不可修改")]
+    name: Annotated[str, Field(min_length=1, max_length=50, description="菜单名称")]
+    icon: Annotated[str | None, Field(max_length=50, description="图标，如 fa-solid:users")] = None
+    path: Annotated[str | None, Field(max_length=100, description="路由路径，如 /users")] = None
+    component: Annotated[str | None, Field(max_length=200, description="组件路径，如 system/users/index")] = None
+    parent_id: Annotated[int | None, Field(description="父菜单 ID，顶级菜单传 null")] = None  # null = 顶级菜单
+    sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0  # ge=0：不允许负数
 
 
 class MenuUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
-    name: str = Field(..., min_length=1, max_length=50, description="菜单名称")
-    icon: str | None = Field(..., max_length=50, description="图标，无则传 null")
-    path: str | None = Field(..., max_length=100, description="路由路径，无则传 null")
-    component: str | None = Field(..., max_length=200, description="组件路径，无则传 null")
-    parent_id: int | None = Field(..., description="父菜单 ID，顶级菜单传 null")
-    sort_order: int = Field(..., ge=0, description="排序号")
+    name: Annotated[str, Field(min_length=1, max_length=50, description="菜单名称")]
+    icon: Annotated[str | None, Field(max_length=50, description="图标，无则传 null")]
+    path: Annotated[str | None, Field(max_length=100, description="路由路径，无则传 null")]
+    component: Annotated[str | None, Field(max_length=200, description="组件路径，无则传 null")]
+    parent_id: Annotated[int | None, Field(description="父菜单 ID，顶级菜单传 null")]
+    sort_order: Annotated[int, Field(ge=0, description="排序号")]
 
 
 # ============================================================

@@ -9,24 +9,26 @@
   v-perms="['user:create']" → 检查当前用户是否有此权限
 """
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 
 class PermissionCreate(BaseModel):
-    code: str = Field(..., min_length=1, max_length=100, description="权限码，格式 {resource}:{action}")
-    name: str = Field(..., min_length=1, max_length=100, description="权限名称")
-    resource: str = Field(..., min_length=1, max_length=50, description="资源标识，如 user/role/menu")
-    action: str = Field(..., min_length=1, max_length=50, description="操作标识，如 list/create/update/delete")
-    description: str | None = Field(None, max_length=200, description="描述，无则不传")
+    code: Annotated[str, Field(min_length=1, max_length=100, description="权限码，格式 {resource}:{action}")]
+    name: Annotated[str, Field(min_length=1, max_length=100, description="权限名称")]
+    resource: Annotated[str, Field(min_length=1, max_length=50, description="资源标识，如 user/role/menu")]
+    action: Annotated[str, Field(min_length=1, max_length=50, description="操作标识，如 list/create/update/delete")]
+    description: Annotated[str | None, Field(max_length=200, description="描述，无则不传")] = None
 
 
 class PermissionUpdate(BaseModel):
     """PUT 全量更新 — code 允许修改，所有字段必传。"""
-    code: str = Field(..., min_length=1, max_length=100, description="权限码")
-    name: str = Field(..., min_length=1, max_length=100, description="权限名称")
-    resource: str = Field(..., min_length=1, max_length=50, description="资源标识")
-    action: str = Field(..., min_length=1, max_length=50, description="操作标识")
-    description: str | None = Field(..., max_length=200, description="描述，无则传 null")
+    code: Annotated[str, Field(min_length=1, max_length=100, description="权限码")]
+    name: Annotated[str, Field(min_length=1, max_length=100, description="权限名称")]
+    resource: Annotated[str, Field(min_length=1, max_length=50, description="资源标识")]
+    action: Annotated[str, Field(min_length=1, max_length=50, description="操作标识")]
+    description: Annotated[str | None, Field(max_length=200, description="描述，无则传 null")]
 
 
 # ============================================================
