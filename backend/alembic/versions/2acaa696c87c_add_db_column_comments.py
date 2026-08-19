@@ -1,0 +1,165 @@
+"""add_db_column_comments
+
+Revision ID: 2acaa696c87c
+Revises: 58747c07743a
+Create Date: 2026-08-19 14:32:33.281742
+"""
+from typing import Sequence, Union
+from alembic import op
+import sqlalchemy as sa
+
+
+revision: str = "2acaa696c87c"
+down_revision: Union[str, None] = "58747c07743a"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # 给所有模型列补数据库注释（comment 来源 = app/models/ 的 mapped_column(comment=...)
+    # 关键：被外键引用的父表列无法直接 MODIFY（MySQL 1833），
+    # 必须先 drop 外键 → 改列 → 按原定义 create 外键。
+    # existing_type / existing_nullable 取数据库真实列定义，保证 MODIFY 不改类型与可空性。
+    # ---- 1. 删除全部外键（9 条）----
+    op.drop_constraint("departments_ibfk_1", "departments", type_="foreignkey")
+    op.drop_constraint("fk_users_department_id", "users", type_="foreignkey")
+    op.drop_constraint("menus_ibfk_1", "menus", type_="foreignkey")
+    op.drop_constraint("role_menus_ibfk_1", "role_menus", type_="foreignkey")
+    op.drop_constraint("role_menus_ibfk_2", "role_menus", type_="foreignkey")
+    op.drop_constraint("role_permissions_ibfk_1", "role_permissions", type_="foreignkey")
+    op.drop_constraint("role_permissions_ibfk_2", "role_permissions", type_="foreignkey")
+    op.drop_constraint("user_roles_ibfk_1", "user_roles", type_="foreignkey")
+    op.drop_constraint("user_roles_ibfk_2", "user_roles", type_="foreignkey")
+
+    # ---- 2. 修改 48 列注释 ----
+    op.alter_column("user_roles", "user_id", existing_type=sa.BigInteger(), existing_nullable=False, comment="用户 ID")
+    op.alter_column("user_roles", "role_id", existing_type=sa.BigInteger(), existing_nullable=False, comment="角色 ID")
+    op.alter_column("role_permissions", "role_id", existing_type=sa.BigInteger(), existing_nullable=False, comment="角色 ID")
+    op.alter_column("role_permissions", "permission_id", existing_type=sa.BigInteger(), existing_nullable=False, comment="权限 ID")
+    op.alter_column("role_menus", "role_id", existing_type=sa.BigInteger(), existing_nullable=False, comment="角色 ID")
+    op.alter_column("role_menus", "menu_id", existing_type=sa.BigInteger(), existing_nullable=False, comment="菜单 ID")
+    op.alter_column("users", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment="主键")
+    op.alter_column("users", "username", existing_type=sa.String(50), existing_nullable=False, comment="登录用户名，唯一")
+    op.alter_column("users", "password_hash", existing_type=sa.String(255), existing_nullable=False, comment="bcrypt 哈希后的密码，不存明文")
+    op.alter_column("users", "display_name", existing_type=sa.String(50), existing_nullable=False, comment="显示名（如：张三）")
+    op.alter_column("users", "phone", existing_type=sa.String(20), existing_nullable=True, comment="手机号")
+    op.alter_column("users", "is_active", existing_type=sa.Boolean(), existing_nullable=False, comment="是否启用（禁用=不能登录）")
+    op.alter_column("users", "department_id", existing_type=sa.BigInteger(), existing_nullable=True, comment="所属部门 ID（删除部门时置 NULL）")
+    op.alter_column("users", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment="创建时间")
+    op.alter_column("users", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment="更新时间")
+    op.alter_column("roles", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment="主键")
+    op.alter_column("roles", "code", existing_type=sa.String(50), existing_nullable=False, comment="唯一编码，如 admin、editor、viewer")
+    op.alter_column("roles", "name", existing_type=sa.String(50), existing_nullable=False, comment="显示名，如“管理员”")
+    op.alter_column("roles", "description", existing_type=sa.String(200), existing_nullable=True, comment="角色描述")
+    op.alter_column("roles", "is_system", existing_type=sa.Boolean(), existing_nullable=False, comment="系统角色标记（True=不允许删除和修改 code）")
+    op.alter_column("roles", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment="创建时间")
+    op.alter_column("roles", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment="更新时间")
+    op.alter_column("permissions", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment="主键")
+    op.alter_column("permissions", "code", existing_type=sa.String(100), existing_nullable=False, comment="权限码，如 user:list")
+    op.alter_column("permissions", "name", existing_type=sa.String(100), existing_nullable=False, comment="显示名，如“用户列表”")
+    op.alter_column("permissions", "resource", existing_type=sa.String(50), existing_nullable=False, comment="资源标识，如 user")
+    op.alter_column("permissions", "action", existing_type=sa.String(50), existing_nullable=False, comment="操作标识，如 list/create/update/delete")
+    op.alter_column("permissions", "description", existing_type=sa.String(200), existing_nullable=True, comment="权限描述")
+    op.alter_column("permissions", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment="创建时间")
+    op.alter_column("permissions", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment="更新时间")
+    op.alter_column("menus", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment="主键")
+    op.alter_column("menus", "code", existing_type=sa.String(50), existing_nullable=False, comment="唯一编码，用于前端路由 name")
+    op.alter_column("menus", "name", existing_type=sa.String(50), existing_nullable=False, comment="显示名，如“用户管理”")
+    op.alter_column("menus", "icon", existing_type=sa.String(50), existing_nullable=True, comment="图标（fa-solid:users 等）")
+    op.alter_column("menus", "path", existing_type=sa.String(100), existing_nullable=True, comment="路由路径，如 /users/index")
+    op.alter_column("menus", "component", existing_type=sa.String(200), existing_nullable=True, comment="组件路径，如 system/users/index；null=目录菜单")
+    op.alter_column("menus", "parent_id", existing_type=sa.BigInteger(), existing_nullable=True, comment="上级菜单 ID（自引用，删父菜单后子菜单变顶级）")
+    op.alter_column("menus", "sort_order", existing_type=sa.Integer(), existing_nullable=False, comment="同级排序，越小越靠前")
+    op.alter_column("menus", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment="创建时间")
+    op.alter_column("menus", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment="更新时间")
+    op.alter_column("departments", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment="主键")
+    op.alter_column("departments", "code", existing_type=sa.String(50), existing_nullable=False, comment="唯一编码，如 tech、market")
+    op.alter_column("departments", "name", existing_type=sa.String(50), existing_nullable=False, comment="部门名称，如“技术部”")
+    op.alter_column("departments", "parent_id", existing_type=sa.BigInteger(), existing_nullable=True, comment="上级部门 ID（自引用，删父部门后子部门变顶级）")
+    op.alter_column("departments", "sort_order", existing_type=sa.Integer(), existing_nullable=False, comment="同级排序，越小越靠前")
+    op.alter_column("departments", "description", existing_type=sa.Text(), existing_nullable=True, comment="部门描述")
+    op.alter_column("departments", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment="创建时间")
+    op.alter_column("departments", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment="更新时间")
+
+    # ---- 3. 按原定义恢复外键 ----
+    op.create_foreign_key("departments_ibfk_1", "departments", "departments", ["parent_id"], ["id"], ondelete="SET NULL", onupdate="NO ACTION")
+    op.create_foreign_key("fk_users_department_id", "users", "departments", ["department_id"], ["id"], ondelete="SET NULL", onupdate="NO ACTION")
+    op.create_foreign_key("menus_ibfk_1", "menus", "menus", ["parent_id"], ["id"], ondelete="SET NULL", onupdate="NO ACTION")
+    op.create_foreign_key("role_menus_ibfk_1", "role_menus", "roles", ["role_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("role_menus_ibfk_2", "role_menus", "menus", ["menu_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("role_permissions_ibfk_1", "role_permissions", "roles", ["role_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("role_permissions_ibfk_2", "role_permissions", "permissions", ["permission_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("user_roles_ibfk_1", "user_roles", "users", ["user_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("user_roles_ibfk_2", "user_roles", "roles", ["role_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+
+
+def downgrade() -> None:
+    # 回滚：删外键 → 清空注释 → 恢复外键
+    op.drop_constraint("departments_ibfk_1", "departments", type_="foreignkey")
+    op.drop_constraint("fk_users_department_id", "users", type_="foreignkey")
+    op.drop_constraint("menus_ibfk_1", "menus", type_="foreignkey")
+    op.drop_constraint("role_menus_ibfk_1", "role_menus", type_="foreignkey")
+    op.drop_constraint("role_menus_ibfk_2", "role_menus", type_="foreignkey")
+    op.drop_constraint("role_permissions_ibfk_1", "role_permissions", type_="foreignkey")
+    op.drop_constraint("role_permissions_ibfk_2", "role_permissions", type_="foreignkey")
+    op.drop_constraint("user_roles_ibfk_1", "user_roles", type_="foreignkey")
+    op.drop_constraint("user_roles_ibfk_2", "user_roles", type_="foreignkey")
+
+    op.alter_column("user_roles", "user_id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("user_roles", "role_id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("role_permissions", "role_id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("role_permissions", "permission_id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("role_menus", "role_id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("role_menus", "menu_id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("users", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("users", "username", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("users", "password_hash", existing_type=sa.String(255), existing_nullable=False, comment=None)
+    op.alter_column("users", "display_name", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("users", "phone", existing_type=sa.String(20), existing_nullable=True, comment=None)
+    op.alter_column("users", "is_active", existing_type=sa.Boolean(), existing_nullable=False, comment=None)
+    op.alter_column("users", "department_id", existing_type=sa.BigInteger(), existing_nullable=True, comment=None)
+    op.alter_column("users", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("users", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("roles", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("roles", "code", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("roles", "name", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("roles", "description", existing_type=sa.String(200), existing_nullable=True, comment=None)
+    op.alter_column("roles", "is_system", existing_type=sa.Boolean(), existing_nullable=False, comment=None)
+    op.alter_column("roles", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("roles", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "code", existing_type=sa.String(100), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "name", existing_type=sa.String(100), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "resource", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "action", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "description", existing_type=sa.String(200), existing_nullable=True, comment=None)
+    op.alter_column("permissions", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("permissions", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("menus", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("menus", "code", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("menus", "name", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("menus", "icon", existing_type=sa.String(50), existing_nullable=True, comment=None)
+    op.alter_column("menus", "path", existing_type=sa.String(100), existing_nullable=True, comment=None)
+    op.alter_column("menus", "component", existing_type=sa.String(200), existing_nullable=True, comment=None)
+    op.alter_column("menus", "parent_id", existing_type=sa.BigInteger(), existing_nullable=True, comment=None)
+    op.alter_column("menus", "sort_order", existing_type=sa.Integer(), existing_nullable=False, comment=None)
+    op.alter_column("menus", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("menus", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("departments", "id", existing_type=sa.BigInteger(), existing_nullable=False, comment=None)
+    op.alter_column("departments", "code", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("departments", "name", existing_type=sa.String(50), existing_nullable=False, comment=None)
+    op.alter_column("departments", "parent_id", existing_type=sa.BigInteger(), existing_nullable=True, comment=None)
+    op.alter_column("departments", "sort_order", existing_type=sa.Integer(), existing_nullable=False, comment=None)
+    op.alter_column("departments", "description", existing_type=sa.Text(), existing_nullable=True, comment=None)
+    op.alter_column("departments", "created_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+    op.alter_column("departments", "updated_at", existing_type=sa.DateTime(), existing_nullable=False, comment=None)
+
+    op.create_foreign_key("departments_ibfk_1", "departments", "departments", ["parent_id"], ["id"], ondelete="SET NULL", onupdate="NO ACTION")
+    op.create_foreign_key("fk_users_department_id", "users", "departments", ["department_id"], ["id"], ondelete="SET NULL", onupdate="NO ACTION")
+    op.create_foreign_key("menus_ibfk_1", "menus", "menus", ["parent_id"], ["id"], ondelete="SET NULL", onupdate="NO ACTION")
+    op.create_foreign_key("role_menus_ibfk_1", "role_menus", "roles", ["role_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("role_menus_ibfk_2", "role_menus", "menus", ["menu_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("role_permissions_ibfk_1", "role_permissions", "roles", ["role_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("role_permissions_ibfk_2", "role_permissions", "permissions", ["permission_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("user_roles_ibfk_1", "user_roles", "users", ["user_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")
+    op.create_foreign_key("user_roles_ibfk_2", "user_roles", "roles", ["role_id"], ["id"], ondelete="CASCADE", onupdate="NO ACTION")

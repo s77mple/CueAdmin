@@ -37,16 +37,16 @@ class User(Base, TimestampMixin):
     __tablename__ = "users"
 
     # ---- 主键 ----
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
 
     # ---- 基本字段 ----
-    username: Mapped[str] = mapped_column(String(50), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))  # bcrypt 哈希，永远不存明文
-    display_name: Mapped[str] = mapped_column(String(50))
-    phone: Mapped[str | None] = mapped_column(String(20))
+    username: Mapped[str] = mapped_column(String(50), unique=True, comment="登录用户名，唯一")
+    password_hash: Mapped[str] = mapped_column(String(255), comment="bcrypt 哈希后的密码，不存明文")  # bcrypt 哈希，永远不存明文
+    display_name: Mapped[str] = mapped_column(String(50), comment="显示名（如：张三）")
+    phone: Mapped[str | None] = mapped_column(String(20), comment="手机号")
 
     # ---- 状态字段 ----
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True, comment="是否启用（禁用=不能登录）")
 
     # ---- 外键 ----
     department_id: Mapped[int | None] = mapped_column(
@@ -54,6 +54,7 @@ class User(Base, TimestampMixin):
         ForeignKey("departments.id", ondelete="SET NULL"),  # 部门删除 → 用户的 department_id 变 NULL
         default=None,
         index=True,
+        comment="所属部门 ID（删除部门时置 NULL）",
     )
 
     # ---- 关系 ----

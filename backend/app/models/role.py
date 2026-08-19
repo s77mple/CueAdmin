@@ -23,17 +23,17 @@ class Role(Base, TimestampMixin):
     __tablename__ = "roles"
 
     # ---- 主键 ----
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
 
     # ---- 基本字段 ----
-    code: Mapped[str] = mapped_column(String(50), unique=True)    # 唯一编码，如 admin、editor、viewer
-    name: Mapped[str] = mapped_column(String(50))                 # 显示名，如"管理员"
-    description: Mapped[str | None] = mapped_column(String(200))  # 描述
+    code: Mapped[str] = mapped_column(String(50), unique=True, comment="唯一编码，如 admin、editor、viewer")    # 唯一编码，如 admin、editor、viewer
+    name: Mapped[str] = mapped_column(String(50), comment="显示名，如“管理员”")                 # 显示名，如"管理员"
+    description: Mapped[str | None] = mapped_column(String(200), comment="角色描述")  # 描述
 
     # ---- 系统角色标记 ----
     # is_system=True → 不允许删除和修改 code（种子数据创建的 admin 角色）
     # 防止管理员误删系统关键角色
-    is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, comment="系统角色标记（True=不允许删除和修改 code）")
 
     # ---- 关系 ----
     # 多对多：一个角色可以分配给多个用户

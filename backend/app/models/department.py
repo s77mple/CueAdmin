@@ -21,19 +21,20 @@ class Department(Base, TimestampMixin):
     __tablename__ = "departments"
 
     # ---- 主键 ----
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
 
     # ---- 基本字段 ----
-    code: Mapped[str] = mapped_column(String(50), unique=True)     # 唯一编码，如 tech、market
-    name: Mapped[str] = mapped_column(String(50))                  # 部门名称，如"技术部"
+    code: Mapped[str] = mapped_column(String(50), unique=True, comment="唯一编码，如 tech、market")     # 唯一编码，如 tech、market
+    name: Mapped[str] = mapped_column(String(50), comment="部门名称，如“技术部”")                  # 部门名称，如"技术部"
     parent_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("departments.id", ondelete="SET NULL"),  # 删父部门 → 子部门变顶级
         default=None,
         index=True,
+        comment="上级部门 ID（自引用，删父部门后子部门变顶级）",
     )
-    sort_order: Mapped[int] = mapped_column(Integer, default=0)    # 同级排序
-    description: Mapped[str | None] = mapped_column(Text)          # Text 类型 = 无长度限制
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, comment="同级排序，越小越靠前")    # 同级排序
+    description: Mapped[str | None] = mapped_column(Text, comment="部门描述")          # Text 类型 = 无长度限制
 
     # ---- 自引用关系（树）----
     children = relationship(

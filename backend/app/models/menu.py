@@ -27,14 +27,14 @@ class Menu(Base, TimestampMixin):
     __tablename__ = "menus"
 
     # ---- 主键 ----
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
 
     # ---- 基本字段 ----
-    code: Mapped[str] = mapped_column(String(50), unique=True)     # 唯一编码，用于前端路由 name
-    name: Mapped[str] = mapped_column(String(50))                  # 显示名，如"用户管理"
-    icon: Mapped[str | None] = mapped_column(String(50))           # 图标（fa-solid:users 等）
-    path: Mapped[str | None] = mapped_column(String(100))          # 路由路径，如 /users/index
-    component: Mapped[str | None] = mapped_column(String(200))     # 组件路径，如 system/users/index
+    code: Mapped[str] = mapped_column(String(50), unique=True, comment="唯一编码，用于前端路由 name")     # 唯一编码，用于前端路由 name
+    name: Mapped[str] = mapped_column(String(50), comment="显示名，如“用户管理”")                  # 显示名，如"用户管理"
+    icon: Mapped[str | None] = mapped_column(String(50), comment="图标（fa-solid:users 等）")           # 图标（fa-solid:users 等）
+    path: Mapped[str | None] = mapped_column(String(100), comment="路由路径，如 /users/index")          # 路由路径，如 /users/index
+    component: Mapped[str | None] = mapped_column(String(200), comment="组件路径，如 system/users/index；null=目录菜单")     # 组件路径，如 system/users/index
                                                                     # null = 目录菜单，非 null = 叶子页面
 
     # ---- 树形结构 ----
@@ -43,8 +43,9 @@ class Menu(Base, TimestampMixin):
         ForeignKey("menus.id", ondelete="SET NULL"),  # 删父菜单 → 子菜单变顶级
         default=None,
         index=True,  # 经常按 parent_id 查子节点，加索引
+        comment="上级菜单 ID（自引用，删父菜单后子菜单变顶级）",
     )
-    sort_order: Mapped[int] = mapped_column(Integer, default=0)   # 同级排序，越小越靠前
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, comment="同级排序，越小越靠前")   # 同级排序，越小越靠前
 
     # ---- 自引用关系（树）----
     # 子节点集合（一个菜单下的所有子菜单）

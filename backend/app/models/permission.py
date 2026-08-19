@@ -29,14 +29,14 @@ class Permission(Base, TimestampMixin):
     __tablename__ = "permissions"
 
     # ---- 主键 ----
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
 
     # ---- 基本字段 ----
-    code: Mapped[str] = mapped_column(String(100), unique=True)     # 权限码，如 user:list
-    name: Mapped[str] = mapped_column(String(100))                  # 显示名，如"用户列表"
-    resource: Mapped[str] = mapped_column(String(50))               # 资源标识，如 user
-    action: Mapped[str] = mapped_column(String(50))                 # 操作标识，如 list/create/update/delete
-    description: Mapped[str | None] = mapped_column(String(200))    # 描述
+    code: Mapped[str] = mapped_column(String(100), unique=True, comment="权限码，如 user:list")     # 权限码，如 user:list
+    name: Mapped[str] = mapped_column(String(100), comment="显示名，如“用户列表”")                  # 显示名，如"用户列表"
+    resource: Mapped[str] = mapped_column(String(50), comment="资源标识，如 user")               # 资源标识，如 user
+    action: Mapped[str] = mapped_column(String(50), comment="操作标识，如 list/create/update/delete")                 # 操作标识，如 list/create/update/delete
+    description: Mapped[str | None] = mapped_column(String(200), comment="权限描述")    # 描述
 
     # ---- 多对多 ----
     # 哪些角色拥有这个权限

@@ -35,8 +35,8 @@ user_roles = Table(
     "user_roles", Base.metadata,
 
     # 联合主键：同一用户不能重复拥有同一角色
-    Column("user_id", BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
-    Column("role_id", BigInteger, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, comment="用户 ID"),
+    Column("role_id", BigInteger, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True, comment="角色 ID"),
 
     # 按角色查用户时用：SELECT user_id FROM user_roles WHERE role_id = X
     Index("ix_user_roles_role_id", "role_id"),
@@ -50,8 +50,8 @@ user_roles = Table(
 role_permissions = Table(
     "role_permissions", Base.metadata,
 
-    Column("role_id",       BigInteger, ForeignKey("roles.id",       ondelete="CASCADE"), primary_key=True),
-    Column("permission_id", BigInteger, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id",       BigInteger, ForeignKey("roles.id",       ondelete="CASCADE"), primary_key=True, comment="角色 ID"),
+    Column("permission_id", BigInteger, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True, comment="权限 ID"),
 
     # 按权限查使用它的角色：SELECT role_id FROM role_permissions WHERE permission_id = X
     Index("ix_role_permissions_permission_id", "permission_id"),
@@ -65,8 +65,8 @@ role_permissions = Table(
 role_menus = Table(
     "role_menus", Base.metadata,
 
-    Column("role_id", BigInteger, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    Column("menu_id", BigInteger, ForeignKey("menus.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", BigInteger, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True, comment="角色 ID"),
+    Column("menu_id", BigInteger, ForeignKey("menus.id", ondelete="CASCADE"), primary_key=True, comment="菜单 ID"),
 
     # 按菜单查使用它的角色：SELECT role_id FROM role_menus WHERE menu_id = X
     Index("ix_role_menus_menu_id", "menu_id"),

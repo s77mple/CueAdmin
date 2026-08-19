@@ -24,7 +24,7 @@ class TimestampMixin:
 
     # created_at：只在 INSERT 时设一次，之后不再变
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
+        DateTime, server_default=func.now(), comment="创建时间"
     )
 
     # updated_at：每次 UPDATE 自动更新为当前时间
@@ -35,4 +35,5 @@ class TimestampMixin:
         server_default=func.now(),    # 第一次插入时的默认值
         server_onupdate=func.now(),   # DB 层 UPDATE 时自动更新
         onupdate=func.now(),          # ORM 层 UPDATE 时自动更新
+        comment="更新时间",
     )
