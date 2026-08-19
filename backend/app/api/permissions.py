@@ -4,11 +4,10 @@
 
 from typing import Annotated
 
-import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Path, Security
+from fastapi import APIRouter, Path, Security
 
 from app.core.database import DbSession
-from app.core.dependencies import get_current_user, get_redis
+from app.core.dependencies import RedisDep, get_current_user
 from app.models import User
 from app.schemas.permission import (
     PermissionCreate, PermissionUpdate,
@@ -65,7 +64,7 @@ async def update_permission(
     body: PermissionUpdate,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
 ):
     perm = await PermissionService(session, redis_client).update_permission(perm_id, body)
     return ApiResponse.ok(data=perm, message="更新成功")
@@ -80,7 +79,7 @@ async def delete_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.DELETE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
 ):
     message = await PermissionService(session, redis_client).delete_permission(perm_id)
     return ApiResponse.ok(message=message)

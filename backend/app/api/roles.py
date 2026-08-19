@@ -9,11 +9,10 @@
 
 from typing import Annotated
 
-import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Path, Query, Security
+from fastapi import APIRouter, Path, Query, Security
 
 from app.core.database import DbSession
-from app.core.dependencies import get_current_user, get_redis
+from app.core.dependencies import RedisDep, get_current_user
 from app.models import User
 from app.schemas.response import ApiResponse
 from app.schemas.role import (
@@ -40,8 +39,8 @@ class RoleScope:
 async def list_roles(
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
-    page: int = Query(1, ge=1, description="页码，从 1 开始"),
-    page_size: int = Query(100, ge=1, le=100, description="每页条数，最大 100"),
+    page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 100,
 ):
     result = await RoleService(session).list_roles(page, page_size)
     return ApiResponse.ok(data=result)
@@ -71,7 +70,7 @@ async def update_role(
     body: RoleUpdate,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
 ):
     role = await RoleService(session, redis_client).update_role(role_id, body)
     return ApiResponse.ok(data=role, message="更新成功")
@@ -86,7 +85,7 @@ async def delete_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.DELETE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
 ):
     message = await RoleService(session, redis_client).delete_role(role_id)
     return ApiResponse.ok(message=message)

@@ -84,14 +84,22 @@ security_scheme = HTTPBearer()
 
 
 # ============================================================
+# 2b. 依赖类型别名 — 让 API 函数签名更简洁（官方 skill 推荐 Annotated）
+# ============================================================
+
+RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
+BearerTokenDep = Annotated[HTTPAuthorizationCredentials, Depends(security_scheme)]
+
+
+# ============================================================
 # 3. 核心依赖：认证 + 鉴权合二为一
 # ============================================================
 
 async def get_current_user(
-    security_scopes: SecurityScopes,                              # FastAPI 自动注入 scopes 列表
-    session: DbSession,                                                # 数据库会话（自动注入）
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),  # token（自动注入）
-    redis_client: aioredis.Redis = Depends(get_redis),            # Redis（自动注入）
+    security_scopes: Annotated[SecurityScopes, SecurityScopes()], # FastAPI 自动注入 scopes 列表
+    session: DbSession,                                           # 数据库会话（自动注入）
+    credentials: BearerTokenDep,                                  # token（自动注入）
+    redis_client: RedisDep,                                       # Redis（自动注入）
 ) -> User:
     """#3 认证 + 鉴权一体化。
 

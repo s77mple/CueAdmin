@@ -39,9 +39,9 @@ class LoginResponse(BaseModel):
     不含 menus：动态路由/菜单由 GET /api/v1/routes 提供（me.py），登录不再重复下发。
     """
     access_token: str
-    user: "UserRead"
+    user: UserRead
     permissions: list[str]
-    roles: list[RoleBrief] = []
+    roles: list[RoleBrief] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

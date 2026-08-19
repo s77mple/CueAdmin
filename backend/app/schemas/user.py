@@ -28,7 +28,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=6, max_length=128, description="密码，至少 6 个字符")
     display_name: str = Field(..., min_length=1, max_length=50, description="显示名")
     phone: str | None = Field(None, max_length=20, pattern=r"^1[3-9]\d{9}$", description="手机号，无则不传")
-    role_ids: list[int] = Field(default=[], max_length=100, description="角色 ID 列表，可为空数组")     # 允许创建无角色用户
+    role_ids: list[int] = Field(default_factory=list, max_length=100, description="角色 ID 列表，可为空数组")     # 允许创建无角色用户
     department_id: int | None = Field(None, description="部门 ID，无则不传")
 
     @field_validator("username")
@@ -140,7 +140,7 @@ class UserRead(BaseModel):
     phone: str | None = None
     is_active: bool
     department_id: int | None = None
-    roles: list[RoleBrief] = []
+    roles: list[RoleBrief] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

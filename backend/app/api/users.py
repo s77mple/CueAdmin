@@ -17,11 +17,10 @@
 
 from typing import Annotated
 
-import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Path, Query, Security
+from fastapi import APIRouter, Path, Query, Security
 
 from app.core.database import DbSession
-from app.core.dependencies import get_current_user, get_redis
+from app.core.dependencies import RedisDep, get_current_user
 from app.core.exceptions import BusinessException, ErrorCode
 from app.models import User
 from app.schemas.response import ApiResponse
@@ -46,10 +45,10 @@ class UserScope:
 async def list_users(
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
-    role_id: int | None = Query(None, description="按角色 ID 筛选"),
-    is_active: bool | None = Query(None, description="筛选启用/禁用状态，不传则查全部"),
-    page: int = Query(1, ge=1, description="页码，从 1 开始"),
-    page_size: int = Query(20, ge=1, le=100, description="每页条数，最大 100"),
+    role_id: Annotated[int | None, Query(description="按角色 ID 筛选")] = None,
+    is_active: Annotated[bool | None, Query(description="筛选启用/禁用状态，不传则查全部")] = None,
+    page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 20,
 ):
     svc = UserService(session)
     result = await svc.list_users(role_id=role_id, is_active=is_active, page=page, page_size=page_size)
@@ -80,7 +79,7 @@ async def update_user(
     body: UserUpdate,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
 ):
     target = await UserService(session, redis_client).update_user(user_id, body)
     return ApiResponse.ok(data=target, message="更新成功")
@@ -96,7 +95,7 @@ async def patch_user(
     body: UserPatch,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
 ):
     target = await UserService(session, redis_client).patch_user(user_id, body)
     return ApiResponse.ok(data=target, message="更新成功")
@@ -111,8 +110,8 @@ async def delete_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.DELETE])],
-    hard: bool = Query(False, description="true=彻底删除（仅限已禁用的用户），默认 false=软禁用"),
-    redis_client: aioredis.Redis = Depends(get_redis),
+    redis_client: RedisDep,
+    hard: Annotated[bool, Query(description="true=彻底删除（仅限已禁用的用户），默认 false=软禁用")] = False,
 ):
     message = await UserService(session, redis_client).delete_user(user_id, user.id, hard=hard)
     return ApiResponse.ok(message=message)
