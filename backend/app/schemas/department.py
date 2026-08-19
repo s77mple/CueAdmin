@@ -55,15 +55,3 @@ class DepartmentBrief(BaseModel):
     parent_id: int | None = None
 
     model_config = {"from_attributes": True}
-
-
-# —————— 响应包装 ——————
-from app.schemas.response import ApiResponse
-
-
-class DepartmentListApiResponse(ApiResponse[DepartmentListResponse]):
-    pass
-
-
-class DepartmentBriefResponse(ApiResponse[DepartmentBrief]):
-    pass

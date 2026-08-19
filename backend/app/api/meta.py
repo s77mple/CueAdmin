@@ -24,13 +24,8 @@ class ErrorCodeItem(BaseModel):
     description: str = Field(..., description="中文含义（给人看的说明）")
 
 
-class ErrorCodeDictResponse(ApiResponse[list[ErrorCodeItem]]):
-    """错误码字典响应 — data 是条目数组。"""
-    pass
-
-
-@router.get("/error-codes", response_model=ErrorCodeDictResponse, summary="错误码数据字典")
-async def list_error_codes():
+@router.get("/error-codes", response_model=ApiResponse[list[ErrorCodeItem]], summary="错误码数据字典")
+async def list_error_codes() -> ApiResponse[list[ErrorCodeItem]]:
     """返回全量错误码对照表 { code, name, description }。
 
     枚举定义在 app/core/exceptions.py，描述和代码同源，

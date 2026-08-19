@@ -145,20 +145,3 @@ class UserRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}  # 允许从 ORM 对象自动转换
-
-
-# ============================================================
-# 6. 响应包装类型
-# ============================================================
-
-from app.schemas.response import ApiResponse, PageData
-
-
-class UserReadResponse(ApiResponse[UserRead]):
-    """单用户响应：GET /users/{id}、POST /users、PUT /users/{id}"""
-    pass
-
-
-class UserListResponse(ApiResponse[PageData[UserRead]]):
-    """用户列表响应：GET /users"""
-    pass

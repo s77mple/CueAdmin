@@ -10,7 +10,6 @@ me 领域是"当前用户自己的数据"（只需登录、无需鉴权），与
 
 from pydantic import BaseModel, Field
 
-from app.schemas.response import ApiResponse
 from app.schemas.role import RoleBrief
 
 
@@ -24,7 +23,3 @@ class RoutesResponse(BaseModel):
     routes: list[dict] = Field(default_factory=list)
     permissions: list[str] = Field(default_factory=list)
     roles: list[RoleBrief] = Field(default_factory=list)
-
-
-class RoutesApiResponse(ApiResponse[RoutesResponse]):
-    pass

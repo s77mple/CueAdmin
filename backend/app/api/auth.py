@@ -20,7 +20,7 @@ from jose import JWTError
 from app.core.database import DbSession
 from app.core.dependencies import BearerTokenDep, RedisDep
 from app.core.security import decode_token
-from app.schemas.auth import LoginRequest, LoginApiResponse
+from app.schemas.auth import LoginRequest, LoginResponse
 from app.schemas.response import ApiResponse
 from app.services.auth_service import AuthService
 from app.core.logger import logger
@@ -42,12 +42,12 @@ _LOGIN_LOCK_TTL = 900       # 锁定时间（15 分钟）
 # 2. POST /auth/login — 登录
 # ============================================================
 
-@router.post("/login", response_model=LoginApiResponse)
+@router.post("/login", response_model=ApiResponse[LoginResponse])
 async def login(
     body: LoginRequest,                                    # 前端传来的 { username, password }
     session: DbSession,                                         # 数据库会话（自动注入）
     redis_client: RedisDep,     # Redis（自动注入）
-):
+) -> ApiResponse[LoginResponse]:
     """#2 登录接口。
 
     流程：
@@ -107,7 +107,7 @@ async def login(
 async def logout(
     credentials: BearerTokenDep,                           # 从请求头取 Bearer token
     redis_client: RedisDep,
-):
+) -> ApiResponse:
     """#3 登出接口。
 
     为什么登出要后端参与？JWT 是无状态的，无法主动失效。

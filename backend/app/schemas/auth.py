@@ -16,7 +16,6 @@ Schema 层的作用：
 
 from pydantic import BaseModel, Field
 
-from app.schemas.response import ApiResponse
 from app.schemas.role import RoleBrief
 from app.schemas.user import UserRead
 
@@ -44,11 +43,3 @@ class LoginResponse(BaseModel):
     roles: list[RoleBrief] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
-
-
-# —————— 响应包装类型 ——————
-# 解决 FastAPI response_model 泛型嵌套问题
-# 不定义这些类直接用 ApiResponse[LoginResponse] 作为 response_model 会报错
-
-class LoginApiResponse(ApiResponse[LoginResponse]):
-    pass

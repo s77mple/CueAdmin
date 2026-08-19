@@ -53,15 +53,3 @@ class RoleBrief(BaseModel):
     name: str
 
     model_config = {"from_attributes": True}
-
-
-# —————— 响应包装 ——————
-from app.schemas.response import ApiResponse, PageData
-
-
-class RoleListApiResponse(ApiResponse[PageData[RoleItem]]):
-    pass
-
-
-class RoleBriefResponse(ApiResponse[RoleBrief]):
-    pass

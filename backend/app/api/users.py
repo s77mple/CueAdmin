@@ -23,8 +23,8 @@ from app.core.database import DbSession
 from app.core.dependencies import RedisDep, get_current_user
 from app.core.exceptions import BusinessException, ErrorCode
 from app.models import User
-from app.schemas.response import ApiResponse
-from app.schemas.user import UserCreate, UserUpdate, UserPatch, UserReadResponse, UserListResponse
+from app.schemas.response import ApiResponse, PageData
+from app.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -41,7 +41,7 @@ class UserScope:
 # GET /users — 用户列表
 # ============================================================
 
-@router.get("", response_model=UserListResponse, summary="用户列表")
+@router.get("", response_model=ApiResponse[PageData[UserRead]], summary="用户列表")
 async def list_users(
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
@@ -49,7 +49,7 @@ async def list_users(
     is_active: Annotated[bool | None, Query(description="筛选启用/禁用状态，不传则查全部")] = None,
     page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 20,
-):
+) -> ApiResponse[PageData[UserRead]]:
     svc = UserService(session)
     result = await svc.list_users(role_id=role_id, is_active=is_active, page=page, page_size=page_size)
     return ApiResponse.ok(data=result)
@@ -59,12 +59,12 @@ async def list_users(
 # POST /users — 创建用户
 # ============================================================
 
-@router.post("", response_model=UserReadResponse, status_code=201, summary="创建用户")
+@router.post("", response_model=ApiResponse[UserRead], status_code=201, summary="创建用户")
 async def create_user(
     body: UserCreate,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.CREATE])],
-):
+) -> ApiResponse[UserRead]:
     new_user = await UserService(session).create_user(body)
     return ApiResponse.ok(data=new_user, message="创建成功")
 
@@ -73,14 +73,14 @@ async def create_user(
 # PUT /users/{user_id} — 全量更新
 # ============================================================
 
-@router.put("/{user_id}", response_model=UserReadResponse, summary="全量更新用户")
+@router.put("/{user_id}", response_model=ApiResponse[UserRead], summary="全量更新用户")
 async def update_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     body: UserUpdate,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
     redis_client: RedisDep,
-):
+) -> ApiResponse[UserRead]:
     target = await UserService(session, redis_client).update_user(user_id, body)
     return ApiResponse.ok(data=target, message="更新成功")
 
@@ -89,14 +89,14 @@ async def update_user(
 # PATCH /users/{user_id} — 部分更新
 # ============================================================
 
-@router.patch("/{user_id}", response_model=UserReadResponse, summary="部分更新用户")
+@router.patch("/{user_id}", response_model=ApiResponse[UserRead], summary="部分更新用户")
 async def patch_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     body: UserPatch,
     session: DbSession,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
     redis_client: RedisDep,
-):
+) -> ApiResponse[UserRead]:
     target = await UserService(session, redis_client).patch_user(user_id, body)
     return ApiResponse.ok(data=target, message="更新成功")
 
@@ -112,6 +112,6 @@ async def delete_user(
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.DELETE])],
     redis_client: RedisDep,
     hard: Annotated[bool, Query(description="true=彻底删除（仅限已禁用的用户），默认 false=软禁用")] = False,
-):
+) -> ApiResponse:
     message = await UserService(session, redis_client).delete_user(user_id, user.id, hard=hard)
     return ApiResponse.ok(message=message)

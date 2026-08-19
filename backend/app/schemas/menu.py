@@ -63,15 +63,3 @@ class MenuBrief(BaseModel):
     parent_id: int | None = None
 
     model_config = {"from_attributes": True}
-
-
-# —————— 响应包装 ——————
-from app.schemas.response import ApiResponse
-
-
-class MenuListApiResponse(ApiResponse[MenuListResponse]):
-    pass
-
-
-class MenuBriefResponse(ApiResponse[MenuBrief]):
-    pass
