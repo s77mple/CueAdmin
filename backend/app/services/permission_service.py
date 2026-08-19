@@ -13,6 +13,7 @@ from app.models import Permission
 from app.models.associations import user_roles, role_permissions
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
+from app.schemas.permission import PermissionCreate, PermissionUpdate
 
 
 class PermissionService:
@@ -47,7 +48,7 @@ class PermissionService:
     # 创建
     # ============================================================
 
-    async def create_permission(self, body) -> Permission:
+    async def create_permission(self, body: PermissionCreate) -> Permission:
         """创建权限 — 双重唯一性保护。"""
         if (await self.session.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
@@ -70,7 +71,7 @@ class PermissionService:
     # 全量更新
     # ============================================================
 
-    async def update_permission(self, perm_id: int, body) -> Permission:
+    async def update_permission(self, perm_id: int, body: PermissionUpdate) -> Permission:
         """PUT 全量更新 — code 变更时清除关联用户缓存。"""
         perm = await self.get_permission_for_update(perm_id)
         code_changed = False
@@ -113,7 +114,7 @@ class PermissionService:
     # 私有 — 缓存清除
     # ============================================================
 
-    async def _clear_perm_cache(self, perm_id: int):
+    async def _clear_perm_cache(self, perm_id: int) -> None:
         """权限变更后，清除所有关联用户的 Redis 权限缓存。
 
         查询路径：perm_id → role_permissions → user_roles → user_id

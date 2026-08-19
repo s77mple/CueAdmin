@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, User
 from app.core.exceptions import BusinessException, ErrorCode
+from app.schemas.department import DepartmentCreate, DepartmentUpdate
 
 
 class DepartmentService:
@@ -43,7 +44,7 @@ class DepartmentService:
     # 创建
     # ============================================================
 
-    async def create_department(self, body) -> Department:
+    async def create_department(self, body: DepartmentCreate) -> Department:
         """创建部门 — 验证父部门 + 双重唯一性保护。"""
         if (await self.session.execute(select(Department).where(Department.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
@@ -70,7 +71,7 @@ class DepartmentService:
     # 全量更新
     # ============================================================
 
-    async def update_department(self, dept_id: int, body) -> Department:
+    async def update_department(self, dept_id: int, body: DepartmentUpdate) -> Department:
         """PUT 全量更新 — 包含循环检测。"""
         dept = await self.get_department_for_update(dept_id)
 
@@ -129,7 +130,7 @@ class DepartmentService:
     # 私有 — 循环检测
     # ============================================================
 
-    async def _validate_parent(self, dept_id: int, new_parent_id: int):
+    async def _validate_parent(self, dept_id: int, new_parent_id: int) -> None:
         """校验父部门存在 + 检测循环引用。"""
         if new_parent_id == dept_id:
             raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")

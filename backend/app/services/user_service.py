@@ -14,6 +14,8 @@ from app.models import User, Role, Department
 from app.core.security import hash_password
 from app.core.paginate import paginate
 from app.core.exceptions import BusinessException, ErrorCode
+from app.schemas.response import PageData
+from app.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead
 
 
 class UserService:
@@ -39,7 +41,7 @@ class UserService:
         is_active: bool | None = None,
         page: int = 1,
         page_size: int = 20,
-    ):
+    ) -> PageData[UserRead]:
         """分页用户列表，支持按角色和启用状态筛选。"""
         stmt = select(User).options(selectinload(User.roles), selectinload(User.department))
 
@@ -68,7 +70,7 @@ class UserService:
     # 创建
     # ============================================================
 
-    async def create_user(self, body) -> User:
+    async def create_user(self, body: UserCreate) -> User:
         """创建用户 — 双重唯一性校验 + 外键验证。"""
         # 应用层唯一性检查
         if (await self.session.execute(select(User).where(User.username == body.username))).scalars().first():
@@ -118,7 +120,7 @@ class UserService:
     # 全量更新
     # ============================================================
 
-    async def update_user(self, user_id: int, body) -> User:
+    async def update_user(self, user_id: int, body: UserUpdate) -> User:
         """PUT 全量更新 — 所有字段覆盖写入。"""
         target = await self.get_user_for_update(user_id)
         self._guard_superadmin(target)
@@ -138,7 +140,7 @@ class UserService:
         # 禁用保护
         if not body.is_active:
             self._guard_superadmin(target)
-            await self._guard_last_admin(target.roles)
+            await self._guard_last_admin()
 
         target.is_active = body.is_active
 
@@ -167,7 +169,7 @@ class UserService:
     # 部分更新
     # ============================================================
 
-    async def patch_user(self, user_id: int, body) -> User:
+    async def patch_user(self, user_id: int, body: UserPatch) -> User:
         """PATCH 部分更新 — 只改传了的字段。"""
         target = await self.get_user_for_update(user_id)
         self._guard_superadmin(target)
@@ -194,7 +196,7 @@ class UserService:
         if "is_active" in data:
             if not data["is_active"]:
                 self._guard_superadmin(target)
-                await self._guard_last_admin(target.roles)
+                await self._guard_last_admin()
             target.is_active = data["is_active"]
 
         if "department_id" in data:
@@ -257,7 +259,7 @@ class UserService:
             if not target.is_active:
                 raise BusinessException(ErrorCode.CONFLICT, "该用户已被禁用")
             if any(r.code == "admin" for r in target.roles):
-                await self._guard_last_admin(target.roles)
+                await self._guard_last_admin()
 
             target.is_active = False
             await self.session.commit()
@@ -267,7 +269,7 @@ class UserService:
     # 私有辅助方法
     # ============================================================
 
-    async def _validate_username_unique(self, username: str, exclude_user_id: int | None = None):
+    async def _validate_username_unique(self, username: str, exclude_user_id: int | None = None) -> None:
         """检查用户名唯一（编辑时排除自己）。"""
         stmt = select(User).where(User.username == username)
         if exclude_user_id is not None:
@@ -275,14 +277,14 @@ class UserService:
         if (await self.session.execute(stmt)).scalars().first():
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
-    async def _validate_department(self, department_id: int | None):
+    async def _validate_department(self, department_id: int | None) -> None:
         """校验部门存在。"""
         if department_id is not None:
             dept = (await self.session.execute(select(Department).where(Department.id == department_id))).scalars().first()
             if not dept:
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {department_id}")
 
-    async def _resolve_roles(self, target: User, role_ids: list[int] | None):
+    async def _resolve_roles(self, target: User, role_ids: list[int] | None) -> None:
         """验证角色 ID 存在并赋值，包含最后管理员保护。"""
         role_ids = role_ids or []  # None（未传）与空列表均视为清空角色
         roles = (await self.session.execute(
@@ -308,7 +310,7 @@ class UserService:
 
         target.roles = roles
 
-    async def _guard_last_admin(self, roles):
+    async def _guard_last_admin(self) -> None:
         """确保不禁用/删除最后一个管理员。"""
         admin_count = (await self.session.execute(
             select(User).join(User.roles).where(
@@ -319,12 +321,12 @@ class UserService:
             raise BusinessException(ErrorCode.CONFLICT, "不允许禁用最后一个管理员")
 
     @staticmethod
-    def _guard_superadmin(target: User):
+    def _guard_superadmin(target: User) -> None:
         """禁止操作超级管理员（admin 用户名）。"""
         if target.username == "admin":
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许操作超级管理员")
 
-    async def _clear_perm_cache(self, user_id: int):
+    async def _clear_perm_cache(self, user_id: int) -> None:
         """清除用户权限缓存。"""
         if not self.redis:
             return

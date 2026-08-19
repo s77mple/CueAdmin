@@ -139,7 +139,7 @@ def build_routes(menus: list[dict]) -> list[dict]:
             top_nodes.append(node)
 
     # ---- 递归排序 ----
-    def sort_children(nodes: list[dict]):
+    def sort_children(nodes: list[dict]) -> None:
         nodes.sort(key=lambda n: n.get("sort_order", 0))
         for n in nodes:
             if n["children"]:
@@ -219,6 +219,7 @@ def build_routes(menus: list[dict]) -> list[dict]:
 
 from sqlalchemy.exc import IntegrityError
 from app.models import Menu
+from app.schemas.menu import MenuCreate, MenuUpdate
 from app.core.exceptions import BusinessException, ErrorCode
 
 
@@ -258,7 +259,7 @@ class MenuService:
     # 创建
     # ============================================================
 
-    async def create_menu(self, body) -> Menu:
+    async def create_menu(self, body: MenuCreate) -> Menu:
         """创建菜单 — 验证父菜单 + 双重唯一性保护。"""
         if (await self.session.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
@@ -286,7 +287,7 @@ class MenuService:
     # 全量更新
     # ============================================================
 
-    async def update_menu(self, menu_id: int, body) -> Menu:
+    async def update_menu(self, menu_id: int, body: MenuUpdate) -> Menu:
         """PUT 全量更新 — 包含循环检测。"""
         menu = await self.get_menu_for_update(menu_id)
 
@@ -336,7 +337,7 @@ class MenuService:
     # 私有 — 循环检测
     # ============================================================
 
-    async def _validate_parent(self, menu_id: int, new_parent_id: int):
+    async def _validate_parent(self, menu_id: int, new_parent_id: int) -> None:
         """校验父菜单存在 + 检测循环引用。"""
         if new_parent_id == menu_id:
             raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")

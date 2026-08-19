@@ -16,6 +16,7 @@ from app.core.exceptions import BusinessException, ErrorCode
 from app.core.paginate import paginate
 from app.core.logger import logger
 from app.schemas.response import PageData
+from app.schemas.role import RoleCreate, RoleUpdate, RoleItem
 
 
 class RoleService:
@@ -35,7 +36,7 @@ class RoleService:
     # 查询
     # ============================================================
 
-    async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData:
+    async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData[RoleItem]:
         """分页返回角色（预加载权限和菜单）。角色数量少，默认 page_size=100 一次返回全部。"""
         stmt = (
             select(Role)
@@ -61,7 +62,7 @@ class RoleService:
     # 创建
     # ============================================================
 
-    async def create_role(self, body) -> Role:
+    async def create_role(self, body: RoleCreate) -> Role:
         """创建角色 — 双重唯一性保护。"""
         if (await self.session.execute(select(Role).where(Role.code == body.code))).scalars().first():
             raise BusinessException(ErrorCode.ROLE_CODE_EXISTS, "角色编码已存在")
@@ -83,7 +84,7 @@ class RoleService:
     # 全量更新
     # ============================================================
 
-    async def update_role(self, role_id: int, body) -> Role:
+    async def update_role(self, role_id: int, body: RoleUpdate) -> Role:
         """PUT 全量更新 — 系统角色不可修改。"""
         role = await self.get_role_for_update(role_id)
         self._guard_system(role)
@@ -138,7 +139,7 @@ class RoleService:
         role: Role,
         permission_codes: list[str] | None = None,
         menu_ids: list[int] | None = None,
-    ):
+    ) -> None:
         """校验权限/菜单关联并赋给角色。None 表示不修改该关联。"""
         if permission_codes is not None:
             perms = (await self.session.execute(
@@ -160,7 +161,7 @@ class RoleService:
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
             role.menus = menus
 
-    async def _clear_role_users_cache(self, role_id: int, role_code: str):
+    async def _clear_role_users_cache(self, role_id: int, role_code: str) -> None:
         """角色权限/菜单变更后，清除所有关联用户的 Redis 权限缓存。"""
         try:
             rows = (await self.session.execute(
@@ -175,7 +176,7 @@ class RoleService:
 
         logger.info("角色 [{}] 权限/菜单变更，已清除 {} 个用户缓存", role_code, len(rows))
 
-    async def _safe_delete_cache(self, key: str):
+    async def _safe_delete_cache(self, key: str) -> None:
         """安全删除 Redis 缓存 — 失败不抛异常。"""
         if not self.redis:
             return
@@ -185,7 +186,7 @@ class RoleService:
             pass
 
     @staticmethod
-    def _guard_system(role: Role):
+    def _guard_system(role: Role) -> None:
         """系统角色不允许修改/删除。"""
         if role.is_system:
             raise BusinessException(ErrorCode.ROLE_IS_SYSTEM, "不允许修改系统角色")
