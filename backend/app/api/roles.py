@@ -11,7 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Security
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import RedisDep, get_current_user
 from app.models import User
 from app.schemas.response import ApiResponse, PageData
@@ -37,7 +37,7 @@ class RoleScope:
 
 @router.get("", response_model=ApiResponse[PageData[RoleItem]], summary="角色列表")
 async def list_roles(
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
     page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 100,
@@ -53,7 +53,7 @@ async def list_roles(
 @router.post("", response_model=ApiResponse[RoleBrief], status_code=201, summary="创建角色")
 async def create_role(
     body: RoleCreate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.CREATE])],
 ) -> ApiResponse[RoleBrief]:
     role = await RoleService(session).create_role(body)
@@ -68,7 +68,7 @@ async def create_role(
 async def update_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     body: RoleUpdate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.UPDATE])],
     redis_client: RedisDep,
 ) -> ApiResponse[RoleBrief]:
@@ -83,7 +83,7 @@ async def update_role(
 @router.delete("/{role_id}", response_model=ApiResponse, summary="删除角色")
 async def delete_role(
     role_id: Annotated[int, Path(description="角色 ID")],
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.DELETE])],
     redis_client: RedisDep,
 ) -> ApiResponse:

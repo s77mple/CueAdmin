@@ -37,14 +37,14 @@ class Role(Base, TimestampMixin):
 
     # ---- 关系 ----
     # 多对多：一个角色可以分配给多个用户
-    users = relationship("User", secondary=user_roles, back_populates="roles")
+    users = relationship("User", secondary=user_roles, back_populates="roles", passive_deletes=True)  # 删角色 → user_roles 交给 DB CASCADE，ORM 不预加载 users
 
     # 多对多：一个角色可以拥有多个权限
     permissions = relationship(
-        "Permission", secondary=role_permissions, back_populates="roles"
+        "Permission", secondary=role_permissions, back_populates="roles", passive_deletes=True  # 删角色 → role_permissions 交给 DB CASCADE
     )
 
     # 多对多：一个角色可以拥有多个菜单
     menus = relationship(
-        "Menu", secondary=role_menus, back_populates="roles"
+        "Menu", secondary=role_menus, back_populates="roles", passive_deletes=True  # 删角色 → role_menus 交给 DB CASCADE
     )

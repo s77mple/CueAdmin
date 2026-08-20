@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Security
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas.menu import (
@@ -35,7 +35,7 @@ class MenuScope:
 
 @router.get("", response_model=ApiResponse[MenuListResponse], summary="菜单列表")
 async def list_menus(
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
 ) -> ApiResponse[MenuListResponse]:
     menus = await MenuService(session).list_menus()
@@ -50,7 +50,7 @@ async def list_menus(
 @router.post("", response_model=ApiResponse[MenuBrief], status_code=201, summary="创建菜单")
 async def create_menu(
     body: MenuCreate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.CREATE])],
 ) -> ApiResponse[MenuBrief]:
     menu = await MenuService(session).create_menu(body)
@@ -65,7 +65,7 @@ async def create_menu(
 async def update_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
     body: MenuUpdate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.UPDATE])],
 ) -> ApiResponse[MenuBrief]:
     menu = await MenuService(session).update_menu(menu_id, body)
@@ -78,7 +78,7 @@ async def update_menu(
 @router.delete("/{menu_id}", response_model=ApiResponse, summary="删除菜单")
 async def delete_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.DELETE])],
 ) -> ApiResponse:
     result = await MenuService(session).delete_menu(menu_id)

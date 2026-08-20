@@ -19,7 +19,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Security
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import RedisDep, get_current_user
 from app.core.exceptions import BusinessException, ErrorCode
 from app.models import User
@@ -43,7 +43,7 @@ class UserScope:
 
 @router.get("", response_model=ApiResponse[PageData[UserRead]], summary="用户列表")
 async def list_users(
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
     role_id: Annotated[int | None, Query(description="按角色 ID 筛选")] = None,
     is_active: Annotated[bool | None, Query(description="筛选启用/禁用状态，不传则查全部")] = None,
@@ -62,7 +62,7 @@ async def list_users(
 @router.post("", response_model=ApiResponse[UserRead], status_code=201, summary="创建用户")
 async def create_user(
     body: UserCreate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.CREATE])],
 ) -> ApiResponse[UserRead]:
     new_user = await UserService(session).create_user(body)
@@ -77,7 +77,7 @@ async def create_user(
 async def update_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     body: UserUpdate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
     redis_client: RedisDep,
 ) -> ApiResponse[UserRead]:
@@ -93,7 +93,7 @@ async def update_user(
 async def patch_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     body: UserPatch,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.UPDATE])],
     redis_client: RedisDep,
 ) -> ApiResponse[UserRead]:
@@ -108,7 +108,7 @@ async def patch_user(
 @router.delete("/{user_id}", response_model=ApiResponse, summary="禁用/删除用户")
 async def delete_user(
     user_id: Annotated[int, Path(description="用户 ID")],
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.DELETE])],
     redis_client: RedisDep,
     hard: Annotated[bool, Query(description="true=彻底删除（仅限已禁用的用户），默认 false=软禁用")] = False,

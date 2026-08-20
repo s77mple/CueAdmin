@@ -40,4 +40,4 @@ class Permission(Base, TimestampMixin):
 
     # ---- 多对多 ----
     # 哪些角色拥有这个权限
-    roles = relationship("Role", secondary=role_permissions, back_populates="permissions")
+    roles = relationship("Role", secondary=role_permissions, back_populates="permissions", passive_deletes=True)  # 删权限 → role_permissions 交给 DB CASCADE，ORM 不预加载 roles

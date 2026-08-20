@@ -51,4 +51,4 @@ class Department(Base, TimestampMixin):
 
     # ---- 一对多 ----
     # 一个部门下有多个用户
-    users = relationship("User", back_populates="department")
+    users = relationship("User", back_populates="department", passive_deletes=True)  # 删除部门 → 用户的 department_id 变为 NULL（不删除用户）

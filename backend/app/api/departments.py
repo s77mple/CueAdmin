@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Security
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas.department import (
@@ -32,7 +32,7 @@ class DeptScope:
 
 @router.get("", response_model=ApiResponse[DepartmentListResponse], summary="部门列表")
 async def list_departments(
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.LIST])],
 ) -> ApiResponse[DepartmentListResponse]:
     departments = await DepartmentService(session).list_departments()
@@ -47,7 +47,7 @@ async def list_departments(
 @router.post("", response_model=ApiResponse[DepartmentBrief], status_code=201, summary="创建部门")
 async def create_department(
     body: DepartmentCreate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.CREATE])],
 ) -> ApiResponse[DepartmentBrief]:
     dept = await DepartmentService(session).create_department(body)
@@ -62,7 +62,7 @@ async def create_department(
 async def update_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
     body: DepartmentUpdate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.UPDATE])],
 ) -> ApiResponse[DepartmentBrief]:
     dept = await DepartmentService(session).update_department(dept_id, body)
@@ -76,7 +76,7 @@ async def update_department(
 @router.delete("/{dept_id}", response_model=ApiResponse, summary="删除部门")
 async def delete_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.DELETE])],
 ) -> ApiResponse:
     result = await DepartmentService(session).delete_department(dept_id)

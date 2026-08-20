@@ -64,4 +64,4 @@ class Menu(Base, TimestampMixin):
 
     # ---- 多对多 ----
     # 哪些角色能看到这个菜单
-    roles = relationship("Role", secondary="role_menus", back_populates="menus")
+    roles = relationship("Role", secondary="role_menus", back_populates="menus", passive_deletes=True)  # 删菜单 → role_menus 交给 DB CASCADE，ORM 不预加载 roles
