@@ -33,7 +33,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.models import User, Role
 from app.core.security import decode_token
 from app.core.exceptions import BusinessException, ErrorCode
@@ -97,7 +97,7 @@ BearerTokenDep = Annotated[HTTPAuthorizationCredentials, Depends(security_scheme
 
 async def get_current_user(
     security_scopes: Annotated[SecurityScopes, SecurityScopes()], # FastAPI 自动注入 scopes 列表
-    session: DbSession,                                           # 数据库会话（自动注入）
+    session: SessionDep,                                           # 数据库会话（自动注入）
     credentials: BearerTokenDep,                                  # token（自动注入）
     redis_client: RedisDep,                                       # Redis（自动注入）
 ) -> User:

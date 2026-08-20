@@ -14,7 +14,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Security
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import get_current_user
 from app.models import User
 from app.schemas.me import RoutesResponse
@@ -26,7 +26,7 @@ routes_router = APIRouter()  # 挂载在 /routes（前端导航数据源）
 
 @routes_router.get("", response_model=ApiResponse[RoutesResponse], summary="获取当前用户动态路由")
 async def get_routes(
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user)],  # 仅认证不鉴权（不需要 scope）
 ) -> ApiResponse[RoutesResponse]:
     """返回当前用户的路由树 + 权限 + 角色，前端刷新时一并回写。

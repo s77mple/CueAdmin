@@ -17,7 +17,7 @@ import redis.asyncio as aioredis
 from fastapi import APIRouter
 from jose import JWTError
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import BearerTokenDep, RedisDep
 from app.core.security import decode_token
 from app.schemas.auth import LoginRequest, LoginResponse
@@ -45,7 +45,7 @@ _LOGIN_LOCK_TTL = 900       # 锁定时间（15 分钟）
 @router.post("/login", response_model=ApiResponse[LoginResponse])
 async def login(
     body: LoginRequest,                                    # 前端传来的 { username, password }
-    session: DbSession,                                         # 数据库会话（自动注入）
+    session: SessionDep,                                         # 数据库会话（自动注入）
     redis_client: RedisDep,     # Redis（自动注入）
 ) -> ApiResponse[LoginResponse]:
     """#2 登录接口。

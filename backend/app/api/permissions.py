@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Security
 
-from app.core.database import DbSession
+from app.core.database import SessionDep
 from app.core.dependencies import RedisDep, get_current_user
 from app.models import User
 from app.schemas.permission import (
@@ -32,7 +32,7 @@ class PermissionScope:
 
 @router.get("", response_model=ApiResponse[PermissionListResponse], summary="权限列表")
 async def list_permissions(
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
 ) -> ApiResponse[PermissionListResponse]:
     perms = await PermissionService(session).list_permissions()
@@ -47,7 +47,7 @@ async def list_permissions(
 @router.post("", response_model=ApiResponse[PermissionBrief], status_code=201, summary="创建权限")
 async def create_permission(
     body: PermissionCreate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.CREATE])],
 ) -> ApiResponse[PermissionBrief]:
     perm = await PermissionService(session).create_permission(body)
@@ -62,7 +62,7 @@ async def create_permission(
 async def update_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     body: PermissionUpdate,
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.UPDATE])],
     redis_client: RedisDep,
 ) -> ApiResponse[PermissionBrief]:
@@ -77,7 +77,7 @@ async def update_permission(
 @router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
-    session: DbSession,
+    session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.DELETE])],
     redis_client: RedisDep,
 ) -> ApiResponse:
