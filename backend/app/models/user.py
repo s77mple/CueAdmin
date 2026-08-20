@@ -59,7 +59,7 @@ class User(Base, TimestampMixin):
 
     # ---- 关系 ----
     # secondary=user_roles → 通过关联表做多对多
-    roles = relationship("Role", secondary=user_roles, back_populates="users")
+    roles = relationship("Role", secondary=user_roles, back_populates="users", passive_deletes=True)  # 删用户 → user_roles 交给 DB CASCADE，ORM 不预加载 roles
 
     # 多对一：多个用户属于同一部门
     department = relationship("Department", back_populates="users")
