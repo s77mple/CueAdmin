@@ -8,7 +8,7 @@ import redis.asyncio as aioredis
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models import User, Role, Department
 from app.core.security import hash_password
@@ -43,7 +43,7 @@ class UserService:
         page_size: int = 20,
     ) -> PageData[UserRead]:
         """分页用户列表，支持按角色和启用状态筛选。"""
-        stmt = select(User).options(selectinload(User.roles), selectinload(User.department))
+        stmt = select(User).options(selectinload(User.roles), joinedload(User.department))
 
         if role_id is not None:
             stmt = stmt.join(User.roles).where(Role.id == role_id)
@@ -57,7 +57,7 @@ class UserService:
         """带行级锁获取用户（用于更新/删除操作）。"""
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles), selectinload(User.department))
+            .options(selectinload(User.roles), joinedload(User.department))
             .where(User.id == user_id)
             .with_for_update()
         )
@@ -111,7 +111,7 @@ class UserService:
         # 否则响应序列化时访问 new_user.roles 会触发 async lazy-load（MissingGreenlet 崩溃）
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles), selectinload(User.department))
+            .options(selectinload(User.roles), joinedload(User.department))
             .where(User.id == new_user.id)
         )
         return result.scalars().first()
