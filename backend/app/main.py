@@ -87,8 +87,11 @@ app = FastAPI(
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
     detail = errors[0] if errors else {}
-    msg = f"参数校验失败: {detail.get('loc', ['unknown'])[-1]} — {detail.get('msg', '')}"
-    logger.bind(path=request.url.path).warning(msg)
+    # 响应 message 只给中文文案（来自 PydanticCustomError 的 message），不带技术前缀
+    msg = detail.get('msg', '参数校验失败')
+    # 日志单独拼一份带字段定位的，方便后端排查
+    field = detail.get('loc', ['unknown'])[-1] if detail.get('loc') else 'unknown'
+    logger.bind(path=request.url.path).warning(f"参数校验失败: {field} — {msg}")
     return JSONResponse(
         status_code=200,
         content=ApiResponse.fail(

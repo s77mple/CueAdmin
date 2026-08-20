@@ -130,10 +130,6 @@ class UserService:
             await self._validate_username_unique(body.username, exclude_user_id=user_id)
             target.username = body.username
 
-        # 密码（空 = 不修改）
-        if body.password:
-            target.password_hash = await hash_password(body.password)
-
         target.display_name = body.display_name
         target.phone = body.phone
 
@@ -181,9 +177,6 @@ class UserService:
             if data["username"] != target.username:
                 await self._validate_username_unique(data["username"], exclude_user_id=user_id)
                 target.username = data["username"]
-
-        if "password" in data and data["password"]:
-            target.password_hash = await hash_password(data["password"])
 
         if "display_name" in data:
             if data["display_name"] is None:
