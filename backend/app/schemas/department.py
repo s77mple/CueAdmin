@@ -13,7 +13,11 @@ from pydantic import BaseModel, Field
 
 
 class DepartmentCreate(BaseModel):
-    code: Annotated[str, Field(min_length=1, max_length=50, description="部门编码，创建后不可修改")]
+    code: Annotated[str, Field(
+        min_length=1, max_length=50,
+        pattern=r"^[a-z][a-z0-9_]*$",
+        description="部门编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
+    )]
     name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
     parent_id: Annotated[int | None, Field(description="父部门 ID，顶级部门传 null")] = None  # null = 顶级部门
     sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0

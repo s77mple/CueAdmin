@@ -31,16 +31,17 @@ const rules = reactive<FormRules>({
   username: [
     { required: true, message: "请输入用户名", trigger: "blur" },
     { min: 3, message: "用户名至少 3 个字符", trigger: "blur" },
-    {
-      validator: (_rule, value, callback) => {
-        if (value !== value.trim()) {
-          callback(new Error("用户名不允许首尾包含空格"));
-        } else {
-          callback();
-        }
-      },
-      trigger: ["blur", "change"],
-    },
+    // 首尾空格校验已注释：后端 field_validator 会拦截，前端不再重复校验
+    // {
+    //   validator: (_rule, value, callback) => {
+    //     if (value !== value.trim()) {
+    //       callback(new Error("用户名不允许首尾包含空格"));
+    //     } else {
+    //       callback();
+    //     }
+    //   },
+    //   trigger: ["blur", "change"],
+    // },
   ],
   password: [
     { required: true, message: "请输入密码", trigger: "blur" },
@@ -113,6 +114,11 @@ function openEdit(row: any) {
 function onSaveFail(res: any, fallback: string) {
   if (res.code === ErrorCode.USERNAME_ALREADY_EXISTS) {
     fieldErrors.username = res.message || "用户名已存在";
+    return;
+  }
+  else if (res.code === ErrorCode.VALIDATION_ERROR) {
+    ElMessage.error(res.message || "表单验证失败，请检查输入");
+    console.error("表单验证失败：", res);
     return;
   }
   ElMessage.error(res.message || fallback);

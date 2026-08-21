@@ -11,9 +11,15 @@
   - Create：密码必传，username 不能改
   - Update：全量覆盖（所有字段必传），username 可能变了
   - Patch：所有字段都 optional，前端只传要改的字段
+
+校验策略（本项目统一）：
+  - 长度/格式规则直接写在 Field(min_length/max_length/pattern) 上
+    → 自动进 OpenAPI 文档 + pydantic-core（Rust）里执行，快
+  - Field 表达不了的复杂规则才用 field_validator
+    （如 username 不允许首尾空格：strip 逻辑 Field 无法声明）
+  - 前端已用 el-form rules 做主要校验，后端只兜底防非法请求
 """
 
-import re
 from datetime import datetime
 from typing import Annotated
 
@@ -24,47 +30,13 @@ from app.schemas.role import RoleBrief
 
 
 # ============================================================
-# 校验函数 — 三个 Schema 共用，统一抛 PydanticCustomError 出中文报错
-#
-# 为什么不写在 Field(min_length=...) 里？
-#   Field 的长度约束报的是英文原始错误（"String should have at least 3
-#   characters"），对终端用户不友好；而且会先于 field_validator 执行，
-#   让 validator 里的中文报错永远轮不到。所以长度/格式校验统一挪到这里。
+# 校验函数 — 只放 Field 表达不了的复杂规则
 # ============================================================
 
 def _validate_username(v: str) -> str:
-    """用户名 — 3~50 字符，不允许首尾空格。"""
-    if len(v) < 3:
-        raise PydanticCustomError("username_too_short", "用户名至少 3 个字符")
-    if len(v) > 50:
-        raise PydanticCustomError("username_too_long", "用户名最多 50 个字符")
+    """用户名 — 不允许首尾空格（长度 3~50 已由 Field 覆盖）。"""
     if v != v.strip():
         raise PydanticCustomError("username_whitespace", "用户名不允许首尾包含空格")
-    return v
-
-
-def _validate_password(v: str) -> str:
-    """密码 — 6~128 字符。"""
-    if len(v) < 6:
-        raise PydanticCustomError("password_too_short", "密码至少 6 个字符")
-    if len(v) > 128:
-        raise PydanticCustomError("password_too_long", "密码最多 128 个字符")
-    return v
-
-
-def _validate_display_name(v: str) -> str:
-    """显示名 — 1~50 字符。"""
-    if len(v) < 1:
-        raise PydanticCustomError("display_name_empty", "显示名不能为空")
-    if len(v) > 50:
-        raise PydanticCustomError("display_name_too_long", "显示名最多 50 个字符")
-    return v
-
-
-def _validate_phone(v: str) -> str:
-    """手机号 — 11 位数字，1 开头。"""
-    if not re.match(r"^1[3-9]\d{9}$", v):
-        raise PydanticCustomError("phone_format", "手机号格式不正确")
     return v
 
 
@@ -73,10 +45,10 @@ def _validate_phone(v: str) -> str:
 # ============================================================
 
 class UserCreate(BaseModel):
-    username: Annotated[str, Field(description="用户名，至少 3 个字符")]
-    password: Annotated[str, Field(description="密码，至少 6 个字符")]
-    display_name: Annotated[str, Field(description="显示名")]
-    phone: Annotated[str | None, Field(description="手机号，无则不传")] = None
+    username: Annotated[str, Field(min_length=3, max_length=50, description="用户名")]
+    password: Annotated[str, Field(min_length=6, max_length=128, description="密码")]
+    display_name: Annotated[str, Field(min_length=1, max_length=50, description="显示名")]
+    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号，无则不传")] = None
     role_ids: Annotated[list[int], Field(default_factory=list, max_length=100, description="角色 ID 列表，可为空数组")]  # 允许创建无角色用户
     department_id: Annotated[int | None, Field(description="部门 ID，无则不传")] = None
 
@@ -85,23 +57,6 @@ class UserCreate(BaseModel):
     def validate_username(cls, v: str) -> str:
         return _validate_username(v)
 
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        return _validate_password(v)
-
-    @field_validator("display_name")
-    @classmethod
-    def validate_display_name(cls, v: str) -> str:
-        return _validate_display_name(v)
-
-    @field_validator("phone")
-    @classmethod
-    def validate_phone(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        return _validate_phone(v)
-
 
 # ============================================================
 # 2. UserUpdate — 全量更新（PUT）
@@ -109,9 +64,9 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     """PUT 全量更新 — 所有字段覆盖写入。"""
-    username: Annotated[str, Field(description="用户名")]
-    display_name: Annotated[str, Field(description="显示名")]
-    phone: Annotated[str | None, Field(description="手机号，无则传 null")]
+    username: Annotated[str, Field(min_length=3, max_length=50, description="用户名")]
+    display_name: Annotated[str, Field(min_length=1, max_length=50, description="显示名")]
+    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号，无则传 null")]
     is_active: Annotated[bool, Field(description="是否启用")]
     role_ids: Annotated[list[int], Field(max_length=100, description="角色 ID 列表，可为空数组")]
     department_id: Annotated[int | None, Field(description="部门 ID，无则传 null")]
@@ -120,18 +75,6 @@ class UserUpdate(BaseModel):
     @classmethod
     def validate_username(cls, v: str) -> str:
         return _validate_username(v)
-
-    @field_validator("display_name")
-    @classmethod
-    def validate_display_name(cls, v: str) -> str:
-        return _validate_display_name(v)
-
-    @field_validator("phone")
-    @classmethod
-    def validate_phone(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        return _validate_phone(v)
 
 
 # ============================================================
@@ -146,9 +89,9 @@ class UserPatch(BaseModel):
       → data = {"is_active": False}
       → API 层只改 is_active，其他字段不动
     """
-    username: Annotated[str | None, Field(description="用户名")] = None
-    display_name: Annotated[str | None, Field(description="显示名")] = None
-    phone: Annotated[str | None, Field(description="手机号")] = None
+    username: Annotated[str | None, Field(min_length=3, max_length=50, description="用户名")] = None
+    display_name: Annotated[str | None, Field(min_length=1, max_length=50, description="显示名")] = None
+    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号")] = None
     is_active: Annotated[bool | None, Field(description="是否启用")] = None
     role_ids: Annotated[list[int] | None, Field(max_length=100, description="角色 ID 列表，传 [] 清空角色")] = None  # None = 没传，[] = 清空角色
     department_id: Annotated[int | None, Field(description="部门 ID")] = None
@@ -159,20 +102,6 @@ class UserPatch(BaseModel):
         if v is None:
             return v
         return _validate_username(v)
-
-    @field_validator("display_name")
-    @classmethod
-    def validate_display_name(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        return _validate_display_name(v)
-
-    @field_validator("phone")
-    @classmethod
-    def validate_phone(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        return _validate_phone(v)
 
 
 # ============================================================
