@@ -24,7 +24,7 @@ class Department(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True, comment="主键")
 
     # ---- 基本字段 ----
-    code: Mapped[str] = mapped_column(String(50), unique=True, comment="唯一编码，如 tech、market")     # 唯一编码，如 tech、market
+    code: Mapped[str] = mapped_column(String(50), unique=True, comment="唯一编码")     # 唯一编码，如 tech、market
     name: Mapped[str] = mapped_column(String(50), comment="部门名称，如“技术部”")                  # 部门名称，如"技术部"
     parent_id: Mapped[int | None] = mapped_column(
         BigInteger,
