@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     }
 
     def validate_secrets(self):
-        """#1 启动时校验 — 防止用默认空值启动，导致 JWT 被轻易破解。"""
+        """启动时校验 — 防止用默认空值启动，导致 JWT 被轻易破解。"""
         missing = []
         if not self.database_url:
             missing.append("DATABASE_URL")

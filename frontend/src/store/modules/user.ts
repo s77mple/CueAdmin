@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { store, router, resetRouter, routerArrays, storageLocal } from "../utils";
 import { type LoginResult, getLogin, logout } from "@/api/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
-import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
+import { type DataInfo, getToken, setToken, removeToken, userKey } from "@/utils/auth";
 
 export const useUserStore = defineStore("pure-user", {
   state: () => ({
@@ -58,10 +58,14 @@ export const useUserStore = defineStore("pure-user", {
     logOut() {
       this.username = "";
       this.permissions = [];
+      // 在 removeToken 之前捕获 token 并显式传给 logout：
+      // axios 请求拦截器是微任务，晚于同步的 removeToken 执行，届时已拿不到 token，
+      // 若不显式携带，登出请求会缺 Authorization 被后端 403，token 无法加入黑名单
+      const token = getToken()?.accessToken;
+      logout(token).catch(() => {});  // fire-and-forget: 即使网络异常也不阻塞跳转
       removeToken();
       useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
       resetRouter();
-      logout().catch(() => {});  // fire-and-forget: 即使网络异常也不阻塞跳转
       router.push("/login");
     },
   }

@@ -4,7 +4,7 @@
  * 使用规范：
  *  - 判断错误类型只比对 code，永不比对 message 字符串（改文案不影响逻辑）
  *  - 中文含义写在注释里（IDE hover 可见）；后端还有一份完整字典
- *    见 GET /api/v1/meta/error-codes（登录后可查，比源码注释更全）
+ *    见 GET /api/v1/system/meta/error-codes（登录后可查，比源码注释更全）
  */
 export const ErrorCode = {
   // —— 认证：登录失效（http 拦截器跳登录页）——

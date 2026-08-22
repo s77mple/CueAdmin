@@ -1,11 +1,11 @@
 import { http } from "@/utils/http";
-import type { ApiResult, PageData } from "./types";
+import type { ApiResult } from "./types";
 
 export const getDepartmentList = (params?: object) =>
-  http.get<ApiResult<PageData<any>>>("/api/v1/departments", { params });
+  http.get<ApiResult<{ items: any[]; total: number }>>("/api/v1/system/departments", { params });
 export const createDepartment = (data?: object) =>
-  http.post<ApiResult<any>>("/api/v1/departments", { data });
+  http.post<ApiResult<any>>("/api/v1/system/departments", { data });
 export const updateDepartment = (id: number, data?: object) =>
-  http.put<ApiResult<any>>(`/api/v1/departments/${id}`, { data });
+  http.put<ApiResult<any>>(`/api/v1/system/departments/${id}`, { data });
 export const deleteDepartment = (id: number) =>
-  http.delete<ApiResult>(`/api/v1/departments/${id}`);
+  http.delete<ApiResult>(`/api/v1/system/departments/${id}`);

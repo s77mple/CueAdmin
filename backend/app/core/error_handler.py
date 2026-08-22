@@ -1,30 +1,28 @@
 """
 全局异常处理器 — 把所有异常转成统一的 JSON 响应。
 
-两种异常处理策略：
+两种处理策略：
+  BusinessException → HTTP 200 + { code, message, details }
+    业务层错误（用户不存在、权限不足、参数不对）返回 200，
+    前端统一判断 code === 0 是否成功，不区分 HTTP 状态码。
 
-  #1 BusinessException → HTTP 200 + { code, message, details }
-     前端判断: if (res.code === 0) { 成功 } else { ElMessage.error(res.message) }
-     为什么返回 200？因为这不是 HTTP 层的错误，
-     是业务层的错误（用户不存在、权限不足、参数不对）。
-
-  #2 未知 Exception → HTTP 500 + { detail: "Internal Server Error" }
-     真正的程序崩了，不暴露内部错误细节给前端。
-     完整堆栈只打印到服务器日志（loguru → stderr + logs/app.log）。
+  未知 Exception → HTTP 500 + { detail: "Internal Server Error" }
+    真正的程序崩溃，不暴露内部细节给前端，完整堆栈只打印到服务器日志。
 """
 
 import traceback
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 
-from app.core.exceptions import BusinessException
+from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
-from app.schemas.response import ApiResponse
+from app.core.response import ApiResponse
 
 
 async def business_exception_handler(request: Request, exc: BusinessException):
-    """#1 BusinessException → HTTP 200。
+    """BusinessException → HTTP 200。
 
     示例：
       raise BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在: 42")
@@ -41,7 +39,7 @@ async def business_exception_handler(request: Request, exc: BusinessException):
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    """#2 未知异常 → HTTP 500。
+    """未知异常 → HTTP 500。
 
     这种情况说明代码有 bug（比如 NoneType 调用了方法）。
     生产环境不暴露 traceback 给前端，避免泄漏内部信息。
@@ -52,4 +50,20 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"},
+    )
+
+
+async def db_operational_error_handler(request: Request, exc: OperationalError):
+    """数据库瞬时错误（死锁/锁等待超时/连接断开）→ HTTP 200 + 冲突码。
+
+    MySQL InnoDB 并发写时最常见的 1213 死锁、1205 锁等待超时都属于 OperationalError，
+    它们是瞬时冲突而非业务错误，提示前端重试即可，不该返回 500。
+    """
+    logger.error(f"数据库操作冲突 [{request.method} {request.url.path}]: {exc}")
+    return JSONResponse(
+        status_code=200,
+        content=ApiResponse.fail(
+            code=int(ErrorCode.CONFLICT),
+            message="操作冲突，请稍后重试",
+        ).model_dump(),
     )

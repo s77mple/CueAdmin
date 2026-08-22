@@ -11,5 +11,9 @@ export type LoginResult = ApiResult<{
 
 export const getLogin = (data?: object) =>
   http.post<LoginResult>("/api/v1/auth/login", { data });
-export const logout = () =>
-  http.post("/api/v1/auth/logout");
+export const logout = (token?: string) =>
+  http.post(
+    "/api/v1/auth/logout",
+    undefined,
+    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+  );

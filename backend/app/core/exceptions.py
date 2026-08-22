@@ -29,7 +29,7 @@ class ErrorCode(IntEnum):
     """数字错误码 — 按模块分段，每个段留 99 个空位方便扩展。
 
     value 保持纯 int（int(ErrorCode.XXX) 正常参与运算），
-    description 是给前端/联调用的中文含义，通过 GET /api/v1/meta/error-codes
+    description 是给前端/联调用的中文含义，通过 GET /api/v1/system/meta/error-codes
     作为数据字典暴露出去，不需要翻源码找数字含义。
     """
 

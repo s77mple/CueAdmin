@@ -24,8 +24,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.database import Base
-from app.models import User, Role, Permission, Menu, Department
+from app.core.storage import Base
+from app.system.models import User, Role, Permission, Menu, Department
 from app.core.security import _hash_password_sync
 
 # 同步引擎 — async 替换为 pymysql

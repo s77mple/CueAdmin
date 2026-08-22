@@ -66,7 +66,7 @@ onMounted(onSearch);
   <div>
     <PureTableBar :columns="columns" :table-ref="treeBarRef" @refresh="onSearch">
       <template #title>
-        <el-tag type="info" effect="plain">共 {{ list.length }} 个错误码 · 数据来源 GET /api/v1/meta/error-codes</el-tag>
+        <el-tag type="info" effect="plain">共 {{ list.length }} 个错误码 · 数据来源 GET /api/v1/system/meta/error-codes</el-tag>
       </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
