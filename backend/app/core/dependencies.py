@@ -80,6 +80,10 @@ async def get_current_user(
     except JWTError:
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
+    # ---- 令牌类型断言：refresh token 不能当 access 用 ----
+    if payload.get("type") != "access":
+        raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌类型错误")
+
     # ---- Token 黑名单检查（登出后 jti 进黑名单）----
     # Redis 故障时放行而非拒绝所有请求，这是 fail-open 设计
     jti = payload.get("jti")

@@ -38,17 +38,47 @@ async def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 # JWT — 签发与验证
 
-def create_access_token(user_id: int, username: str) -> str:
-    """签发 JWT。payload 字段：sub=用户ID、username、jti=唯一ID（登出黑名单用）、iat、exp。"""
+def _build_token(
+    user_id: int,
+    username: str,
+    token_type: str,
+    session_id: str,
+    expires_delta: timedelta,
+) -> tuple[str, str]:
+    """签发一张 JWT，返回 (token, jti)。
+
+    type 区分 access/refresh：refresh 不能当 access 用（dependencies 里断言 type=access）。
+    session_id 把同一登录的 access+refresh 绑在一起，登出时按 session_id 撤销 refresh 会话。
+    """
     now = datetime.now(timezone.utc)
+    jti = uuid.uuid4().hex
     payload = {
         "sub": str(user_id),
         "username": username,
-        "jti": uuid.uuid4().hex,   # 每个 token 唯一 ID，登出时进黑名单
+        "jti": jti,
+        "type": token_type,
+        "session_id": session_id,
         "iat": now,
-        "exp": now + timedelta(hours=settings.jwt_expire_hours),
+        "exp": now + expires_delta,
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm), jti
+
+
+def create_access_token(user_id: int, username: str, session_id: str) -> str:
+    """签发短命 access token（type=access）。"""
+    token, _ = _build_token(
+        user_id, username, "access", session_id,
+        timedelta(minutes=settings.jwt_access_expire_minutes),
+    )
+    return token
+
+
+def create_refresh_token(user_id: int, username: str, session_id: str) -> tuple[str, str]:
+    """签发长命 refresh token（type=refresh，一次性轮换），返回 (token, jti)。"""
+    return _build_token(
+        user_id, username, "refresh", session_id,
+        timedelta(days=settings.jwt_refresh_expire_days),
+    )
 
 
 def decode_token(token: str) -> dict:

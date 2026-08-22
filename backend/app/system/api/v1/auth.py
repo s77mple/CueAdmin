@@ -18,7 +18,7 @@ from jose import JWTError
 
 from app.core.dependencies import SessionDep, BearerTokenDep, RedisDep
 from app.core.security import decode_token
-from app.system.schemas.auth import LoginRequest, LoginResponse
+from app.system.schemas.auth import LoginRequest, LoginResponse, RefreshRequest, RefreshResponse
 from app.core.response import ApiResponse
 from app.system.services.auth_service import AuthService
 from app.core.logger import logger
@@ -60,7 +60,7 @@ async def login(
 
     # ---- 执行登录 + 处理结果 ----
     try:
-        result = await AuthService(session).login(body.username, body.password, body.client)
+        result = await AuthService(session, redis_client).login(body.username, body.password, body.client)
     except BusinessException as e:
         if e.code == ErrorCode.AUTH_INVALID_CREDENTIALS:
             # 登录失败 → 增加计数器
@@ -99,6 +99,8 @@ async def logout(
     为什么登出要后端参与？JWT 是无状态的，无法主动失效。
     所以把 token 的 jti 加入 Redis 黑名单，后续请求在 get_current_user 的黑名单检查处被拦截。
     TTL = token 剩余有效期，过期后 Redis 自动删除，不占内存。
+
+    同时按 session_id 撤销 refresh 会话：登出后 refresh token 也一起失效，无法再换新票。
     """
     try:
         payload = decode_token(credentials.credentials)
@@ -106,16 +108,35 @@ async def logout(
         # Token 已无效（过期或损坏），无需加入黑名单
         return ApiResponse.ok(message="已登出")
 
-    jti = payload.get("jti")         # token 唯一 ID
+    jti = payload.get("jti")              # access token 唯一 ID
     user_id = payload.get("sub")
+    session_id = payload.get("session_id")  # 本次登录的会话 ID
     exp = payload.get("exp")
     # TTL = 距离 token 过期还剩多少秒，至少 1 秒
     ttl = max(int(exp - time.time()), 1) if exp else 86400
     try:
         if jti:
-            await redis_client.setex(f"blacklist:{jti}", ttl, "1")  # 加入黑名单
+            await redis_client.setex(f"blacklist:{jti}", ttl, "1")   # access 加入黑名单
         if user_id:
             await redis_client.delete(f"perm:{user_id}")             # 清除权限缓存
+        if session_id:
+            await redis_client.delete(f"session:{session_id}")       # 撤销 refresh 会话
     except aioredis.RedisError:
         logger.warning("登出时 Redis 操作失败，跳过")
     return ApiResponse.ok(message="已登出")
+
+
+# POST /auth/refresh — 刷新令牌
+
+@router.post("/refresh", response_model=ApiResponse[RefreshResponse])
+async def refresh(
+    body: RefreshRequest,                                    # 前端传来的 { refresh_token }
+    session: SessionDep,
+    redis_client: RedisDep,
+) -> ApiResponse[RefreshResponse]:
+    """刷新令牌接口。access 过期后，前端拿 refresh token 换新 access + 新 refresh。
+
+    旧 refresh 一次性作废（轮换），若重复使用同一张 refresh 会被判为被盗并撤销整个会话。
+    """
+    result = await AuthService(session, redis_client).refresh(body.refresh_token)
+    return ApiResponse.ok(data=result)

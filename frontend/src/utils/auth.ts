@@ -3,8 +3,10 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { storageLocal, isString, isIncludeAllChildren } from "@pureadmin/utils";
 
 export interface DataInfo {
-  /** JWT token */
+  /** JWT access token */
   accessToken: string;
+  /** 刷新令牌 — access 过期后调 /auth/refresh 换新（一次性轮换） */
+  refreshToken?: string;
   /** 用户名 */
   username?: string;
   /** 按钮级别权限 */
@@ -31,14 +33,15 @@ export function getToken(): DataInfo | null {
 /** 保存 token 和用户信息（登录成功后调用） */
 export function setToken(data: {
   accessToken: string;
+  refreshToken?: string;
   username?: string;
   permissions?: Array<string>;
   roles?: Array<string>;
 }) {
-  const { accessToken, username, permissions, roles } = data;
+  const { accessToken, refreshToken, username, permissions, roles } = data;
 
   // token 存 cookie
-  Cookies.set(TokenKey, JSON.stringify({ accessToken }));
+  Cookies.set(TokenKey, JSON.stringify({ accessToken, refreshToken }));
 
   // 多标签页登录状态标记
   Cookies.set(multipleTabsKey, "true");
@@ -48,8 +51,18 @@ export function setToken(data: {
   if (permissions) useUserStoreHook().SET_PERMS(permissions);
   if (roles) useUserStoreHook().SET_ROLES(roles);
   storageLocal().setItem(userKey, {
-    accessToken, username, permissions, roles: roles ?? [],
+    accessToken, refreshToken, username, permissions, roles: roles ?? [],
   });
+}
+
+/** 刷新令牌后回写新 token（access + refresh 都换新，用户信息不变） */
+export function updateToken(data: { accessToken: string; refreshToken?: string }) {
+  const { accessToken, refreshToken } = data;
+  Cookies.set(TokenKey, JSON.stringify({ accessToken, refreshToken }));
+  const cur = storageLocal().getItem<DataInfo>(userKey);
+  if (cur) {
+    storageLocal().setItem(userKey, { ...cur, accessToken, refreshToken });
+  }
 }
 
 /** 登出清理 */

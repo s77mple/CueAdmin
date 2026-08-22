@@ -11,7 +11,7 @@ import type {
 } from "./types.d";
 import { stringify } from "qs";
 import { message } from "@/utils/message";
-import { getToken, formatToken, removeToken } from "@/utils/auth";
+import { getToken, formatToken, removeToken, updateToken } from "@/utils/auth";
 import { router } from "@/router";
 import { ErrorCode } from "@/constants/error-code";
 
@@ -28,6 +28,22 @@ const defaultConfig: AxiosRequestConfig = {
     serialize: stringify as unknown as CustomParamsSerializer
   }
 };
+
+// 刷新令牌专用的裸 axios 实例：不挂任何拦截器，避免刷新请求自身又触发「过期→刷新」死循环
+const refreshHttp: AxiosInstance = Axios.create(defaultConfig);
+
+// 并发刷新控制：多个请求同时 11002 时只发一次刷新，其余排队等新 token
+let isRefreshing = false;
+let pendingQueue: Array<{
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+/** 清空登录态并跳登录页（刷新失败 / 令牌作废时调用） */
+function forceLogout() {
+  removeToken();
+  router.push("/login");
+}
 
 class PureHttp {
   constructor() {
@@ -59,19 +75,22 @@ class PureHttp {
     );
   }
 
-  /** 响应拦截 — 统一处理业务 code + 401 跳转 */
+  /** 响应拦截 — 统一处理业务 code + 401 跳转 + access 过期自动刷新 */
   private httpInterceptorsResponse(): void {
     PureHttp.axiosInstance.interceptors.response.use(
       (response: PureHttpResponse) => {
         const res = response.data;
+
+        // access 过期 → 用 refresh 换新后重试原请求（对调用方透明）
+        if (res.code === ErrorCode.AUTH_TOKEN_EXPIRED) {
+          return this.handleTokenExpired(response);
+        }
         if (
-          res.code === ErrorCode.AUTH_TOKEN_EXPIRED ||
           res.code === ErrorCode.AUTH_TOKEN_REVOKED ||
           res.code === ErrorCode.AUTH_TOKEN_INVALID
         ) {
           message("登录已过期，请重新登录", { type: "warning" });
-          removeToken();
-          router.push("/login");
+          forceLogout();
           return Promise.reject(new Error(res.message));
         }
         if (res.code === ErrorCode.ACCESS_DENIED) {
@@ -88,8 +107,7 @@ class PureHttp {
         const httpCode = error?.response?.status;
         if (httpCode === 401) {
           message("未授权，请登录", { type: "warning" });
-          removeToken();
-          router.push("/login");
+          forceLogout();
         } else if (httpCode === 500) {
           message("服务器繁忙，请稍后重试", { type: "error" });
         } else if (error.code === 'ECONNABORTED') {
@@ -100,6 +118,68 @@ class PureHttp {
         return Promise.reject(error);
       }
     );
+  }
+
+  /** access 过期处理：刷新令牌 → 重试原请求；并发 401 只刷一次 */
+  private async handleTokenExpired(response: PureHttpResponse): Promise<any> {
+    const originalConfig = response.config;
+
+    // 已重试过一次仍过期 → 放弃，直接登出（避免死循环）
+    if (originalConfig._retry) {
+      message("登录已过期，请重新登录", { type: "warning" });
+      forceLogout();
+      return Promise.reject(new Error("登录已过期，请重新登录"));
+    }
+
+    const refreshToken = getToken()?.refreshToken;
+    if (!refreshToken) {
+      message("登录已过期，请重新登录", { type: "warning" });
+      forceLogout();
+      return Promise.reject(new Error("登录已过期，请重新登录"));
+    }
+
+    // 已有刷新在进行 → 排队，等新 token 下发后各自重试
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        pendingQueue.push({
+          resolve: (newToken: string) => {
+            originalConfig.headers["Authorization"] = formatToken(newToken);
+            originalConfig._retry = true;
+            resolve(PureHttp.axiosInstance.request(originalConfig));
+          },
+          reject
+        });
+      });
+    }
+
+    isRefreshing = true;
+    try {
+      const res = await refreshHttp.post("/api/v1/auth/refresh", {
+        refresh_token: refreshToken
+      });
+      const data = res.data;
+      if (data.code === 0) {
+        const { access_token, refresh_token } = data.data;
+        updateToken({ accessToken: access_token, refreshToken: refresh_token });
+        // 唤醒排队的请求，用新 token 各自重试
+        pendingQueue.forEach(({ resolve }) => resolve(access_token));
+        pendingQueue = [];
+        // 重试原请求
+        originalConfig.headers["Authorization"] = formatToken(access_token);
+        originalConfig._retry = true;
+        return PureHttp.axiosInstance.request(originalConfig);
+      }
+      throw new Error(data.message || "刷新令牌失败");
+    } catch (e) {
+      // 刷新失败（refresh 也过期/被撤销/被盗）→ 清空登录态，排队的请求全部拒绝
+      message("登录已过期，请重新登录", { type: "warning" });
+      pendingQueue.forEach(({ reject }) => reject(e));
+      pendingQueue = [];
+      forceLogout();
+      return Promise.reject(e);
+    } finally {
+      isRefreshing = false;
+    }
   }
 
   public request<T>(

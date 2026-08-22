@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     # ---- JWT ----
     jwt_secret: str = ""     # 签名密钥，生产环境必须改，且不要硬编码
     jwt_algorithm: str = "HS256"
-    jwt_expire_hours: int = 24  # token 24 小时后过期
+    jwt_access_expire_minutes: int = 15   # access token 15 分钟后过期（短命，丢了损失小）
+    jwt_refresh_expire_days: int = 7      # refresh token 7 天后过期（长命，用于换新 access）
 
     # ---- Redis ----
     redis_url: str = "redis://localhost:6379/0"

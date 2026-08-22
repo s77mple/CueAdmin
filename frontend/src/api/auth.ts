@@ -4,6 +4,7 @@ import type { ApiResult } from "./types";
 // 后端 /auth/login 返回的 data（含 token）
 export type LoginResult = ApiResult<{
   access_token: string;
+  refresh_token: string;
   user: { id: number; username: string; display_name: string; phone: string | null; is_active: boolean };
   permissions: string[];
   roles: { id: number; code: string; name: string }[];

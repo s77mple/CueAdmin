@@ -32,16 +32,29 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     """登录响应 — 前端拿到后分发到各处。
 
-    access_token → localStorage（后续请求自动带在 Authorization header）
-    user        → pinia user store（显示头像、用户名等）
-    permissions → pinia permission store（v-perms 指令判断按钮显隐）
-    roles       → pinia role store
+    access_token  → localStorage（后续请求自动带在 Authorization header）
+    refresh_token → localStorage（access 过期后调 /auth/refresh 换新，一次性轮换）
+    user          → pinia user store（显示头像、用户名等）
+    permissions   → pinia permission store（v-perms 指令判断按钮显隐）
+    roles         → pinia role store
 
     不含 menus：动态路由/菜单由 GET /api/v1/routes 提供，登录不再重复下发。
     """
     access_token: str
+    refresh_token: str
     user: UserRead
     permissions: list[str]
     roles: Annotated[list[RoleBrief], Field(default_factory=list)]
 
     model_config = {"from_attributes": True}
+
+
+class RefreshRequest(BaseModel):
+    """刷新令牌请求 — access 过期后，拿 refresh token 换新。"""
+    refresh_token: Annotated[str, Field(min_length=1, description="刷新令牌")]
+
+
+class RefreshResponse(BaseModel):
+    """刷新令牌响应 — 返回新的 access + refresh（旧 refresh 已作废）。"""
+    access_token: str
+    refresh_token: str

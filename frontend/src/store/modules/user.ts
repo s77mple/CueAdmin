@@ -40,6 +40,7 @@ export const useUserStore = defineStore("pure-user", {
             if (res.code === 0) {
               setToken({
                 accessToken: res.data.access_token,
+                refreshToken: res.data.refresh_token,
                 username: res.data.user?.display_name ?? res.data.user?.username,
                 permissions: res.data.permissions ?? [],
                 roles: res.data.roles?.map((r: any) => r.code) ?? [],
