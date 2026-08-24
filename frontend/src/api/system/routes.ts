@@ -1,5 +1,5 @@
 import { http } from "@/utils/http";
-import type { ApiResult } from "./types";
+import type { ApiResult } from "../types";
 
 export type AsyncRoutesResult = ApiResult<{
   routes: any[];

@@ -1,0 +1,19 @@
+import { http } from "@/utils/http";
+import type { ApiResult, PageData } from "../types";
+import type { User } from "./types";
+
+export const getUserList = (params?: object) =>
+  http.get<ApiResult<PageData<User>>>("/api/v1/system/users", { params });
+export const createUser = (data?: object) =>
+  http.post<ApiResult<User>>("/api/v1/system/users", { data });
+export const updateUser = (id: number, data?: object) =>
+  http.put<ApiResult<User>>(`/api/v1/system/users/${id}`, { data });
+export const patchUser = (id: number, data?: object) =>
+  http.patch<ApiResult<User>>(`/api/v1/system/users/${id}`, { data });
+export const deleteUser = (id: number) =>
+  http.delete<ApiResult>(`/api/v1/system/users/${id}`);
+/** 彻底删除（仅限已禁用的用户） */
+export const hardDeleteUser = (id: number) =>
+  http.delete<ApiResult>(`/api/v1/system/users/${id}`, {
+    params: { hard: true }
+  });

@@ -27,7 +27,7 @@ const IFrame = () => import("@/layout/frame.vue");
 const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
 
 // 动态路由
-import { getAsyncRoutes } from "@/api/routes";
+import { getAsyncRoutes } from "@/api/system/routes";
 
 const PAGE_NOT_FOUND_ROUTE_NAME = "PageNotFound" as const;
 
@@ -87,8 +87,7 @@ function isOneOfArray(a: Array<string>, b: Array<string>) {
 
 /** 从localStorage里取出当前登录用户的角色roles，过滤无权限的菜单 */
 function filterNoPermissionTree(data: RouteComponent[]) {
-  const currentRoles =
-    storageLocal().getItem<DataInfo>(userKey)?.roles ?? [];
+  const currentRoles = storageLocal().getItem<DataInfo>(userKey)?.roles ?? [];
   const newTree = cloneDeep(data).filter((v: any) =>
     isOneOfArray(v.meta?.roles, currentRoles)
   );
@@ -175,7 +174,9 @@ function handleAsyncRoutes(routeList) {
           // 切记将路由push到routes后还需要使用addRoute，这样路由才能正常跳转
           router.options.routes[0].children.push(v);
           // 最终路由进行升序
-          router.options.routes[0].children = ascending(router.options.routes[0].children);
+          router.options.routes[0].children = ascending(
+            router.options.routes[0].children
+          );
           if (!router.hasRoute(v?.name)) router.addRoute(v);
           const flattenRouters: any = router
             .getRoutes()
@@ -356,7 +357,9 @@ function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
       } else {
         const index = modulesRoutesKeys.findIndex(ev => ev.includes(searchKey));
         if (index === -1) {
-          console.warn(`动态路由组件匹配失败: path="${v.path}" component="${v.component}"`);
+          console.warn(
+            `动态路由组件匹配失败: path="${v.path}" component="${v.component}"`
+          );
         } else {
           v.component = modulesRoutes[modulesRoutesKeys[index]];
         }

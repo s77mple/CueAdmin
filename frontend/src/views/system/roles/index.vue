@@ -5,9 +5,21 @@ import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
-import { getRoleList, createRole, updateRole, deleteRole } from "@/api/roles";
-import { getPermissionList } from "@/api/permissions";
-import { getMenuList } from "@/api/menus";
+import {
+  getRoleList,
+  createRole,
+  updateRole,
+  deleteRole
+} from "@/api/system/roles";
+import { getPermissionList } from "@/api/system/permissions";
+import { getMenuList } from "@/api/system/menus";
+import type {
+  Role,
+  Permission,
+  Menu,
+  PermissionBrief,
+  MenuBrief
+} from "@/api/system/types";
 import { handleTree } from "@/utils/tree";
 import { ErrorCode } from "@/constants/error-code";
 import { useDictStoreHook } from "@/store/modules/dictionary";
@@ -15,14 +27,26 @@ import { useDictStoreHook } from "@/store/modules/dictionary";
 const dictStore = useDictStoreHook();
 
 const loading = ref(false);
-const list = ref<any[]>([]);
-const pagination = reactive<PaginationProps>({ total: 0, pageSize: 20, currentPage: 1, background: true });
+const list = ref<Role[]>([]);
+const pagination = reactive<PaginationProps>({
+  total: 0,
+  pageSize: 20,
+  currentPage: 1,
+  background: true
+});
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增角色");
-const permOptions = ref<any[]>([]);
-const menuOptions = ref<any[]>([]);
+const permOptions = ref<Permission[]>([]);
+const menuOptions = ref<Menu[]>([]);
 
-const form = reactive({ id: 0, code: "", name: "", description: "", permission_codes: [] as string[], menu_ids: [] as number[] });
+const form = reactive({
+  id: 0,
+  code: "",
+  name: "",
+  description: "",
+  permission_codes: [] as string[],
+  menu_ids: [] as number[]
+});
 const formRef = ref<FormInstance>();
 
 // 服务端唯一性冲突（13002 角色编码已存在）→ 字段级标红
@@ -36,7 +60,7 @@ const groupDetail = reactive({
   kind: "perm" as "perm" | "menu",
   title: "",
   permissions: [] as any[],
-  menu: null as any,
+  menu: null as any
 });
 
 function openPermDetail(group: any, e: MouseEvent) {
@@ -57,19 +81,21 @@ function openMenuDetail(m: any, e: MouseEvent) {
 
 const rules: FormRules = {
   code: [{ required: true, message: "请输入角色编码", trigger: "blur" }],
-  name: [{ required: true, message: "请输入角色名称", trigger: "blur" }],
+  name: [{ required: true, message: "请输入角色名称", trigger: "blur" }]
 };
 
 const menuTreeRef = ref();
 
-const menuTree = computed(() => handleTree(menuOptions.value, "id", "parent_id", "children"));
+const menuTree = computed(() =>
+  handleTree(menuOptions.value, "id", "parent_id", "children")
+);
 
 const resourceLabelMap: Record<string, string> = {
   user: "用户管理",
   role: "角色管理",
   menu: "菜单管理",
   permission: "权限管理",
-  department: "部门管理",
+  department: "部门管理"
 };
 
 const columns: TableColumnList = [
@@ -79,7 +105,7 @@ const columns: TableColumnList = [
   { label: "描述", prop: "description" },
   { label: "权限", slot: "perms", minWidth: 160 },
   { label: "菜单", slot: "menus", minWidth: 160 },
-  { label: "操作", slot: "operation", width: 180, fixed: "right" },
+  { label: "操作", slot: "operation", width: 180, fixed: "right" }
 ];
 
 const permissionGroups = computed(() => {
@@ -92,21 +118,35 @@ const permissionGroups = computed(() => {
   return Object.entries(groups).map(([resource, perms]) => ({
     resource,
     label: resourceLabelMap[resource] || resource,
-    permissions: perms,
+    permissions: perms
   }));
 });
 
 async function onSearch() {
   loading.value = true;
   try {
-    const res = await getRoleList({ page: pagination.currentPage, page_size: pagination.pageSize });
-    if (res.code === 0) { list.value = res.data?.items ?? []; pagination.total = res.data?.total ?? 0; }
-    else ElMessage.error(res.message || "加载角色列表失败");
-  } finally { loading.value = false; }
+    const res = await getRoleList({
+      page: pagination.currentPage,
+      page_size: pagination.pageSize
+    });
+    if (res.code === 0) {
+      list.value = res.data?.items ?? [];
+      pagination.total = res.data?.total ?? 0;
+    } else ElMessage.error(res.message || "加载角色列表失败");
+  } finally {
+    loading.value = false;
+  }
 }
 
-function handleSizeChange(val: number) { pagination.pageSize = val; pagination.currentPage = 1; onSearch(); }
-function handleCurrentChange(val: number) { pagination.currentPage = val; onSearch(); }
+function handleSizeChange(val: number) {
+  pagination.pageSize = val;
+  pagination.currentPage = 1;
+  onSearch();
+}
+function handleCurrentChange(val: number) {
+  pagination.currentPage = val;
+  onSearch();
+}
 
 // 懒加载：首次打开弹窗时才请求，之后复用缓存
 const optionsLoaded = ref(false);
@@ -114,7 +154,10 @@ const optionsLoaded = ref(false);
 async function loadOptions() {
   if (optionsLoaded.value) return;
   try {
-    const [pRes, mRes] = await Promise.all([getPermissionList(), getMenuList()]);
+    const [pRes, mRes] = await Promise.all([
+      getPermissionList(),
+      getMenuList()
+    ]);
     if (pRes.code === 0) permOptions.value = pRes.data?.items ?? [];
     else ElMessage.warning("权限数据加载失败");
     if (mRes.code === 0) menuOptions.value = mRes.data?.items ?? [];
@@ -127,21 +170,31 @@ async function loadOptions() {
 
 async function openCreate() {
   dialogTitle.value = "新增角色";
-  Object.assign(form, { id: 0, code: "", name: "", description: "", permission_codes: [], menu_ids: [] });
+  Object.assign(form, {
+    id: 0,
+    code: "",
+    name: "",
+    description: "",
+    permission_codes: [],
+    menu_ids: []
+  });
   fieldErrors.code = "";
   dialogVisible.value = true;
   await loadOptions();
   nextTick(() => menuTreeRef.value?.setCheckedKeys([]));
 }
 
-async function openEdit(row: any) {
+async function openEdit(row: Role) {
   dialogTitle.value = "编辑角色";
-  const menuIds: number[] = row.menus?.map((m: any) => m.id) ?? [];
-  const permCodes: string[] = row.permissions?.map((p: any) => p.code) ?? [];
+  const menuIds: number[] = row.menus?.map(m => m.id) ?? [];
+  const permCodes: string[] = row.permissions?.map(p => p.code) ?? [];
   Object.assign(form, {
-    id: row.id, code: row.code, name: row.name, description: row.description ?? "",
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description ?? "",
     permission_codes: permCodes,
-    menu_ids: menuIds,
+    menu_ids: menuIds
   });
   fieldErrors.code = "";
   dialogVisible.value = true;
@@ -156,19 +209,23 @@ async function handleSubmit() {
   fieldErrors.code = "";
   try {
     await formRef.value.validate();
-    const checkedMenuIds = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
-    const data: any = {
+    const checkedMenuIds =
+      (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
+    const data = {
       name: form.name,
       description: form.description || null,
       permission_codes: form.permission_codes,
-      menu_ids: checkedMenuIds,
+      menu_ids: checkedMenuIds
     };
     if (form.id) {
-      const res: any = await updateRole(form.id, data);
-      if (res.code !== 0) { ElMessage.error(res.message || "更新失败"); return; }
+      const res = await updateRole(form.id, data);
+      if (res.code !== 0) {
+        ElMessage.error(res.message || "更新失败");
+        return;
+      }
       ElMessage.success("更新成功");
     } else {
-      const res: any = await createRole({ ...data, code: form.code });
+      const res = await createRole({ ...data, code: form.code });
       if (res.code !== 0) {
         if (res.code === ErrorCode.ROLE_CODE_EXISTS) {
           fieldErrors.code = res.message || "角色编码已存在";
@@ -181,22 +238,31 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     onSearch();
-    dictStore.loadAll(true);  // 角色变更 → 全局字典强制重拉（用户页等下拉同步最新）
+    dictStore.loadAll(true); // 角色变更 → 全局字典强制重拉（用户页等下拉同步最新）
   } catch (err: any) {
     if (err?.message) ElMessage.error(err.message);
   }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: Role) {
   try {
-    await ElMessageBox.confirm(`确认删除角色 "${row.name}"？`, "提示", { type: "warning" });
-    const res: any = await deleteRole(row.id);
-    if (res.code === 0) { ElMessage.success(res.message || "已删除"); onSearch(); dictStore.loadAll(true); }
-    else { ElMessage.error(res.message || "删除失败"); }
-  } catch { /* 用户取消或拦截器已弹 toast */ }
+    await ElMessageBox.confirm(`确认删除角色 "${row.name}"？`, "提示", {
+      type: "warning"
+    });
+    const res = await deleteRole(row.id);
+    if (res.code === 0) {
+      ElMessage.success(res.message || "已删除");
+      onSearch();
+      dictStore.loadAll(true);
+    } else {
+      ElMessage.error(res.message || "删除失败");
+    }
+  } catch {
+    /* 用户取消或拦截器已弹 toast */
+  }
 }
 
-function getPermGroups(permissions: any[]) {
+function getPermGroups(permissions: PermissionBrief[]) {
   if (!permissions?.length) return [];
   const groups: Record<string, any[]> = {};
   for (const p of permissions) {
@@ -208,14 +274,14 @@ function getPermGroups(permissions: any[]) {
     resource,
     label: resourceLabelMap[resource] || resource,
     count: perms.length,
-    permissions: perms,
+    permissions: perms
   }));
 }
 
 // 与 departments/menus 页一致：树在 computed 里预构建，模板只做读取。
 // handleTree 会原地给节点挂 children，因此建树前先浅克隆一层，避免改写表格响应式行数据，
 // 否则渲染期改动数据会被模板依赖捕获，导致 ElTableBody 无限递归更新。
-function buildMenuGroups(menus: any[]) {
+function buildMenuGroups(menus: MenuBrief[]) {
   if (!menus?.length) return [];
   const tree = handleTree(
     menus.map(m => ({ ...m, children: undefined })),
@@ -243,13 +309,17 @@ const menuGroupsByRole = computed(() => {
 function isGroupAllChecked(resource: string): boolean {
   const group = permissionGroups.value.find(g => g.resource === resource);
   if (!group) return false;
-  return group.permissions.every((p: any) => form.permission_codes.includes(p.code));
+  return group.permissions.every((p: any) =>
+    form.permission_codes.includes(p.code)
+  );
 }
 
 function isGroupIndeterminate(resource: string): boolean {
   const group = permissionGroups.value.find(g => g.resource === resource);
   if (!group) return false;
-  const checked = group.permissions.filter((p: any) => form.permission_codes.includes(p.code));
+  const checked = group.permissions.filter((p: any) =>
+    form.permission_codes.includes(p.code)
+  );
   return checked.length > 0 && checked.length < group.permissions.length;
 }
 
@@ -258,20 +328,30 @@ function toggleGroup(resource: string) {
   if (!group) return;
   const codes = group.permissions.map((p: any) => p.code);
   if (isGroupAllChecked(resource)) {
-    form.permission_codes = form.permission_codes.filter(c => !codes.includes(c));
+    form.permission_codes = form.permission_codes.filter(
+      c => !codes.includes(c)
+    );
   } else {
     form.permission_codes = [...new Set([...form.permission_codes, ...codes])];
   }
 }
 
-onMounted(() => { onSearch(); });
+onMounted(() => {
+  onSearch();
+});
 </script>
 
 <template>
   <div>
     <PureTableBar :columns="columns" @refresh="onSearch">
       <template #title>
-        <el-button v-perms="['role:create']" type="primary" :icon="Plus" @click="openCreate">新增角色</el-button>
+        <el-button
+          v-perms="['role:create']"
+          type="primary"
+          :icon="Plus"
+          @click="openCreate"
+          >新增角色</el-button
+        >
       </template>
       <template v-slot="{ size, dynamicColumns }">
         <pure-table
@@ -283,13 +363,18 @@ onMounted(() => { onSearch(); });
           :data="list"
           :columns="dynamicColumns"
           :pagination="{ ...pagination, size }"
-          :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--el-text-color-primary)' }"
+          :header-cell-style="{
+            background: 'var(--el-fill-color-light)',
+            color: 'var(--el-text-color-primary)'
+          }"
           @page-size-change="handleSizeChange"
           @page-current-change="handleCurrentChange"
         >
           <template #perms="{ row }">
             <template v-if="row.is_system">
-              <el-tag size="small" class="group-badge" effect="plain">全部权限</el-tag>
+              <el-tag size="small" class="group-badge" effect="plain"
+                >全部权限</el-tag
+              >
             </template>
             <template v-else-if="row.permissions?.length">
               <div class="table-tag-group">
@@ -309,7 +394,9 @@ onMounted(() => { onSearch(); });
           </template>
           <template #menus="{ row }">
             <template v-if="row.is_system">
-              <el-tag size="small" class="group-badge" effect="plain">全部菜单</el-tag>
+              <el-tag size="small" class="group-badge" effect="plain"
+                >全部菜单</el-tag
+              >
             </template>
             <template v-else-if="row.menus?.length">
               <div class="table-tag-group">
@@ -321,23 +408,49 @@ onMounted(() => { onSearch(); });
                   effect="plain"
                   @click="openMenuDetail(m, $event)"
                 >
-                  {{ m.name }}<template v-if="m.children.length">(+{{ m.children.length }})</template>
+                  {{ m.name
+                  }}<template v-if="m.children.length"
+                    >(+{{ m.children.length }})</template
+                  >
                 </el-tag>
               </div>
             </template>
             <span v-else style="color: #c0c4cc">—</span>
           </template>
           <template #operation="{ row }">
-            <el-button v-if="!row.is_system" v-perms="['role:update']" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button v-if="!row.is_system" v-perms="['role:delete']" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              v-if="!row.is_system"
+              v-perms="['role:update']"
+              size="small"
+              @click="openEdit(row)"
+              >编辑</el-button
+            >
+            <el-button
+              v-if="!row.is_system"
+              v-perms="['role:delete']"
+              type="danger"
+              size="small"
+              @click="handleDelete(row)"
+              >删除</el-button
+            >
           </template>
         </pure-table>
       </template>
     </PureTableBar>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="750px" destroy-on-close>
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="750px"
+      destroy-on-close
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item v-if="!form.id" label="编码" prop="code" :error="fieldErrors.code">
+        <el-form-item
+          v-if="!form.id"
+          label="编码"
+          prop="code"
+          :error="fieldErrors.code"
+        >
           <el-input v-model="form.code" @input="fieldErrors.code = ''" />
         </el-form-item>
         <el-form-item label="名称" prop="name">
@@ -348,7 +461,11 @@ onMounted(() => { onSearch(); });
         </el-form-item>
         <el-form-item label="权限">
           <div class="perm-group-list">
-            <div v-for="group in permissionGroups" :key="group.resource" class="perm-group-card">
+            <div
+              v-for="group in permissionGroups"
+              :key="group.resource"
+              class="perm-group-card"
+            >
               <div class="perm-group-title">
                 <el-checkbox
                   :model-value="isGroupAllChecked(group.resource)"
@@ -360,14 +477,23 @@ onMounted(() => { onSearch(); });
               </div>
               <div class="perm-group-items">
                 <el-checkbox-group v-model="form.permission_codes">
-                  <el-checkbox v-for="p in group.permissions" :key="p.code" :label="p.code">
+                  <el-checkbox
+                    v-for="p in group.permissions"
+                    :key="p.code"
+                    :label="p.code"
+                  >
                     {{ p.name }}
                   </el-checkbox>
                 </el-checkbox-group>
               </div>
             </div>
           </div>
-          <div v-if="permOptions.length === 0" style="color: #999; font-size: 13px">暂无权限数据</div>
+          <div
+            v-if="permOptions.length === 0"
+            style="font-size: 13px; color: #999"
+          >
+            暂无权限数据
+          </div>
         </el-form-item>
         <el-form-item label="菜单">
           <div class="menu-tree-wrapper">
@@ -403,7 +529,11 @@ onMounted(() => { onSearch(); });
       <div class="popover-perm-list">
         <div class="popover-group-title">{{ groupDetail.title }}</div>
         <template v-if="groupDetail.kind === 'perm'">
-          <div v-for="p in groupDetail.permissions" :key="p.id" class="popover-item">
+          <div
+            v-for="p in groupDetail.permissions"
+            :key="p.id"
+            class="popover-item"
+          >
             <span class="popover-name">{{ p.name }}</span>
             <code class="popover-code">{{ p.code }}</code>
           </div>
@@ -413,8 +543,15 @@ onMounted(() => { onSearch(); });
             <code class="popover-code">{{ groupDetail.menu?.code }}</code>
           </div>
           <template v-if="groupDetail.menu?.children?.length">
-            <div class="popover-group-title" style="margin-top: 8px">子菜单</div>
-            <div v-for="c in groupDetail.menu.children" :key="c.id" class="popover-item" style="padding-left: 12px">
+            <div class="popover-group-title" style="margin-top: 8px">
+              子菜单
+            </div>
+            <div
+              v-for="c in groupDetail.menu.children"
+              :key="c.id"
+              class="popover-item"
+              style="padding-left: 12px"
+            >
               <span class="popover-name">└ {{ c.name }}</span>
               <code class="popover-code">{{ c.code }}</code>
             </div>
@@ -434,18 +571,18 @@ onMounted(() => { onSearch(); });
 }
 
 .perm-group-card {
+  padding: 12px 16px;
   background: #f5f7fa;
   border: 1px solid #e4e7ed;
   border-radius: 6px;
-  padding: 12px 16px;
 }
 
 .perm-group-title {
+  padding-bottom: 0;
+  margin-bottom: 8px;
   font-size: 13px;
   font-weight: 600;
   color: #606266;
-  margin-bottom: 8px;
-  padding-bottom: 0;
   border-bottom: 1px solid #e4e7ed;
 }
 
@@ -456,12 +593,12 @@ onMounted(() => { onSearch(); });
 }
 
 .menu-tree-wrapper {
+  width: 100%;
+  max-height: 350px;
+  padding: 8px 12px;
+  overflow-y: auto;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
-  padding: 8px 12px;
-  max-height: 350px;
-  overflow-y: auto;
-  width: 100%;
 }
 
 /* 表格内分组标签 */
@@ -473,11 +610,12 @@ onMounted(() => { onSearch(); });
 }
 
 .group-badge {
-  cursor: pointer;
-  font-weight: 500;
   --el-tag-bg-color: #f5f5f5;
   --el-tag-border-color: #d0d5dd;
   --el-tag-text-color: #344054;
+
+  font-weight: 500;
+  cursor: pointer;
 }
 
 /* popover 内权限/菜单列表 */
@@ -487,11 +625,11 @@ onMounted(() => { onSearch(); });
 }
 
 .popover-group-title {
+  padding-bottom: 2px;
+  margin: 8px 0 4px;
   font-size: 12px;
   font-weight: 600;
   color: #909399;
-  margin: 8px 0 4px;
-  padding-bottom: 2px;
   border-bottom: 1px solid #ebeef5;
 }
 
@@ -501,23 +639,22 @@ onMounted(() => { onSearch(); });
 
 .popover-item {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
   padding: 3px 0;
   font-size: 13px;
 }
 
 .popover-code {
+  padding: 1px 6px;
+  font-family: monospace;
   font-size: 12px;
   color: #909399;
   background: #f5f7fa;
-  padding: 1px 6px;
   border-radius: 3px;
-  font-family: monospace;
 }
 
 .popover-name {
   color: #303133;
 }
-
 </style>

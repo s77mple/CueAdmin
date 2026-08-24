@@ -1,8 +1,20 @@
 import { defineStore } from "pinia";
-import { store, router, resetRouter, routerArrays, storageLocal } from "../utils";
-import { type LoginResult, getLogin, logout } from "@/api/auth";
+import {
+  store,
+  router,
+  resetRouter,
+  routerArrays,
+  storageLocal
+} from "../utils";
+import { type LoginResult, getLogin, logout } from "@/api/system/auth";
 import { useMultiTagsStoreHook } from "./multiTags";
-import { type DataInfo, getToken, setToken, removeToken, userKey } from "@/utils/auth";
+import {
+  type DataInfo,
+  getToken,
+  setToken,
+  removeToken,
+  userKey
+} from "@/utils/auth";
 
 export const useUserStore = defineStore("pure-user", {
   state: () => ({
@@ -13,7 +25,7 @@ export const useUserStore = defineStore("pure-user", {
     // 角色
     roles: storageLocal().getItem<DataInfo>(userKey)?.roles ?? [],
     // 登录页显示哪个组件（0：登录）
-    currentPage: 0,
+    currentPage: 0
   }),
   actions: {
     /** 存储用户名 */
@@ -41,9 +53,10 @@ export const useUserStore = defineStore("pure-user", {
               setToken({
                 accessToken: res.data.access_token,
                 refreshToken: res.data.refresh_token,
-                username: res.data.user?.display_name ?? res.data.user?.username,
+                username:
+                  res.data.user?.display_name ?? res.data.user?.username,
                 permissions: res.data.permissions ?? [],
-                roles: res.data.roles?.map((r: any) => r.code) ?? [],
+                roles: res.data.roles?.map((r: any) => r.code) ?? []
               });
               resolve(res);
             } else {
@@ -63,12 +76,12 @@ export const useUserStore = defineStore("pure-user", {
       // axios 请求拦截器是微任务，晚于同步的 removeToken 执行，届时已拿不到 token，
       // 若不显式携带，登出请求会缺 Authorization 被后端 403，token 无法加入黑名单
       const token = getToken()?.accessToken;
-      logout(token).catch(() => {});  // fire-and-forget: 即使网络异常也不阻塞跳转
+      logout(token).catch(() => {}); // fire-and-forget: 即使网络异常也不阻塞跳转
       removeToken();
       useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
       resetRouter();
       router.push("/login");
-    },
+    }
   }
 });
 

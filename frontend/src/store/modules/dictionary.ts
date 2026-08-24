@@ -14,8 +14,8 @@
  */
 import { defineStore } from "pinia";
 import { store } from "../utils";
-import { getRoleList } from "@/api/roles";
-import { getDepartmentList } from "@/api/departments";
+import { getRoleList } from "@/api/system/roles";
+import { getDepartmentList } from "@/api/system/departments";
 
 export const useDictStore = defineStore("dict", {
   state: () => ({
@@ -27,7 +27,10 @@ export const useDictStore = defineStore("dict", {
     /** 懒加载：只拉一次；force=true 强制重拉（字典变更后调用） */
     async loadAll(force = false) {
       if (this.loaded && !force) return;
-      const [rRes, dRes] = await Promise.all([getRoleList(), getDepartmentList()]);
+      const [rRes, dRes] = await Promise.all([
+        getRoleList(),
+        getDepartmentList()
+      ]);
       if (rRes.code === 0) this.roles = rRes.data?.items ?? [];
       if (dRes.code === 0) this.departments = dRes.data?.items ?? [];
       this.loaded = true;
