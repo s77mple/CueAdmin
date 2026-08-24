@@ -1,5 +1,6 @@
 import { http } from "@/utils/http";
 import type { ApiResult } from "./types";
+import type { PureHttpRequestConfig } from "@/utils/http/types";
 
 // 后端 /auth/login 返回的 data（含 token）
 export type LoginResult = ApiResult<{
@@ -16,5 +17,5 @@ export const logout = (token?: string) =>
   http.post(
     "/api/v1/auth/logout",
     undefined,
-    token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+    token ? ({ headers: { Authorization: `Bearer ${token}` } } as PureHttpRequestConfig) : undefined
   );

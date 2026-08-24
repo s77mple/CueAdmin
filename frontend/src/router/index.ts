@@ -136,7 +136,7 @@ router.beforeEach((to: ToRouteType, _from) => {
       handleAliveRoute(to);
     }
   }
-  const userInfo = storageLocal().getItem<DataInfo<number>>(userKey);
+  const userInfo = storageLocal().getItem<DataInfo>(userKey);
   const externalLink = isUrl(to?.name as string);
   if (!externalLink) {
     to.matched.some(item => {
