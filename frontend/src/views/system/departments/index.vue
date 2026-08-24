@@ -7,6 +7,9 @@ import { PureTableBar } from "@/components/RePureTableBar";
 import { getDepartmentList, createDepartment, updateDepartment, deleteDepartment } from "@/api/departments";
 import { handleTree } from "@/utils/tree";
 import { ErrorCode } from "@/constants/error-code";
+import { useDictStoreHook } from "@/store/modules/dictionary";
+
+const dictStore = useDictStoreHook();
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -103,6 +106,7 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     onSearch();
+    dictStore.loadAll(true);  // 部门变更 → 全局字典强制重拉（用户页等下拉同步最新）
   } catch (err: any) {
     if (err?.message) ElMessage.error(err.message);
   }
@@ -112,7 +116,7 @@ async function handleDelete(row: any) {
   try {
     await ElMessageBox.confirm(`确认删除部门 "${row.name}"？`, "提示", { type: "warning" });
     const res: any = await deleteDepartment(row.id);
-    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); onSearch(); }
+    if (res.code === 0) { ElMessage.success(res.message ?? "已删除"); onSearch(); dictStore.loadAll(true); }
     else { ElMessage.error(res.message || "删除失败"); }
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }

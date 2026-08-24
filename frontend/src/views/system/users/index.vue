@@ -6,17 +6,15 @@ import type { FormInstance, FormRules } from "element-plus";
 import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
 import { getUserList, createUser, updateUser, patchUser, deleteUser, hardDeleteUser } from "@/api/users";
-import { getRoleList } from "@/api/roles";
-import { getDepartmentList } from "@/api/departments";
 import { ErrorCode } from "@/constants/error-code";
+import { useDictStoreHook } from "@/store/modules/dictionary";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
 const pagination = reactive<PaginationProps>({ total: 0, pageSize: 20, currentPage: 1, background: true });
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
-const roleOptions = ref<any[]>([]);
-const deptOptions = ref<any[]>([]);
+const dictStore = useDictStoreHook();
 
 // "active" | "disabled" | "all"
 const statusFilter = ref<"active" | "disabled" | "all">("active");
@@ -32,16 +30,16 @@ const rules = reactive<FormRules>({
     { required: true, message: "请输入用户名", trigger: "blur" },
     { min: 3, message: "用户名至少 3 个字符", trigger: "blur" },
     // 首尾空格校验已注释：后端 field_validator 会拦截，前端不再重复校验
-    // {
-    //   validator: (_rule, value, callback) => {
-    //     if (value !== value.trim()) {
-    //       callback(new Error("用户名不允许首尾包含空格"));
-    //     } else {
-    //       callback();
-    //     }
-    //   },
-    //   trigger: ["blur", "change"],
-    // },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== value.trim()) {
+          callback(new Error("用户名不允许首尾包含空格"));
+        } else {
+          callback();
+        }
+      },
+      trigger: ["blur", "change"],
+    },
   ],
   password: [
     { required: true, message: "请输入密码", trigger: "blur" },
@@ -88,14 +86,6 @@ function onStatusChange(val: "active" | "disabled" | "all") {
   onSearch();
 }
 
-async function loadRoles() {
-  try {
-    const [rRes, dRes] = await Promise.all([getRoleList(), getDepartmentList()]);
-    if (rRes.code === 0) roleOptions.value = rRes.data?.items ?? [];
-    if (dRes.code === 0) deptOptions.value = dRes.data?.items ?? [];
-  } catch { /* 无权限或网络错误则跳过 */ }
-}
-
 function openCreate() {
   dialogTitle.value = "新增用户";
   Object.assign(form, { id: 0, username: "", password: "", display_name: "", phone: "", is_active: true, role_ids: [], department_id: null });
@@ -118,7 +108,7 @@ function onSaveFail(res: any, fallback: string) {
   }
   else if (res.code === ErrorCode.VALIDATION_ERROR) {
     ElMessage.error(res.message || "表单验证失败，请检查输入");
-    console.error("表单验证失败：", res);
+    console.log("表单验证失败：", res);
     return;
   }
   ElMessage.error(res.message || fallback);
@@ -138,7 +128,7 @@ async function handleSubmit() {
       if (res.code !== 0) { onSaveFail(res, "更新失败"); return; }
       ElMessage.success("更新成功");
     } else {
-      data.username = form.username.trim(); data.password = form.password;
+      data.username = form.username; data.password = form.password;
       const res = await createUser(data);
       if (res.code !== 0) { onSaveFail(res, "创建失败"); return; }
       ElMessage.success("创建成功");
@@ -181,7 +171,7 @@ async function handleHardDelete(row: any) {
   } catch { /* 用户取消或拦截器已弹 toast */ }
 }
 
-onMounted(() => { onSearch(); loadRoles(); });
+onMounted(() => { onSearch(); dictStore.loadAll(); });
 </script>
 
 <template>
@@ -212,7 +202,7 @@ onMounted(() => { onSearch(); loadRoles(); });
           @page-current-change="handleCurrentChange"
         >
           <template #department="{ row }">
-            {{ deptOptions.find((d: any) => d.id === row.department_id)?.name ?? "—" }}
+            {{ dictStore.departments.find((d: any) => d.id === row.department_id)?.name ?? "—" }}
           </template>
           <template #status="{ row }">
             <el-tag :type="row.is_active ? 'success' : 'danger'">{{ row.is_active ? "启用" : "禁用" }}</el-tag>
@@ -258,13 +248,15 @@ onMounted(() => { onSearch(); loadRoles(); });
           <el-input v-model="form.phone" />
         </el-form-item>
         <el-form-item label="部门">
-          <el-select v-model="form.department_id" clearable placeholder="请选择部门">
-            <el-option v-for="d in deptOptions" :key="d.id" :label="d.name" :value="d.id" />
+          <el-select v-model="form.department_id" clearable placeholder="请选择部门"
+            @visible-change="visible => { if (visible) dictStore.loadAll(true) }">
+            <el-option v-for="d in dictStore.departments" :key="d.id" :label="d.name" :value="d.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="form.role_ids" multiple placeholder="请选择角色">
-            <el-option v-for="r in roleOptions" :key="r.id" :label="r.name" :value="r.id" />
+          <el-select v-model="form.role_ids" multiple placeholder="请选择角色"
+            @visible-change="visible => { if (visible) dictStore.loadAll(true) }">
+            <el-option v-for="r in dictStore.roles" :key="r.id" :label="r.name" :value="r.id" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="form.id" label="状态">
