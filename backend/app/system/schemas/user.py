@@ -44,9 +44,9 @@ class UserCreate(BaseModel):
     username: Annotated[str, Field(min_length=3, max_length=50, description="用户名")]
     password: Annotated[str, Field(min_length=6, max_length=128, description="密码")]
     display_name: Annotated[str, Field(min_length=1, max_length=50, description="显示名")]
-    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号，无则不传")] = None
-    role_ids: Annotated[list[int], Field(default_factory=list, max_length=100, description="角色 ID 列表，可为空数组")]  # 允许创建无角色用户
-    department_id: Annotated[int | None, Field(description="部门 ID，无则不传")] = None
+    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号")] = None
+    role_ids: Annotated[list[int], Field(default_factory=list, max_length=100, description="角色 ID 列表")]
+    department_id: Annotated[int | None, Field(description="部门 ID")] = None
 
     @field_validator("username")
     @classmethod
@@ -60,10 +60,10 @@ class UserUpdate(BaseModel):
     """PUT 全量更新 — 所有字段覆盖写入。"""
     username: Annotated[str, Field(min_length=3, max_length=50, description="用户名")]
     display_name: Annotated[str, Field(min_length=1, max_length=50, description="显示名")]
-    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号，无则传 null")]
+    phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号")]
     is_active: Annotated[bool, Field(description="是否启用")]
-    role_ids: Annotated[list[int], Field(max_length=100, description="角色 ID 列表，可为空数组")]
-    department_id: Annotated[int | None, Field(description="部门 ID，无则传 null")]
+    role_ids: Annotated[list[int], Field(max_length=100, description="角色 ID 列表")]
+    department_id: Annotated[int | None, Field(description="部门 ID")]
 
     @field_validator("username")
     @classmethod
@@ -85,7 +85,7 @@ class UserPatch(BaseModel):
     display_name: Annotated[str | None, Field(min_length=1, max_length=50, description="显示名")] = None
     phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号")] = None
     is_active: Annotated[bool | None, Field(description="是否启用")] = None
-    role_ids: Annotated[list[int] | None, Field(max_length=100, description="角色 ID 列表，传 [] 清空角色")] = None  # None = 没传，[] = 清空角色
+    role_ids: Annotated[list[int] | None, Field(max_length=100, description="角色 ID 列表")] = None
     department_id: Annotated[int | None, Field(description="部门 ID")] = None
 
     @field_validator("username")

@@ -19,17 +19,17 @@ class DepartmentCreate(BaseModel):
         description="部门编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
     )]
     name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
-    parent_id: Annotated[int | None, Field(description="父部门 ID，顶级部门传 null")] = None  # null = 顶级部门
+    parent_id: Annotated[int | None, Field(description="父部门 ID")] = None  # null = 顶级部门
     sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0
-    description: Annotated[str | None, Field(max_length=500, description="描述，无则不传")] = None
+    description: Annotated[str | None, Field(max_length=500, description="描述")] = None
 
 
 class DepartmentUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
     name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
-    parent_id: Annotated[int | None, Field(description="父部门 ID，顶级部门传 null")]
+    parent_id: Annotated[int | None, Field(description="父部门 ID")]
     sort_order: Annotated[int, Field(ge=0, description="排序号")]
-    description: Annotated[str | None, Field(max_length=500, description="描述，无则传 null")]
+    description: Annotated[str | None, Field(max_length=500, description="描述")]
 
 
 # 响应 Schema

@@ -18,17 +18,17 @@ class RoleCreate(BaseModel):
         description="角色编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
     )]
     name: Annotated[str, Field(min_length=2, max_length=50, description="角色名称")]
-    description: Annotated[str | None, Field(max_length=200, description="描述，无则不传")] = None
-    permission_codes: Annotated[list[str], Field(default_factory=list, max_length=200, description="权限 code 列表，可为空数组")]  # 权限用 code（语义化）
-    menu_ids: Annotated[list[int], Field(default_factory=list, max_length=200, description="菜单 ID 列表，可为空数组")]  # 菜单用 id（更稳定）
+    description: Annotated[str | None, Field(max_length=200, description="描述")] = None
+    permission_codes: Annotated[list[str], Field(default_factory=list, max_length=200, description="权限 code 列表")]  # 权限用 code（语义化）
+    menu_ids: Annotated[list[int], Field(default_factory=list, max_length=200, description="菜单 ID 列表")]  # 菜单用 id（更稳定）
 
 
 class RoleUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
     name: Annotated[str, Field(min_length=2, max_length=50, description="角色名称")]
-    description: Annotated[str | None, Field(max_length=200, description="描述，无则传 null")]
-    permission_codes: Annotated[list[str], Field(max_length=200, description="权限 code 列表，可为空数组")]
-    menu_ids: Annotated[list[int], Field(max_length=200, description="菜单 ID 列表，可为空数组")]
+    description: Annotated[str | None, Field(max_length=200, description="描述")]
+    permission_codes: Annotated[list[str], Field(max_length=200, description="权限 code 列表")]
+    menu_ids: Annotated[list[int], Field(max_length=200, description="菜单 ID 列表")]
 
 
 # 响应 Schema

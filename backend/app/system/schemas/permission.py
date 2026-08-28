@@ -19,7 +19,7 @@ class PermissionCreate(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=100, description="权限名称")]
     resource: Annotated[str, Field(min_length=1, max_length=50, description="资源标识，如 user/role/menu")]
     action: Annotated[str, Field(min_length=1, max_length=50, description="操作标识，如 list/create/update/delete")]
-    description: Annotated[str | None, Field(max_length=200, description="描述，无则不传")] = None
+    description: Annotated[str | None, Field(max_length=200, description="描述")] = None
 
 
 class PermissionUpdate(BaseModel):
@@ -28,7 +28,7 @@ class PermissionUpdate(BaseModel):
     name: Annotated[str, Field(min_length=1, max_length=100, description="权限名称")]
     resource: Annotated[str, Field(min_length=1, max_length=50, description="资源标识")]
     action: Annotated[str, Field(min_length=1, max_length=50, description="操作标识")]
-    description: Annotated[str | None, Field(max_length=200, description="描述，无则传 null")]
+    description: Annotated[str | None, Field(max_length=200, description="描述")]
 
 
 # 响应 Schema

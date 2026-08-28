@@ -20,17 +20,17 @@ class MenuCreate(BaseModel):
     icon: Annotated[str | None, Field(max_length=50, description="图标，如 fa-solid:users")] = None
     path: Annotated[str | None, Field(max_length=100, description="路由路径，如 /users")] = None
     component: Annotated[str | None, Field(max_length=200, description="组件路径，如 system/users/index")] = None
-    parent_id: Annotated[int | None, Field(description="父菜单 ID，顶级菜单传 null")] = None  # null = 顶级菜单
+    parent_id: Annotated[int | None, Field(description="父菜单 ID")] = None  # null = 顶级菜单
     sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0  # ge=0：不允许负数
 
 
 class MenuUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
     name: Annotated[str, Field(min_length=1, max_length=50, description="菜单名称")]
-    icon: Annotated[str | None, Field(max_length=50, description="图标，无则传 null")]
-    path: Annotated[str | None, Field(max_length=100, description="路由路径，无则传 null")]
-    component: Annotated[str | None, Field(max_length=200, description="组件路径，无则传 null")]
-    parent_id: Annotated[int | None, Field(description="父菜单 ID，顶级菜单传 null")]
+    icon: Annotated[str | None, Field(max_length=50, description="图标")]
+    path: Annotated[str | None, Field(max_length=100, description="路由路径")]
+    component: Annotated[str | None, Field(max_length=200, description="组件路径")]
+    parent_id: Annotated[int | None, Field(description="父菜单 ID")]
     sort_order: Annotated[int, Field(ge=0, description="排序号")]
 
 
