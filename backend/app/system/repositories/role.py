@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.paginate import paginate
 from app.core.response import PageData
-from app.system.models import Role, Permission, Menu
+from app.system.models import Role
 from app.system.models.associations import user_roles
 from app.system.repositories.base import BaseRepository
 

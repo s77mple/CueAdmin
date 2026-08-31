@@ -20,7 +20,6 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Query, Security
 
 from app.core.dependencies import SessionDep, RedisDep, get_current_user
-from app.core.exceptions import BusinessException, ErrorCode
 from app.system.models import User
 from app.core.response import ApiResponse, PageData
 from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead
