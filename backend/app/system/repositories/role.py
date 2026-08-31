@@ -12,7 +12,7 @@ from app.system.models.associations import user_roles
 from app.system.repositories.base import BaseRepository
 
 
-class RoleRepository(BaseRepository[Role]):
+class RoleRepository(BaseRepository):
     model = Role
 
     async def get_for_update_with_relations(self, role_id: int) -> Role | None:
@@ -39,11 +39,11 @@ class RoleRepository(BaseRepository[Role]):
         result = await self.session.execute(
             select(Role).where(Role.id.in_(role_ids))
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_user_ids(self, role_id: int) -> list[int]:
         """查拥有该角色的所有用户 ID（缓存清除用）。"""
         result = await self.session.execute(
             select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
         )
-        return [row[0] for row in result.all()]
+        return result.scalars().all()

@@ -37,7 +37,7 @@ async def paginate(
     # 分页数据 — 同样 DISTINCT 避免重复行
     page_stmt = stmt.distinct().offset((page - 1) * page_size).limit(page_size)
     result = await session.execute(page_stmt)
-    items = list(result.scalars().all())
+    items = result.scalars().all()
 
     # 组装分页响应
     return PageData(

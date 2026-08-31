@@ -9,7 +9,7 @@ from app.system.models.associations import user_roles, role_permissions
 from app.system.repositories.base import BaseRepository
 
 
-class PermissionRepository(BaseRepository[Permission]):
+class PermissionRepository(BaseRepository):
     model = Permission
 
     async def list_permissions(self) -> list[Permission]:
@@ -17,14 +17,14 @@ class PermissionRepository(BaseRepository[Permission]):
         result = await self.session.execute(
             select(Permission).order_by(Permission.resource, Permission.action)
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_by_codes(self, codes: Collection[str]) -> list[Permission]:
         """按权限 code 列表查询（角色关联校验用）。"""
         result = await self.session.execute(
             select(Permission).where(Permission.code.in_(codes))
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_user_ids(self, perm_id: int) -> list[int]:
         """查拥有该权限的所有用户 ID（缓存清除用）。
@@ -37,4 +37,4 @@ class PermissionRepository(BaseRepository[Permission]):
             .where(role_permissions.c.permission_id == perm_id)
             .distinct()
         )
-        return [row[0] for row in result.all()]
+        return result.scalars().all()

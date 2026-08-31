@@ -9,7 +9,7 @@ from app.system.models import User, Role
 from app.system.repositories.base import BaseRepository
 
 
-class UserRepository(BaseRepository[User]):
+class UserRepository(BaseRepository):
     model = User
 
     async def get_by_username(self, username: str, exclude_user_id: int | None = None) -> User | None:

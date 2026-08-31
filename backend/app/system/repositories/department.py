@@ -6,7 +6,7 @@ from app.system.models import Department, User
 from app.system.repositories.base import BaseRepository
 
 
-class DepartmentRepository(BaseRepository[Department]):
+class DepartmentRepository(BaseRepository):
     model = Department
 
     async def list_departments(self) -> list[Department]:
@@ -14,7 +14,7 @@ class DepartmentRepository(BaseRepository[Department]):
         result = await self.session.execute(
             select(Department).order_by(Department.sort_order, Department.id)
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_children(self, dept_id: int) -> list[Department]:
         """查直接子部门（带锁，删除时子部门变顶级用）。"""
@@ -23,7 +23,7 @@ class DepartmentRepository(BaseRepository[Department]):
             .where(Department.parent_id == dept_id)
             .with_for_update()
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_parent_id(self, dept_id: int) -> int | None:
         """查父部门 ID（循环检测沿父链遍历用）。"""

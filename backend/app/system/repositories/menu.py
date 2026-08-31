@@ -8,7 +8,7 @@ from app.system.models import Menu
 from app.system.repositories.base import BaseRepository
 
 
-class MenuRepository(BaseRepository[Menu]):
+class MenuRepository(BaseRepository):
     model = Menu
 
     async def list_menus(self) -> list[Menu]:
@@ -16,14 +16,14 @@ class MenuRepository(BaseRepository[Menu]):
         result = await self.session.execute(
             select(Menu).order_by(Menu.sort_order, Menu.id)
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_children(self, menu_id: int) -> list[Menu]:
         """查直接子菜单（带锁，删除时子菜单变顶级用）。"""
         result = await self.session.execute(
             select(Menu).where(Menu.parent_id == menu_id).with_for_update()
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
 
     async def get_parent_id(self, menu_id: int) -> int | None:
         """查父菜单 ID（循环检测沿父链遍历用）。"""
@@ -38,4 +38,4 @@ class MenuRepository(BaseRepository[Menu]):
         result = await self.session.execute(
             select(Menu).where(Menu.id.in_(menu_ids))
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
