@@ -1,21 +1,18 @@
 """
 角色业务逻辑 — 角色的 CRUD + 权限/菜单关联 + 缓存主动失效。
 
-从 api/roles.py 提取而来，API 层只做参数提取和响应包装。
+数据访问收口到 Repository，本层只做业务校验 + 事务提交 + 缓存清除。
 """
 
 import redis.asyncio as aioredis
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.system.models import Role, Permission, Menu
-from app.system.models.associations import user_roles
+from app.system.models import Role
 from app.core.exceptions import BusinessException, ErrorCode
-from app.core.paginate import paginate
 from app.core.logger import logger
 from app.core.response import PageData
+from app.system.repositories import RoleRepository, PermissionRepository, MenuRepository
 from app.system.schemas.role import RoleCreate, RoleUpdate, RoleItem
 
 
@@ -31,27 +28,19 @@ class RoleService:
     def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
         self.session = session
         self.redis = redis_client
+        self.roles = RoleRepository(session)
+        self.permissions = PermissionRepository(session)
+        self.menus = MenuRepository(session)
 
     # 查询
 
     async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData[RoleItem]:
         """分页返回角色（预加载权限和菜单）。角色数量少，默认 page_size=100 一次返回全部。"""
-        stmt = (
-            select(Role)
-            .options(selectinload(Role.permissions), selectinload(Role.menus))
-            .order_by(Role.id.asc())
-        )
-        return await paginate(self.session, stmt, page, page_size)
+        return await self.roles.list_roles(page, page_size)
 
     async def get_role_for_update(self, role_id: int) -> Role:
         """带行级锁获取角色。"""
-        result = await self.session.execute(
-            select(Role)
-            .options(selectinload(Role.permissions), selectinload(Role.menus))
-            .where(Role.id == role_id)
-            .with_for_update()
-        )
-        role = result.scalars().first()
+        role = await self.roles.get_for_update_with_relations(role_id)
         if not role:
             raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
         return role
@@ -60,14 +49,14 @@ class RoleService:
 
     async def create_role(self, body: RoleCreate) -> Role:
         """创建角色 — 双重唯一性保护。"""
-        if (await self.session.execute(select(Role).where(Role.code == body.code))).scalars().first():
+        if await self.roles.get_by_code(body.code):
             raise BusinessException(ErrorCode.ROLE_CODE_EXISTS, "角色编码已存在")
 
         role = Role(code=body.code, name=body.name, description=body.description)
 
         await self._resolve_relations(role, body.permission_codes, body.menu_ids)
 
-        self.session.add(role)
+        self.roles.add(role)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -95,28 +84,23 @@ class RoleService:
 
     async def delete_role(self, role_id: int) -> str:
         """删除角色 — 系统角色不可删除，关联用户缓存同步清除。"""
-        result = await self.session.execute(
-            select(Role).where(Role.id == role_id).with_for_update()
-        )
-        role = result.scalars().first()
+        role = await self.roles.get_for_update(role_id)
         if not role:
             raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
         self._guard_system(role)
 
         # 删前查出关联用户（用于缓存清除）
         try:
-            rows = (await self.session.execute(
-                select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
-            )).all()
+            rows = await self.roles.get_user_ids(role_id)
         except SQLAlchemyError:
             rows = []
             logger.warning("查询角色关联用户失败，跳过缓存清除")
 
-        await self.session.delete(role)
+        await self.roles.delete(role)
         await self.session.commit()
 
         # 清除所有关联用户的权限缓存
-        for (uid,) in rows:
+        for uid in rows:
             await self._safe_delete_cache(f"perm:{uid}")
         if rows:
             logger.info("角色 [{}] 已删除，清除 {} 个用户缓存", role.code, len(rows))
@@ -132,9 +116,7 @@ class RoleService:
     ) -> None:
         """校验权限/菜单关联并赋给角色。None 表示不修改该关联。"""
         if permission_codes is not None:
-            perms = (await self.session.execute(
-                select(Permission).where(Permission.code.in_(permission_codes))
-            )).scalars().all()
+            perms = await self.permissions.get_by_codes(permission_codes)
             if len(perms) != len(permission_codes):
                 found = {p.code for p in perms}
                 invalid = [c for c in permission_codes if c not in found]
@@ -142,9 +124,7 @@ class RoleService:
             role.permissions = perms
 
         if menu_ids is not None:
-            menus = (await self.session.execute(
-                select(Menu).where(Menu.id.in_(menu_ids))
-            )).scalars().all()
+            menus = await self.menus.get_by_ids(menu_ids)
             if len(menus) != len(menu_ids):
                 found = {m.id for m in menus}
                 invalid = [mid for mid in menu_ids if mid not in found]
@@ -154,14 +134,12 @@ class RoleService:
     async def _clear_role_users_cache(self, role_id: int, role_code: str) -> None:
         """角色权限/菜单变更后，清除所有关联用户的 Redis 权限缓存。"""
         try:
-            rows = (await self.session.execute(
-                select(user_roles.c.user_id).where(user_roles.c.role_id == role_id)
-            )).all()
+            rows = await self.roles.get_user_ids(role_id)
         except SQLAlchemyError:
             logger.warning("查询角色关联用户失败，跳过缓存清除")
             return
 
-        for (uid,) in rows:
+        for uid in rows:
             await self._safe_delete_cache(f"perm:{uid}")
 
         logger.info("角色 [{}] 权限/菜单变更，已清除 {} 个用户缓存", role_code, len(rows))

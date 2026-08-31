@@ -198,8 +198,7 @@ async function handleSubmit() {
         display_name: form.display_name,
         phone: form.phone || null,
         role_ids: form.role_ids,
-        department_id: form.department_id ?? null,
-        is_active: form.is_active
+        department_id: form.department_id ?? null
       });
       if (res.code !== 0) {
         onSaveFail(res, "创建失败");

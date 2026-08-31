@@ -1,20 +1,19 @@
 """
 用户业务逻辑 — 用户的 CRUD + 校验 + 权限缓存管理。
 
-从 api/users.py 提取而来，API 层只做参数提取和响应包装。
+数据访问收口到 Repository（见 app/system/repositories/user.py 等），
+本层只做业务校验 + 事务提交 + 缓存清除。
 """
 
 import redis.asyncio as aioredis
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.system.models import User, Role, Department
+from app.system.models import User
 from app.core.security import hash_password
-from app.core.paginate import paginate
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.response import PageData
+from app.system.repositories import UserRepository, RoleRepository, DepartmentRepository
 from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead
 
 
@@ -30,6 +29,9 @@ class UserService:
     def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
         self.session = session
         self.redis = redis_client
+        self.users = UserRepository(session)
+        self.roles = RoleRepository(session)
+        self.departments = DepartmentRepository(session)
 
     # 查询
 
@@ -41,25 +43,11 @@ class UserService:
         page_size: int = 20,
     ) -> PageData[UserRead]:
         """分页用户列表，支持按角色和启用状态筛选。"""
-        stmt = select(User).options(selectinload(User.roles))
-
-        if role_id is not None:
-            stmt = stmt.join(User.roles).where(Role.id == role_id)
-        if is_active is not None:
-            stmt = stmt.where(User.is_active == is_active)
-
-        stmt = stmt.order_by(User.id.asc())
-        return await paginate(self.session, stmt, page, page_size)
+        return await self.users.list_users(role_id, is_active, page, page_size)
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""
-        result = await self.session.execute(
-            select(User)
-            .options(selectinload(User.roles))
-            .where(User.id == user_id)
-            .with_for_update()
-        )
-        target = result.scalars().first()
+        target = await self.users.get_for_update_with_roles(user_id)
         if not target:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
         return target
@@ -69,7 +57,7 @@ class UserService:
     async def create_user(self, body: UserCreate) -> User:
         """创建用户 — 双重唯一性校验 + 外键验证。"""
         # 应用层唯一性检查
-        if (await self.session.execute(select(User).where(User.username == body.username))).scalars().first():
+        if await self.users.get_by_username(body.username):
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
         # 验证部门存在
@@ -85,16 +73,14 @@ class UserService:
 
         # 验证角色存在 + 赋值
         if body.role_ids:
-            roles = (await self.session.execute(
-                select(Role).where(Role.id.in_(body.role_ids))
-            )).scalars().all()
+            roles = await self.roles.get_by_ids(body.role_ids)
             if len(roles) != len(body.role_ids):
                 found = {r.id for r in roles}
                 invalid = [rid for rid in body.role_ids if rid not in found]
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
             new_user.roles = roles
 
-        self.session.add(new_user)
+        self.users.add(new_user)
 
         # 数据库层唯一性兜底（TOCTOU 防护）
         try:
@@ -103,14 +89,9 @@ class UserService:
             await self.session.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
-        # commit 后重新查询并 eager load roles + department：
+        # commit 后重新查询并 eager load roles：
         # 否则响应序列化时访问 new_user.roles 会触发 async lazy-load（MissingGreenlet 崩溃）
-        result = await self.session.execute(
-            select(User)
-            .options(selectinload(User.roles))
-            .where(User.id == new_user.id)
-        )
-        return result.scalars().first()
+        return await self.users.get_with_roles(new_user.id)
 
     # 全量更新
 
@@ -205,10 +186,7 @@ class UserService:
 
     async def delete_user(self, user_id: int, operator_id: int, hard: bool = False) -> str:
         """软禁用（默认）或硬删除（?hard=true，仅已禁用用户）。"""
-        result = await self.session.execute(
-            select(User).options(selectinload(User.roles)).where(User.id == user_id).with_for_update()
-        )
-        target = result.scalars().first()
+        target = await self.users.get_for_update_with_roles(user_id)
         if not target:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
 
@@ -220,16 +198,11 @@ class UserService:
             if target.is_active:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许彻底删除启用状态的用户，请先禁用")
             if any(r.code == "admin" for r in target.roles):
-                admin_count = (await self.session.execute(
-                    select(User).join(User.roles).where(
-                        Role.code == "admin", User.is_active == True
-                    ).with_for_update()
-                )).scalars().all()
-                if len(admin_count) < 1:
+                if await self.users.count_active_admins() < 1:
                     raise BusinessException(ErrorCode.CONFLICT, "不允许删除最后一个拥有管理员角色的用户")
 
             await self._clear_perm_cache(user_id)
-            await self.session.delete(target)
+            await self.users.delete(target)
             try:
                 await self.session.commit()
             except IntegrityError:
@@ -250,25 +223,19 @@ class UserService:
 
     async def _validate_username_unique(self, username: str, exclude_user_id: int | None = None) -> None:
         """检查用户名唯一（编辑时排除自己）。"""
-        stmt = select(User).where(User.username == username)
-        if exclude_user_id is not None:
-            stmt = stmt.where(User.id != exclude_user_id)
-        if (await self.session.execute(stmt)).scalars().first():
+        if await self.users.get_by_username(username, exclude_user_id):
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
     async def _validate_department(self, department_id: int | None) -> None:
         """校验部门存在。"""
         if department_id is not None:
-            dept = (await self.session.execute(select(Department).where(Department.id == department_id))).scalars().first()
-            if not dept:
+            if not await self.departments.get(department_id):
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {department_id}")
 
     async def _resolve_roles(self, target: User, role_ids: list[int] | None) -> None:
         """验证角色 ID 存在并赋值，包含最后管理员保护。"""
         role_ids = role_ids or []  # None（未传）与空列表均视为清空角色
-        roles = (await self.session.execute(
-            select(Role).where(Role.id.in_(role_ids))
-        )).scalars().all()
+        roles = await self.roles.get_by_ids(role_ids)
         if len(roles) != len(role_ids):
             found = {r.id for r in roles}
             invalid = [rid for rid in role_ids if rid not in found]
@@ -279,24 +246,14 @@ class UserService:
         will_lose_admin = had_admin and admin_role is None
 
         if will_lose_admin:
-            admin_count = (await self.session.execute(
-                select(User).join(User.roles).where(
-                    Role.code == "admin", User.is_active == True
-                ).with_for_update()
-            )).scalars().all()
-            if len(admin_count) <= 1:
+            if await self.users.count_active_admins() <= 1:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
 
         target.roles = roles
 
     async def _guard_last_admin(self) -> None:
         """确保不禁用/删除最后一个管理员。"""
-        admin_count = (await self.session.execute(
-            select(User).join(User.roles).where(
-                Role.code == "admin", User.is_active == True
-            ).with_for_update()
-        )).scalars().all()
-        if len(admin_count) <= 1:
+        if await self.users.count_active_admins() <= 1:
             raise BusinessException(ErrorCode.CONFLICT, "不允许禁用最后一个管理员")
 
     @staticmethod

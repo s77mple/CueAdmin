@@ -7,11 +7,11 @@
   build_routes()       → 扁平列表 → Pure Admin 路由树
 """
 
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.system.models import User, Menu
+from app.system.repositories import MenuRepository
 from app.system.schemas.menu import MenuCreate, MenuUpdate
 from app.core.logger import logger
 from app.core.exceptions import BusinessException, ErrorCode
@@ -29,14 +29,12 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
       id, code, name, icon, path, component, parent_id, sort_order
     """
 
+    repo = MenuRepository(session)
+
     # ---- admin 拥有全部菜单 ----
     if any(role.code == "admin" for role in user.roles):
-        stmt = select(Menu).order_by(Menu.sort_order, Menu.id)
-        result = await session.execute(stmt)
-        all_menus = result.scalars().all()
-        menus = [
-            _menu_to_dict(m) for m in all_menus
-        ]
+        all_menus = await repo.list_menus()
+        menus = [_menu_to_dict(m) for m in all_menus]
     else:
         seen: set[str] = set()       # 用 code 去重
         seen_ids: set[int] = set()   # 用 id 追踪（供父级补全用）
@@ -62,9 +60,7 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
             if not missing:
                 break
 
-            stmt = select(Menu).where(Menu.id.in_(missing))
-            result = await session.execute(stmt)
-            parents = result.scalars().all()
+            parents = await repo.get_by_ids(missing)
             if not parents:
                 break  # 孤立引用（parent_id 指向不存在的记录）
 
@@ -221,22 +217,17 @@ class MenuService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.menus = MenuRepository(session)
 
     # 查询
 
     async def list_menus(self) -> list[Menu]:
         """返回全部菜单（扁平列表，前端用 parent_id 转树）。"""
-        result = await self.session.execute(
-            select(Menu).order_by(Menu.sort_order, Menu.id)
-        )
-        return list(result.scalars().all())
+        return await self.menus.list_menus()
 
     async def get_menu_for_update(self, menu_id: int) -> Menu:
         """带行级锁获取菜单。"""
-        result = await self.session.execute(
-            select(Menu).where(Menu.id == menu_id).with_for_update()
-        )
-        menu = result.scalars().first()
+        menu = await self.menus.get_for_update(menu_id)
         if not menu:
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
         return menu
@@ -245,12 +236,11 @@ class MenuService:
 
     async def create_menu(self, body: MenuCreate) -> Menu:
         """创建菜单 — 验证父菜单 + 双重唯一性保护。"""
-        if (await self.session.execute(select(Menu).where(Menu.code == body.code))).scalars().first():
+        if await self.menus.get_by_code(body.code):
             raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
 
         if body.parent_id is not None:
-            parent = (await self.session.execute(select(Menu).where(Menu.id == body.parent_id))).scalars().first()
-            if not parent:
+            if not await self.menus.get(body.parent_id):
                 raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
 
         menu = Menu(
@@ -258,7 +248,7 @@ class MenuService:
             path=body.path, component=body.component,
             parent_id=body.parent_id, sort_order=body.sort_order,
         )
-        self.session.add(menu)
+        self.menus.add(menu)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -293,9 +283,7 @@ class MenuService:
         menu = await self.get_menu_for_update(menu_id)
 
         # 子菜单变顶级
-        children = (await self.session.execute(
-            select(Menu).where(Menu.parent_id == menu_id).with_for_update()
-        )).scalars().all()
+        children = await self.menus.get_children(menu_id)
         child_info = None
         if children:
             child_names = [c.name for c in children]
@@ -303,7 +291,7 @@ class MenuService:
             for child in children:
                 child.parent_id = None
 
-        await self.session.delete(menu)
+        await self.menus.delete(menu)
         await self.session.commit()
 
         if child_info:
@@ -320,8 +308,7 @@ class MenuService:
         if new_parent_id == menu_id:
             raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
 
-        parent = (await self.session.execute(select(Menu).where(Menu.id == new_parent_id))).scalars().first()
-        if not parent:
+        if not await self.menus.get(new_parent_id):
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {new_parent_id}")
 
         if await self._would_create_cycle(menu_id, new_parent_id):
@@ -338,9 +325,5 @@ class MenuService:
                 logger.warning(f"菜单表存在循环引用: menu_id={menu_id} 的祖先链中出现重复节点 {current_id}")
                 break
             visited.add(current_id)
-            result = await self.session.execute(
-                select(Menu.parent_id).where(Menu.id == current_id)
-            )
-            row = result.first()
-            current_id = row[0] if row else None
+            current_id = await self.menus.get_parent_id(current_id)
         return False

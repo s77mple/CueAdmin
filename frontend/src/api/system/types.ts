@@ -91,6 +91,46 @@ export interface Permission {
   description: string | null;
 }
 
+// ===== 请求类型（POST/PUT/PATCH 的请求体，对应后端 XxxCreate/Update/Patch）=====
+
+/** 创建用户请求体（POST）— 无 is_active，新建默认启用 */
+export interface UserCreate {
+  username: string;
+  password: string;
+  display_name: string;
+  phone?: string | null;
+  role_ids?: number[];
+  department_id?: number | null;
+}
+
+/** 全量更新用户请求体（PUT）— 所有字段必填 */
+export interface UserUpdate {
+  username: string;
+  display_name: string;
+  phone: string | null;
+  is_active: boolean;
+  role_ids: number[];
+  department_id: number | null;
+}
+
+/** 部分更新用户请求体（PATCH）— 所有字段可选，传了才改 */
+export interface UserPatch {
+  username?: string | null;
+  display_name?: string | null;
+  phone?: string | null;
+  is_active?: boolean | null;
+  role_ids?: number[] | null;
+  department_id?: number | null;
+}
+
+/** 用户列表查询参数 */
+export interface UserListQuery {
+  page?: number;
+  page_size?: number;
+  role_id?: number;
+  is_active?: boolean;
+}
+
 // ===== 数据字典 =====
 
 /** 错误码条目（GET /meta/error-codes 返回的一行） */

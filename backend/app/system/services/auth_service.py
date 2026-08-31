@@ -13,9 +13,7 @@ from datetime import timedelta
 
 import redis.asyncio as aioredis
 from jose import JWTError, ExpiredSignatureError
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.exceptions import BusinessException, ErrorCode
@@ -26,7 +24,7 @@ from app.core.security import (
     decode_token,
     verify_password,
 )
-from app.system.models import User, Role
+from app.system.repositories import UserRepository
 from app.system.schemas.auth import LoginResponse, RefreshResponse
 from app.system.schemas.user import UserRead
 
@@ -42,19 +40,14 @@ class AuthService:
     def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
         self.session = session
         self.redis = redis_client
+        self.users = UserRepository(session)
 
     async def login(self, username: str, password: str, client: str | None = None) -> LoginResponse:
 
         # ---- 一次查询预加载所有关联数据 ----
-        # selectinload = 用第二条 SELECT IN (...) 查询关联数据，避免 N+1
+        # get_for_login 里用 selectinload 一次带出 roles + permissions，避免 N+1
         # 菜单不在这里加载：登录响应不含 menus，动态路由统一走 /routes
-        stmt = (
-            select(User)
-            .options(selectinload(User.roles).selectinload(Role.permissions))
-            .where(User.username == username, User.is_active == True)
-        )
-        result = await self.session.execute(stmt)
-        user = result.scalars().first()
+        user = await self.users.get_for_login(username)
 
         # ---- 防用户名枚举 ----
         # 用户不存在也跑一次 bcrypt（约 100ms），让攻击者无法靠响应时间判断用户名是否存在
@@ -142,10 +135,7 @@ class AuthService:
         except (ValueError, TypeError):
             raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "刷新令牌无效")
 
-        result = await self.session.execute(
-            select(User).where(User.id == user_id, User.is_active == True)
-        )
-        user = result.scalars().first()
+        user = await self.users.get_active(user_id)
         if user is None:
             try:
                 await self.redis.delete(key)

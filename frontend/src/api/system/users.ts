@@ -1,14 +1,14 @@
 import { http } from "@/utils/http";
 import type { ApiResult, PageData } from "../types";
-import type { User } from "./types";
+import type { User, UserCreate, UserUpdate, UserPatch, UserListQuery } from "./types";
 
-export const getUserList = (params?: object) =>
+export const getUserList = (params?: UserListQuery) =>
   http.get<ApiResult<PageData<User>>>("/api/v1/system/users", { params });
-export const createUser = (data?: object) =>
+export const createUser = (data: UserCreate) =>
   http.post<ApiResult<User>>("/api/v1/system/users", { data });
-export const updateUser = (id: number, data?: object) =>
+export const updateUser = (id: number, data: UserUpdate) =>
   http.put<ApiResult<User>>(`/api/v1/system/users/${id}`, { data });
-export const patchUser = (id: number, data?: object) =>
+export const patchUser = (id: number, data: UserPatch) =>
   http.patch<ApiResult<User>>(`/api/v1/system/users/${id}`, { data });
 export const deleteUser = (id: number) =>
   http.delete<ApiResult>(`/api/v1/system/users/${id}`);

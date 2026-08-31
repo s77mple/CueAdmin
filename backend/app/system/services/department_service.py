@@ -1,15 +1,15 @@
 """
 部门业务逻辑 — 部门的树形 CRUD + 循环检测。
 
-从 api/departments.py 提取而来。
+数据访问收口到 Repository，本层只做业务校验 + 事务提交。
 """
 
-from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.system.models import Department, User
+from app.system.models import Department
 from app.core.exceptions import BusinessException, ErrorCode
+from app.system.repositories import DepartmentRepository
 from app.system.schemas.department import DepartmentCreate, DepartmentUpdate
 
 
@@ -18,22 +18,17 @@ class DepartmentService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.departments = DepartmentRepository(session)
 
     # 查询
 
     async def list_departments(self) -> list[Department]:
         """返回全部部门（扁平列表，前端用 parent_id 转树）。"""
-        result = await self.session.execute(
-            select(Department).order_by(Department.sort_order, Department.id)
-        )
-        return list(result.scalars().all())
+        return await self.departments.list_departments()
 
     async def get_department_for_update(self, dept_id: int) -> Department:
         """带行级锁获取部门。"""
-        result = await self.session.execute(
-            select(Department).where(Department.id == dept_id).with_for_update()
-        )
-        dept = result.scalars().first()
+        dept = await self.departments.get_for_update(dept_id)
         if not dept:
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
         return dept
@@ -42,19 +37,18 @@ class DepartmentService:
 
     async def create_department(self, body: DepartmentCreate) -> Department:
         """创建部门 — 验证父部门 + 双重唯一性保护。"""
-        if (await self.session.execute(select(Department).where(Department.code == body.code))).scalars().first():
+        if await self.departments.get_by_code(body.code):
             raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
 
         if body.parent_id is not None:
-            parent = (await self.session.execute(select(Department).where(Department.id == body.parent_id))).scalars().first()
-            if not parent:
+            if not await self.departments.get(body.parent_id):
                 raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
 
         dept = Department(
             code=body.code, name=body.name, parent_id=body.parent_id,
             sort_order=body.sort_order, description=body.description,
         )
-        self.session.add(dept)
+        self.departments.add(dept)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -87,9 +81,7 @@ class DepartmentService:
         dept = await self.get_department_for_update(dept_id)
 
         # 子部门变顶级
-        children = (await self.session.execute(
-            select(Department).where(Department.parent_id == dept_id).with_for_update()
-        )).scalars().all()
+        children = await self.departments.get_children(dept_id)
         child_info = None
         if children:
             child_names = [c.name for c in children]
@@ -98,11 +90,9 @@ class DepartmentService:
                 child.parent_id = None
 
         # 统计受影响用户
-        user_count = (await self.session.execute(
-            select(func.count()).select_from(User).where(User.department_id == dept_id)
-        )).scalar() or 0
+        user_count = await self.departments.count_users(dept_id)
 
-        await self.session.delete(dept)
+        await self.departments.delete(dept)
         await self.session.commit()
 
         parts = []
@@ -125,8 +115,7 @@ class DepartmentService:
         if new_parent_id == dept_id:
             raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
 
-        parent = (await self.session.execute(select(Department).where(Department.id == new_parent_id))).scalars().first()
-        if not parent:
+        if not await self.departments.get(new_parent_id):
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {new_parent_id}")
 
         if await self._would_create_cycle(dept_id, new_parent_id):
@@ -142,9 +131,5 @@ class DepartmentService:
             if current_id in visited:
                 break
             visited.add(current_id)
-            result = await self.session.execute(
-                select(Department.parent_id).where(Department.id == current_id)
-            )
-            row = result.first()
-            current_id = row[0] if row else None
+            current_id = await self.departments.get_parent_id(current_id)
         return False

@@ -1,18 +1,17 @@
 """
 权限码业务逻辑 — 权限的 CRUD + 关联用户缓存主动失效。
 
-从 api/permissions.py 提取而来。
+数据访问收口到 Repository，本层只做业务校验 + 事务提交 + 缓存清除。
 """
 
 import redis.asyncio as aioredis
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.system.models import Permission
-from app.system.models.associations import user_roles, role_permissions
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
+from app.system.repositories import PermissionRepository
 from app.system.schemas.permission import PermissionCreate, PermissionUpdate
 
 
@@ -22,22 +21,17 @@ class PermissionService:
     def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
         self.session = session
         self.redis = redis_client
+        self.permissions = PermissionRepository(session)
 
     # 查询
 
     async def list_permissions(self) -> list[Permission]:
         """返回全部权限（按 resource + action 排序）。权限码是固定枚举，一次全量返回，前端分组展示。"""
-        result = await self.session.execute(
-            select(Permission).order_by(Permission.resource, Permission.action)
-        )
-        return list(result.scalars().all())
+        return await self.permissions.list_permissions()
 
     async def get_permission_for_update(self, perm_id: int) -> Permission:
         """带行级锁获取权限。"""
-        result = await self.session.execute(
-            select(Permission).where(Permission.id == perm_id).with_for_update()
-        )
-        perm = result.scalars().first()
+        perm = await self.permissions.get_for_update(perm_id)
         if not perm:
             raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
         return perm
@@ -46,7 +40,7 @@ class PermissionService:
 
     async def create_permission(self, body: PermissionCreate) -> Permission:
         """创建权限 — 双重唯一性保护。"""
-        if (await self.session.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
+        if await self.permissions.get_by_code(body.code):
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
 
         perm = Permission(
@@ -54,7 +48,7 @@ class PermissionService:
             resource=body.resource, action=body.action,
             description=body.description,
         )
-        self.session.add(perm)
+        self.permissions.add(perm)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -71,7 +65,7 @@ class PermissionService:
         code_changed = False
 
         if body.code != perm.code:
-            if (await self.session.execute(select(Permission).where(Permission.code == body.code))).scalars().first():
+            if await self.permissions.get_by_code(body.code):
                 raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
             perm.code = body.code
             code_changed = True
@@ -98,7 +92,7 @@ class PermissionService:
         perm = await self.get_permission_for_update(perm_id)
 
         await self._clear_perm_cache(perm_id)  # 先清缓存
-        await self.session.delete(perm)              # 再删记录
+        await self.permissions.delete(perm)          # 再删记录
         await self.session.commit()
         return "删除成功"
 
@@ -110,17 +104,12 @@ class PermissionService:
         查询路径：perm_id → role_permissions → user_roles → user_id
         """
         try:
-            rows = (await self.session.execute(
-                select(user_roles.c.user_id)
-                .join(role_permissions, role_permissions.c.role_id == user_roles.c.role_id)
-                .where(role_permissions.c.permission_id == perm_id)
-                .distinct()
-            )).all()
+            rows = await self.permissions.get_user_ids(perm_id)
         except SQLAlchemyError:
             logger.warning("查询权限关联用户失败，跳过缓存清除")
             return
 
-        for (uid,) in rows:
+        for uid in rows:
             if self.redis:
                 try:
                     await self.redis.delete(f"perm:{uid}")
