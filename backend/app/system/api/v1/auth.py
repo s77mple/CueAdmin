@@ -12,7 +12,7 @@
 """
 
 import time
-import redis.asyncio as aioredis
+from redis.asyncio import Redis, RedisError
 from fastapi import APIRouter
 from jose import JWTError
 
@@ -55,7 +55,7 @@ async def login(
                 ErrorCode.AUTH_INVALID_CREDENTIALS,
                 f"登录失败次数过多，请 {_LOGIN_LOCK_TTL // 60} 分钟后重试",
             )
-    except aioredis.RedisError:
+    except RedisError:
         pass  # Redis 故障时跳过频率限制，不阻塞登录
 
     # ---- 执行登录 + 处理结果 ----
@@ -73,7 +73,7 @@ async def login(
                     logger.bind(username=body.username).warning(
                         f"登录失败 {new_count} 次，锁定 {_LOGIN_LOCK_TTL // 60} 分钟"
                     )
-            except aioredis.RedisError:
+            except RedisError:
                 pass  # Redis 故障不影响登录流程
         raise  # 错误继续上抛，由全局 handler 捕获
 
@@ -81,7 +81,7 @@ async def login(
     try:
         await redis_client.delete(fail_key)                 # 清除失败计数
         await redis_client.delete(f"perm:{result.user.id}") # 清除旧权限缓存（确保登录后权限是最新的）
-    except aioredis.RedisError:
+    except RedisError:
         logger.warning("登录时清除缓存失败，跳过")
     logger.bind(username=body.username).info("用户登录成功")
     return ApiResponse.ok(data=result)
@@ -121,7 +121,7 @@ async def logout(
             await redis_client.delete(f"perm:{user_id}")             # 清除权限缓存
         if session_id:
             await redis_client.delete(f"session:{session_id}")       # 撤销 refresh 会话
-    except aioredis.RedisError:
+    except RedisError:
         logger.warning("登出时 Redis 操作失败，跳过")
     return ApiResponse.ok(message="已登出")
 

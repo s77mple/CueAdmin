@@ -4,7 +4,7 @@
 数据访问收口到 Repository，本层只做业务校验 + 事务提交 + 缓存清除。
 """
 
-import redis.asyncio as aioredis
+from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +25,7 @@ class RoleService:
         role = await svc.create_role(body)
     """
 
-    def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
+    def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
         self.roles = RoleRepository(session)
@@ -150,7 +150,7 @@ class RoleService:
             return
         try:
             await self.redis.delete(key)
-        except aioredis.RedisError:
+        except RedisError:
             pass
 
     @staticmethod
