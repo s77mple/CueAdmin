@@ -4,7 +4,7 @@
 数据访问收口到 Repository，本层只做业务校验 + 事务提交 + 缓存清除。
 """
 
-import redis.asyncio as aioredis
+from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +18,7 @@ from app.system.schemas.permission import PermissionCreate, PermissionUpdate
 class PermissionService:
     """权限码管理业务逻辑。"""
 
-    def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
+    def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
         self.permissions = PermissionRepository(session)
@@ -113,7 +113,7 @@ class PermissionService:
             if self.redis:
                 try:
                     await self.redis.delete(f"perm:{uid}")
-                except aioredis.RedisError:
+                except RedisError:
                     pass
         if rows:
             logger.info("权限变更，已清除 {} 个用户缓存", len(rows))

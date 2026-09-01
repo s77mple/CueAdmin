@@ -5,7 +5,7 @@
 本层只做业务校验 + 事务提交 + 缓存清除。
 """
 
-import redis.asyncio as aioredis
+from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +26,7 @@ class UserService:
         user = await svc.create_user(body)
     """
 
-    def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
+    def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
         self.users = UserRepository(session)
@@ -268,5 +268,5 @@ class UserService:
             return
         try:
             await self.redis.delete(f"perm:{user_id}")
-        except aioredis.RedisError:
+        except RedisError:
             pass  # Redis 故障不影响业务

@@ -11,7 +11,7 @@ refresh token 采用「一次性轮换 + 复用检测」：
 import uuid
 from datetime import timedelta
 
-import redis.asyncio as aioredis
+from redis.asyncio import Redis, RedisError
 from jose import JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +37,7 @@ _DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
 class AuthService:
     """登录 + 刷新令牌业务编排。"""
 
-    def __init__(self, session: AsyncSession, redis_client: aioredis.Redis | None = None):
+    def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
         self.users = UserRepository(session)
@@ -78,7 +78,7 @@ class AuthService:
                     timedelta(days=settings.jwt_refresh_expire_days),
                     refresh_jti,
                 )
-            except aioredis.RedisError:
+            except RedisError:
                 # Redis 故障时 refresh 换票不可用，但 access 仍能正常用（fail-open）
                 logger.warning("Redis 不可用，refresh 会话未存储")
 
@@ -113,7 +113,7 @@ class AuthService:
         key = f"session:{session_id}"
         try:
             current_jti = await self.redis.get(key)
-        except aioredis.RedisError:
+        except RedisError:
             raise BusinessException(ErrorCode.AUTH_SERVICE_UNAVAILABLE, "刷新服务暂不可用")
 
         # 会话不存在：已过期 / 已登出 / 已被撤销
@@ -124,7 +124,7 @@ class AuthService:
         if current_jti != jti:
             try:
                 await self.redis.delete(key)
-            except aioredis.RedisError:
+            except RedisError:
                 pass
             logger.warning(f"检测到 refresh token 复用，已撤销会话 {session_id}")
             raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "检测到账号异常，请重新登录")
@@ -139,7 +139,7 @@ class AuthService:
         if user is None:
             try:
                 await self.redis.delete(key)
-            except aioredis.RedisError:
+            except RedisError:
                 pass
             raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号已失效")
 
@@ -151,7 +151,7 @@ class AuthService:
             await self.redis.setex(
                 key, timedelta(days=settings.jwt_refresh_expire_days), new_jti
             )
-        except aioredis.RedisError:
+        except RedisError:
             raise BusinessException(ErrorCode.AUTH_SERVICE_UNAVAILABLE, "刷新服务暂不可用")
 
         return RefreshResponse(access_token=new_access, refresh_token=new_refresh)

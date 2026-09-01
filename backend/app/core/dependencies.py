@@ -11,7 +11,7 @@ TTL 5 分钟，角色/权限变更时由 service 主动失效。
 
 from typing import Annotated, AsyncGenerator
 
-import redis.asyncio as aioredis
+from redis.asyncio import Redis,RedisError
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, SecurityScopes
 from jose import JWTError, ExpiredSignatureError
@@ -38,12 +38,12 @@ SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 
 
 # Redis 连接依赖 — 懒加载连接池，第一次请求时才创建
-async def get_redis() -> aioredis.Redis:
+async def get_redis() -> Redis:
     """懒加载 Redis 连接 — 第一次请求时才创建，启动时不连。"""
     if _redis_store._redis_pool is None:
         async with _redis_store._redis_lock:  # 双重检查锁，确保只建一次
             if _redis_store._redis_pool is None:
-                _redis_store._redis_pool = aioredis.Redis.from_url(
+                _redis_store._redis_pool = Redis.from_url(
                     settings.redis_url,
                     decode_responses=True,        # 自动把 bytes 转成 str
                     socket_connect_timeout=3,      # 3 秒连不上就报错
@@ -54,7 +54,7 @@ async def get_redis() -> aioredis.Redis:
     return _redis_store._redis_pool
 
 
-RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
+RedisDep = Annotated[Redis, Depends(get_redis)]
 
 
 # HTTPBearer — 从请求头提取 Bearer Token
@@ -92,7 +92,7 @@ async def get_current_user(
     try:
         if await redis_client.exists(f"blacklist:{jti}"):
             raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "令牌已作废")
-    except aioredis.RedisError:
+    except RedisError:
         logger.warning("Redis 不可用，跳过黑名单检查（已登出 token 可能仍有效）")
 
     # ---- 解析用户 ID ----
@@ -112,7 +112,7 @@ async def get_current_user(
             raw = await redis_client.get(perm_key)
             if raw:
                 cached_perms = set(raw.split(","))  # 缓存格式：逗号分隔的权限 code
-        except aioredis.RedisError:
+        except RedisError:
             pass  # Redis 故障时走 DB，不阻塞请求
 
     # ---- 从数据库加载用户 + 角色 + 菜单 ----
@@ -138,7 +138,7 @@ async def get_current_user(
         try:
             await redis_client.setex(perm_key, 300, ",".join(sorted(perms)))
             # 5 分钟内权限变更要等缓存过期；角色/权限变更时 service 会主动 invalidate
-        except aioredis.RedisError:
+        except RedisError:
             pass  # 写缓存失败不影响请求
 
     # ---- 权限校验（仅路由声明了 scopes 时触发）----
