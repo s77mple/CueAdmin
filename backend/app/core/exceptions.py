@@ -95,7 +95,6 @@ class BusinessException(Exception):
         { "code": 12001, "message": "用户不存在: 42", "data": null }
     """
 
-    def __init__(self, code: ErrorCode, message: str, details: dict | None = None):
+    def __init__(self, code: ErrorCode, message: str):
         self.code = code          # 数字错误码
         self.message = message    # 人类可读的提示
-        self.details = details or {}

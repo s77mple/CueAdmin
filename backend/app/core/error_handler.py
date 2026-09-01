@@ -34,7 +34,7 @@ async def business_exception_handler(request: Request, exc: BusinessException):
         path=request.url.path,
         code=int(exc.code),
     ).warning(f"[{int(exc.code)}] {exc.message}")
-    result = ApiResponse.fail(code=int(exc.code), message=exc.message, details=exc.details)
+    result = ApiResponse.fail(code=int(exc.code), message=exc.message)
     return JSONResponse(status_code=200, content=result.model_dump())
 
 
