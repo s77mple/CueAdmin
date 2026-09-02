@@ -73,7 +73,7 @@ async def test_create_user(client, admin_headers):
     assert data["username"] == "alice"
     assert data["display_name"] == "爱丽丝"
     assert data["is_active"] is True
-    assert [r["code"] for r in data["roles"]] == ["admin"]
+    assert data["role_ids"] == [role_id]
 
 
 async def test_create_user_duplicate_username(client, admin_headers):

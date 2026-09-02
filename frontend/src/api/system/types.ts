@@ -43,7 +43,7 @@ export interface User {
   phone: string | null;
   is_active: boolean;
   department_id: number | null;
-  roles: RoleBrief[];
+  role_ids: number[];
   created_at: string;
   updated_at: string;
 }

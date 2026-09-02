@@ -150,7 +150,7 @@ function openEdit(row: User) {
     display_name: row.display_name,
     phone: row.phone ?? "",
     is_active: row.is_active,
-    role_ids: row.roles?.map(r => r.id) ?? [],
+    role_ids: row.role_ids ?? [],
     department_id: row.department_id ?? null
   });
   fieldErrors.username = "";

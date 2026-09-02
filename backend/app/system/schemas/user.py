@@ -26,7 +26,6 @@ from typing import Annotated
 from pydantic import BaseModel, Field, field_validator
 from pydantic_core import PydanticCustomError
 
-from app.system.schemas.role import RoleBrief
 
 
 # 校验函数 — 只放 Field 表达不了的复杂规则
@@ -96,9 +95,9 @@ class UserPatch(BaseModel):
         return _validate_username(v)
 
 
-# 辅助 Schema（RoleBrief 统一用 app.system.schemas.role 的，不重复定义）
-
 # UserRead — 查询响应体
+# 角色只回 role_ids（ID 列表），角色名由前端 dictStore 字典解析 —— 同 department_id 模式；
+# 需要角色对象/权限 code 的登录、路由接口用各自 Read（见 schemas/auth.py），不在这里外溢。
 
 class UserRead(BaseModel):
     """用户查询返回的字段。"""
@@ -108,7 +107,7 @@ class UserRead(BaseModel):
     phone: str | None = None
     is_active: bool
     department_id: int | None = None
-    roles: Annotated[list[RoleBrief], Field(default_factory=list)]
+    role_ids: Annotated[list[int], Field(default_factory=list, description="角色 ID 列表（名字由前端字典解析）")]
     created_at: datetime
     updated_at: datetime
 

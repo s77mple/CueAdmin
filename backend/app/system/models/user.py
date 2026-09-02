@@ -30,3 +30,8 @@ class User(Base, TimestampMixin):
 
     roles = relationship("Role", secondary=user_roles, back_populates="users", passive_deletes=True)  # 删用户 → user_roles 交给 DB CASCADE
     department = relationship("Department", back_populates="users")
+
+    @property
+    def role_ids(self) -> list[int]:
+        """角色 ID 列表 — 响应只回 id，角色名由前端 dictStore 字典解析（同 department_id 模式）。"""
+        return [role.id for role in self.roles]
