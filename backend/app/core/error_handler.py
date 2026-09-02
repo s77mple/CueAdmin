@@ -2,7 +2,7 @@
 全局异常处理器 — 把所有异常转成统一的 JSON 响应。
 
 两种处理策略：
-  BusinessException → HTTP 200 + { code, message, details }
+  BusinessException → HTTP 200 + { code, message }
     业务层错误（用户不存在、权限不足、参数不对）返回 200，
     前端统一判断 code === 0 是否成功，不区分 HTTP 状态码。
 

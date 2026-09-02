@@ -5,8 +5,7 @@
 {
   "code": 0,           // 0 = 成功，非 0 = 错误码（见 exceptions.py）
   "message": "操作成功", // 给人看的提示信息
-  "data": { ... },     // 真正的业务数据（可能是对象、数组、null）
-  "details": {}        // 额外信息（错误详情、受影响行数等）
+  "data": { ... }      // 真正的业务数据（可能是对象、数组、null）
 }
 
 为什么不用 HTTP 状态码区分成功/失败？
@@ -15,9 +14,9 @@
   不需要在 200/400/422/500 之间跳来跳去。
 """
 
-from typing import Annotated, Generic, TypeVar
+from typing import Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
@@ -28,7 +27,6 @@ class ApiResponse(BaseModel, Generic[T]):
     code: int = 0
     message: str = "操作成功"
     data: T | None = None
-    details: Annotated[dict, Field(default_factory=dict)]
 
     @classmethod
     def ok(cls, data: T | None = None, message: str = "操作成功") -> "ApiResponse[T]":
