@@ -44,7 +44,10 @@ async def get_routes(
     menus = await collect_user_menus(session, user)
     routes = build_routes(menus)
     permissions = sorted({p.code for role in user.roles for p in role.permissions})
-    roles = [{"id": r.id, "code": r.code, "name": r.name} for r in user.roles]
     return ApiResponse.ok(
-        data=RoutesResponse(routes=routes, permissions=permissions, roles=roles)
+        data=RoutesResponse(
+            routes=routes,
+            permissions=permissions,
+            roles=user.roles,   # ORM Role 列表 → 自动转 list[RoleBrief]（from_attributes）
+        )
     )

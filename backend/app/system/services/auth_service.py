@@ -26,7 +26,6 @@ from app.core.security import (
 )
 from app.system.repositories import UserRepository
 from app.system.schemas.auth import LoginResponse, RefreshResponse
-from app.system.schemas.user import UserRead
 
 
 # 假哈希 — 用户不存在时也跑一次 bcrypt，防止时间差枚举用户名
@@ -85,9 +84,9 @@ class AuthService:
         return LoginResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            user=UserRead.model_validate(user),
+            user=user,            # ORM User → 构造时自动转 UserRead（from_attributes）
             permissions=permissions,
-            roles=[{"id": r.id, "code": r.code, "name": r.name} for r in user.roles],
+            roles=user.roles,     # ORM Role 列表 → 自动转 list[RoleBrief]（from_attributes）
         )
 
     async def refresh(self, refresh_token: str) -> RefreshResponse:
