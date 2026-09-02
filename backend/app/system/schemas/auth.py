@@ -40,11 +40,11 @@ class LoginResponse(BaseModel):
 
     不含 menus：动态路由/菜单由 GET /api/v1/routes 提供，登录不再重复下发。
     """
-    access_token: str
-    refresh_token: str
-    user: UserRead
-    permissions: list[str]
-    roles: Annotated[list[RoleBrief], Field(default_factory=list)]
+    access_token: Annotated[str, Field(description="访问令牌")]
+    refresh_token: Annotated[str, Field(description="刷新令牌")]
+    user: Annotated[UserRead, Field(description="用户信息")]
+    permissions: Annotated[list[str], Field(description="权限码列表")]
+    roles: Annotated[list[RoleBrief], Field(default_factory=list, description="角色列表")]
 
     model_config = {"from_attributes": True}
 
@@ -56,5 +56,5 @@ class RefreshRequest(BaseModel):
 
 class RefreshResponse(BaseModel):
     """刷新令牌响应 — 返回新的 access + refresh（旧 refresh 已作废）。"""
-    access_token: str
-    refresh_token: str
+    access_token: Annotated[str, Field(description="访问令牌")]
+    refresh_token: Annotated[str, Field(description="刷新令牌")]

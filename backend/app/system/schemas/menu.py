@@ -38,28 +38,28 @@ class MenuUpdate(BaseModel):
 
 class MenuItem(BaseModel):
     """菜单列表项 — 扁平列表，前端转树。"""
-    id: int
-    code: str
-    name: str
-    icon: str | None = None
-    path: str | None = None
-    component: str | None = None
-    parent_id: int | None = None
-    sort_order: int
+    id: Annotated[int, Field(description="菜单 ID")]
+    code: Annotated[str, Field(description="菜单编码")]
+    name: Annotated[str, Field(description="菜单名称")]
+    icon: Annotated[str | None, Field(description="图标")] = None
+    path: Annotated[str | None, Field(description="路由路径")] = None
+    component: Annotated[str | None, Field(description="组件路径")] = None
+    parent_id: Annotated[int | None, Field(description="父菜单 ID")] = None
+    sort_order: Annotated[int, Field(description="排序号")]
 
     model_config = {"from_attributes": True}
 
 
 class MenuListResponse(BaseModel):
-    items: list[MenuItem]
-    total: int
+    items: Annotated[list[MenuItem], Field(description="菜单列表")]
+    total: Annotated[int, Field(description="总条数")]
 
 
 class MenuBrief(BaseModel):
     """菜单简要信息 — 嵌套在角色响应中。"""
-    id: int
-    code: str
-    name: str
-    parent_id: int | None = None
+    id: Annotated[int, Field(description="菜单 ID")]
+    code: Annotated[str, Field(description="菜单编码")]
+    name: Annotated[str, Field(description="菜单名称")]
+    parent_id: Annotated[int | None, Field(description="父菜单 ID")] = None
 
     model_config = {"from_attributes": True}

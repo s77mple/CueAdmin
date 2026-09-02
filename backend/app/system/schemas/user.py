@@ -101,14 +101,14 @@ class UserPatch(BaseModel):
 
 class UserRead(BaseModel):
     """用户查询返回的字段。"""
-    id: int
-    username: str
-    display_name: str
-    phone: str | None = None
-    is_active: bool
-    department_id: int | None = None
+    id: Annotated[int, Field(description="用户 ID")]
+    username: Annotated[str, Field(description="用户名")]
+    display_name: Annotated[str, Field(description="显示名")]
+    phone: Annotated[str | None, Field(description="手机号")] = None
+    is_active: Annotated[bool, Field(description="是否启用")]
+    department_id: Annotated[int | None, Field(description="部门 ID")] = None
     role_ids: Annotated[list[int], Field(default_factory=list, description="角色 ID 列表（名字由前端字典解析）")]
-    created_at: datetime
-    updated_at: datetime
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}

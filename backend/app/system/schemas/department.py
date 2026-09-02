@@ -36,26 +36,26 @@ class DepartmentUpdate(BaseModel):
 
 class DepartmentItem(BaseModel):
     """部门列表项 — 扁平列表，前端转树。"""
-    id: int
-    code: str
-    name: str
-    parent_id: int | None = None
-    sort_order: int
-    description: str | None = None
+    id: Annotated[int, Field(description="部门 ID")]
+    code: Annotated[str, Field(description="部门编码")]
+    name: Annotated[str, Field(description="部门名称")]
+    parent_id: Annotated[int | None, Field(description="父部门 ID")] = None
+    sort_order: Annotated[int, Field(description="排序号")]
+    description: Annotated[str | None, Field(description="描述")] = None
 
     model_config = {"from_attributes": True}
 
 
 class DepartmentListResponse(BaseModel):
-    items: list[DepartmentItem]
-    total: int
+    items: Annotated[list[DepartmentItem], Field(description="部门列表")]
+    total: Annotated[int, Field(description="总条数")]
 
 
 class DepartmentBrief(BaseModel):
     """部门简要信息 — 嵌套在用户响应中。"""
-    id: int
-    code: str
-    name: str
-    parent_id: int | None = None
+    id: Annotated[int, Field(description="部门 ID")]
+    code: Annotated[str, Field(description="部门编码")]
+    name: Annotated[str, Field(description="部门名称")]
+    parent_id: Annotated[int | None, Field(description="父部门 ID")] = None
 
     model_config = {"from_attributes": True}

@@ -39,21 +39,21 @@ from app.system.schemas.menu import MenuBrief
 
 class RoleItem(BaseModel):
     """角色列表项 — 带权限和菜单的子列表。"""
-    id: int
-    code: str
-    name: str
-    description: str | None = None
-    is_system: bool
-    permissions: Annotated[list[PermissionBrief], Field(default_factory=list)]
-    menus: Annotated[list[MenuBrief], Field(default_factory=list)]
+    id: Annotated[int, Field(description="角色 ID")]
+    code: Annotated[str, Field(description="角色编码")]
+    name: Annotated[str, Field(description="角色名称")]
+    description: Annotated[str | None, Field(description="描述")] = None
+    is_system: Annotated[bool, Field(description="是否系统内置角色")]
+    permissions: Annotated[list[PermissionBrief], Field(default_factory=list, description="权限列表")]
+    menus: Annotated[list[MenuBrief], Field(default_factory=list, description="菜单列表")]
 
     model_config = {"from_attributes": True}
 
 
 class RoleBrief(BaseModel):
     """角色简要信息 — 嵌套在用户响应中。"""
-    id: int
-    code: str
-    name: str
+    id: Annotated[int, Field(description="角色 ID")]
+    code: Annotated[str, Field(description="角色编码")]
+    name: Annotated[str, Field(description="角色名称")]
 
     model_config = {"from_attributes": True}

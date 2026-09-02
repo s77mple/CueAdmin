@@ -35,27 +35,27 @@ class PermissionUpdate(BaseModel):
 
 class PermissionItem(BaseModel):
     """权限列表项。"""
-    id: int
-    code: str
-    name: str
-    resource: str
-    action: str
-    description: str | None = None
+    id: Annotated[int, Field(description="权限 ID")]
+    code: Annotated[str, Field(description="权限码")]
+    name: Annotated[str, Field(description="权限名称")]
+    resource: Annotated[str, Field(description="资源标识")]
+    action: Annotated[str, Field(description="操作标识")]
+    description: Annotated[str | None, Field(description="描述")] = None
 
     model_config = {"from_attributes": True}
 
 
 class PermissionBrief(BaseModel):
     """权限简要信息 — 嵌套在角色响应中。"""
-    id: int
-    code: str
-    name: str
-    resource: str
+    id: Annotated[int, Field(description="权限 ID")]
+    code: Annotated[str, Field(description="权限码")]
+    name: Annotated[str, Field(description="权限名称")]
+    resource: Annotated[str, Field(description="资源标识")]
 
     model_config = {"from_attributes": True}
 
 
 class PermissionListResponse(BaseModel):
     """权限列表响应 — 扁平列表，前端按 resource 分组转树。"""
-    items: list[PermissionItem]
-    total: int
+    items: Annotated[list[PermissionItem], Field(description="权限列表")]
+    total: Annotated[int, Field(description="总条数")]

@@ -14,9 +14,9 @@
   不需要在 200/400/422/500 之间跳来跳去。
 """
 
-from typing import Generic, TypeVar
+from typing import Annotated, Generic, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
@@ -24,9 +24,9 @@ T = TypeVar("T")
 class ApiResponse(BaseModel, Generic[T]):
     """通用响应包装 — 所有 API 都用这个返回。"""
 
-    code: int = 0
-    message: str = "操作成功"
-    data: T | None = None
+    code: Annotated[int, Field(description="响应码，0 表示成功，非 0 为错误码")] = 0
+    message: Annotated[str, Field(description="提示信息")] = "操作成功"
+    data: Annotated[T | None, Field(description="业务数据")] = None
 
     @classmethod
     def ok(cls, data: T | None = None, message: str = "操作成功") -> "ApiResponse[T]":
@@ -49,8 +49,8 @@ class PageData(BaseModel, Generic[T]):
       has_more → 是否还有下一页（可用来判断要不要继续加载）
     """
 
-    items: list[T]
-    total: int
-    page: int
-    page_size: int
-    has_more: bool
+    items: Annotated[list[T], Field(description="当前页数据列表")]
+    total: Annotated[int, Field(description="总条数")]
+    page: Annotated[int, Field(description="当前页码")]
+    page_size: Annotated[int, Field(description="每页条数")]
+    has_more: Annotated[bool, Field(description="是否还有下一页")]
