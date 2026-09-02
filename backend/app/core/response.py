@@ -36,7 +36,7 @@ class ApiResponse(BaseModel, Generic[T]):
         return cls(code=0, message=message, data=data)
 
     @classmethod
-    def fail(cls, code: int, message: str) -> "ApiResponse":
+    def fail(cls, code: int, message: str) -> "ApiResponse[None]":
         """快捷创建失败响应。"""
         return cls(code=code, message=message, data=None)
 
