@@ -30,27 +30,32 @@ class UserRepository(BaseRepository):
         return len(result.scalars().all())
 
     async def get_with_roles(self, user_id: int) -> User | None:
-        """按 id 查询并预加载角色（commit 后重新查询用）。"""
+        """按 id 查询并预加载角色 + 部门（commit 后重新查询用）。"""
         result = await self.session.execute(
-            select(User).options(selectinload(User.roles)).where(User.id == user_id)
+            select(User)
+            .options(selectinload(User.roles), selectinload(User.department))
+            .where(User.id == user_id)
         )
         return result.scalars().first()
 
     async def get_for_update_with_roles(self, user_id: int) -> User | None:
-        """带行级锁 + 预加载角色（更新/删除用）。"""
+        """带行级锁 + 预加载角色 + 部门（更新/删除用）。"""
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles))
+            .options(selectinload(User.roles), selectinload(User.department))
             .where(User.id == user_id)
             .with_for_update()
         )
         return result.scalars().first()
 
     async def get_for_login(self, username: str) -> User | None:
-        """登录用 — 预加载角色和权限，只查启用中的用户。"""
+        """登录用 — 预加载角色、权限和部门，只查启用中的用户。"""
         stmt = (
             select(User)
-            .options(selectinload(User.roles).selectinload(Role.permissions))
+            .options(
+                selectinload(User.roles).selectinload(Role.permissions),
+                selectinload(User.department),
+            )
             .where(User.username == username, User.is_active == True)
         )
         result = await self.session.execute(stmt)
@@ -71,7 +76,9 @@ class UserRepository(BaseRepository):
         page_size: int = 20,
     ) -> PageData:
         """分页用户列表，支持按角色和启用状态筛选。"""
-        stmt = select(User).options(selectinload(User.roles))
+        stmt = select(User).options(
+            selectinload(User.roles), selectinload(User.department)
+        )
 
         if role_id is not None:
             stmt = stmt.join(User.roles).where(Role.id == role_id)

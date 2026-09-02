@@ -10,7 +10,7 @@ from app.core.dependencies import SessionDep, RedisDep, get_current_user
 from app.system.models import User
 from app.system.schemas.permission import (
     PermissionCreate, PermissionUpdate,
-    PermissionListResponse, PermissionBrief,
+    PermissionItem, PermissionListResponse, PermissionBrief,
 )
 from app.core.response import ApiResponse
 from app.system.services.permission_service import PermissionService
@@ -35,6 +35,18 @@ async def list_permissions(
     perms = await PermissionService(session).list_permissions()
     data = PermissionListResponse(items=perms, total=len(perms))
     return ApiResponse.ok(data=data)
+
+
+# GET /permissions/{perm_id} — 权限详情（编辑回显）
+
+@router.get("/{perm_id}", response_model=ApiResponse[PermissionItem], summary="权限详情")
+async def get_permission(
+    perm_id: Annotated[int, Path(description="权限 ID")],
+    session: SessionDep,
+    user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
+) -> ApiResponse[PermissionItem]:
+    perm = await PermissionService(session).get_permission(perm_id)
+    return ApiResponse.ok(data=perm)
 
 
 # POST /permissions — 创建权限

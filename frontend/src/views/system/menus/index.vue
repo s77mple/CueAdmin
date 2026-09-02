@@ -6,6 +6,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import {
   getMenuList,
+  getMenu,
   createMenu,
   updateMenu,
   deleteMenu
@@ -109,17 +110,23 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: Menu) {
+async function openEdit(row: Menu) {
   dialogTitle.value = "编辑菜单";
+  const res = await getMenu(row.id);
+  if (res.code !== 0) {
+    ElMessage.error(res.message || "加载菜单详情失败");
+    return;
+  }
+  const detail = res.data!;
   Object.assign(form, {
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    icon: row.icon,
-    path: row.path,
-    component: row.component,
-    parent_id: row.parent_id,
-    sort_order: row.sort_order,
+    id: detail.id,
+    code: detail.code,
+    name: detail.name,
+    icon: detail.icon,
+    path: detail.path,
+    component: detail.component,
+    parent_id: detail.parent_id,
+    sort_order: detail.sort_order,
     children: []
   });
   dialogVisible.value = true;

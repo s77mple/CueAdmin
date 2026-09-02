@@ -45,6 +45,13 @@ class RoleService:
             raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
         return role
 
+    async def get_role(self, role_id: int) -> Role:
+        """查询单个角色（含权限/菜单，编辑回显用）。"""
+        role = await self.roles.get_with_relations(role_id)
+        if not role:
+            raise BusinessException(ErrorCode.ROLE_NOT_FOUND, f"角色不存在: {role_id}")
+        return role
+
     # 创建
 
     async def create_role(self, body: RoleCreate) -> Role:

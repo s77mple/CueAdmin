@@ -232,6 +232,13 @@ class MenuService:
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
         return menu
 
+    async def get_menu(self, menu_id: int) -> Menu:
+        """查询单个菜单（编辑回显用）。"""
+        menu = await self.menus.get(menu_id)
+        if not menu:
+            raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
+        return menu
+
     # 创建
 
     async def create_menu(self, body: MenuCreate) -> Menu:

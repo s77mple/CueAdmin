@@ -7,15 +7,17 @@ import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
 import {
   getUserList,
+  getUser,
   createUser,
   updateUser,
   patchUser,
   deleteUser,
   hardDeleteUser
 } from "@/api/system/users";
-import type { User } from "@/api/system/types";
+import type { User, RoleBrief, DepartmentBrief } from "@/api/system/types";
+import { getRoleList } from "@/api/system/roles";
+import { getDepartmentList } from "@/api/system/departments";
 import { ErrorCode } from "@/constants/error-code";
-import { useDictStoreHook } from "@/store/modules/dictionary";
 
 const loading = ref(false);
 const list = ref<User[]>([]);
@@ -27,7 +29,9 @@ const pagination = reactive<PaginationProps>({
 });
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
-const dictStore = useDictStoreHook();
+// 弹窗下拉选项：编辑时来自单查接口返回，新增时来自角色/部门 API 现查
+const roleOptions = ref<RoleBrief[]>([]);
+const departmentOptions = ref<DepartmentBrief[]>([]);
 
 // "active" | "disabled" | "all"
 const statusFilter = ref<"active" | "disabled" | "all">("active");
@@ -125,7 +129,20 @@ function onStatusChange(val: "active" | "disabled" | "all") {
   onSearch();
 }
 
-function openCreate() {
+async function loadUserOptions() {
+  try {
+    const [rRes, dRes] = await Promise.all([
+      getRoleList(),
+      getDepartmentList()
+    ]);
+    if (rRes.code === 0) roleOptions.value = rRes.data?.items ?? [];
+    if (dRes.code === 0) departmentOptions.value = dRes.data?.items ?? [];
+  } catch {
+    /* 下拉加载失败，保持空，用户可重试 */
+  }
+}
+
+async function openCreate() {
   dialogTitle.value = "新增用户";
   Object.assign(form, {
     id: 0,
@@ -139,20 +156,29 @@ function openCreate() {
   });
   fieldErrors.username = "";
   dialogVisible.value = true;
+  await loadUserOptions();
 }
 
-function openEdit(row: User) {
+async function openEdit(row: User) {
   dialogTitle.value = "编辑用户";
+  const res = await getUser(row.id);
+  if (res.code !== 0) {
+    ElMessage.error(res.message || "加载用户详情失败");
+    return;
+  }
+  const detail = res.data!;
   Object.assign(form, {
-    id: row.id,
-    username: row.username,
+    id: detail.user.id,
+    username: detail.user.username,
     password: "",
-    display_name: row.display_name,
-    phone: row.phone ?? "",
-    is_active: row.is_active,
-    role_ids: row.role_ids ?? [],
-    department_id: row.department_id ?? null
+    display_name: detail.user.display_name,
+    phone: detail.user.phone ?? "",
+    is_active: detail.user.is_active,
+    role_ids: detail.user.role_ids ?? [],
+    department_id: detail.user.department_id ?? null
   });
+  roleOptions.value = detail.roles;
+  departmentOptions.value = detail.departments;
   fieldErrors.username = "";
   dialogVisible.value = true;
 }
@@ -268,7 +294,6 @@ async function handleHardDelete(row: User) {
 
 onMounted(() => {
   onSearch();
-  dictStore.loadAll();
 });
 </script>
 
@@ -313,10 +338,7 @@ onMounted(() => {
           @page-current-change="handleCurrentChange"
         >
           <template #department="{ row }">
-            {{
-              dictStore.departments.find((d: any) => d.id === row.department_id)
-                ?.name ?? "—"
-            }}
+            {{ row.department?.name ?? "—" }}
           </template>
           <template #status="{ row }">
             <el-tag :type="row.is_active ? 'success' : 'danger'">{{
@@ -385,14 +407,9 @@ onMounted(() => {
             v-model="form.department_id"
             clearable
             placeholder="请选择部门"
-            @visible-change="
-              visible => {
-                if (visible) dictStore.loadAll(true);
-              }
-            "
           >
             <el-option
-              v-for="d in dictStore.departments"
+              v-for="d in departmentOptions"
               :key="d.id"
               :label="d.name"
               :value="d.id"
@@ -404,14 +421,9 @@ onMounted(() => {
             v-model="form.role_ids"
             multiple
             placeholder="请选择角色"
-            @visible-change="
-              visible => {
-                if (visible) dictStore.loadAll(true);
-              }
-            "
           >
             <el-option
-              v-for="r in dictStore.roles"
+              v-for="r in roleOptions"
               :key="r.id"
               :label="r.name"
               :value="r.id"

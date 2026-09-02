@@ -26,6 +26,9 @@ from typing import Annotated
 from pydantic import BaseModel, Field, field_validator
 from pydantic_core import PydanticCustomError
 
+from app.system.schemas.role import RoleBrief
+from app.system.schemas.department import DepartmentBrief
+
 
 
 # 校验函数 — 只放 Field 表达不了的复杂规则
@@ -96,8 +99,10 @@ class UserPatch(BaseModel):
 
 
 # UserRead — 查询响应体
-# 角色只回 role_ids（ID 列表），角色名由前端 dictStore 字典解析 —— 同 department_id 模式；
-# 需要角色对象/权限 code 的登录、路由接口用各自 Read（见 schemas/auth.py），不在这里外溢。
+# 学 RuoYi：列表同时返回「嵌套对象带名字」和「数字 ID」，两者并存各司其职：
+#   - department / roles → 表格直接显示名字（前端不用再拿 dictStore 翻 id）
+#   - department_id / role_ids → 表单回显勾选（el-select 的 v-model 是数字）
+# 需要 role 的 permissions/menus 时用 RoleItem（见 schemas/role.py），不在这里外溢。
 
 class UserRead(BaseModel):
     """用户查询返回的字段。"""
@@ -106,9 +111,22 @@ class UserRead(BaseModel):
     display_name: Annotated[str, Field(description="显示名")]
     phone: Annotated[str | None, Field(description="手机号")] = None
     is_active: Annotated[bool, Field(description="是否启用")]
-    department_id: Annotated[int | None, Field(description="部门 ID")] = None
-    role_ids: Annotated[list[int], Field(default_factory=list, description="角色 ID 列表（名字由前端字典解析）")]
+    department_id: Annotated[int | None, Field(description="部门 ID（表单回显用）")] = None
+    department: Annotated[DepartmentBrief | None, Field(description="部门对象（表格显示名字用）")] = None
+    role_ids: Annotated[list[int], Field(default_factory=list, description="角色 ID 列表（表单回显勾选用）")]
+    roles: Annotated[list[RoleBrief], Field(default_factory=list, description="角色对象列表（表格显示名字用）")]
     created_at: Annotated[datetime, Field(description="创建时间")]
     updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
+
+
+class UserDetailResponse(BaseModel):
+    """用户详情响应 — 单查接口 GET /users/{id} 返回。
+
+    学 RuoYi 的 getInfo：一次返回「用户详情 + 全量角色/部门下拉」，
+    编辑弹窗一次请求拿全（详情回显 + 下拉选项），不依赖列表行数据和全局字典。
+    """
+    user: Annotated[UserRead, Field(description="用户详情")]
+    roles: Annotated[list[RoleBrief], Field(description="全量角色列表（下拉框用）")]
+    departments: Annotated[list[DepartmentBrief], Field(description="全量部门列表（下拉框用）")]

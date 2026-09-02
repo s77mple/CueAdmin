@@ -22,7 +22,7 @@ from fastapi import APIRouter, Path, Query, Security
 from app.core.dependencies import SessionDep, RedisDep, get_current_user
 from app.system.models import User
 from app.core.response import ApiResponse, PageData
-from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead
+from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead, UserDetailResponse
 from app.system.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -49,6 +49,18 @@ async def list_users(
     svc = UserService(session)
     result = await svc.list_users(role_id=role_id, is_active=is_active, page=page, page_size=page_size)
     return ApiResponse.ok(data=result)
+
+
+# GET /users/{user_id} — 用户详情（编辑回显，打包角色/部门下拉）
+
+@router.get("/{user_id}", response_model=ApiResponse[UserDetailResponse], summary="用户详情")
+async def get_user(
+    user_id: Annotated[int, Path(description="用户 ID")],
+    session: SessionDep,
+    user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
+) -> ApiResponse[UserDetailResponse]:
+    detail = await UserService(session).get_user_detail(user_id)
+    return ApiResponse.ok(data=detail)
 
 
 # POST /users — 创建用户

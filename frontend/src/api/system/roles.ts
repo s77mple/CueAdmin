@@ -4,6 +4,8 @@ import type { Role, RoleBrief } from "./types";
 
 export const getRoleList = (params?: object) =>
   http.get<ApiResult<PageData<Role>>>("/api/v1/system/roles", { params });
+export const getRole = (id: number) =>
+  http.get<ApiResult<Role>>(`/api/v1/system/roles/${id}`);
 export const createRole = (data?: object) =>
   http.post<ApiResult<RoleBrief>>("/api/v1/system/roles", { data });
 export const updateRole = (id: number, data?: object) =>

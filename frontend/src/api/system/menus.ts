@@ -4,6 +4,8 @@ import type { Menu, MenuBrief } from "./types";
 
 export const getMenuList = () =>
   http.get<ApiResult<ListData<Menu>>>("/api/v1/system/menus");
+export const getMenu = (id: number) =>
+  http.get<ApiResult<Menu>>(`/api/v1/system/menus/${id}`);
 export const createMenu = (data?: object) =>
   http.post<ApiResult<MenuBrief>>("/api/v1/system/menus", { data });
 export const updateMenu = (id: number, data?: object) =>

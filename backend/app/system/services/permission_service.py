@@ -36,6 +36,13 @@ class PermissionService:
             raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
         return perm
 
+    async def get_permission(self, perm_id: int) -> Permission:
+        """查询单个权限（编辑回显用）。"""
+        perm = await self.permissions.get(perm_id)
+        if not perm:
+            raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
+        return perm
+
     # 创建
 
     async def create_permission(self, body: PermissionCreate) -> Permission:

@@ -7,6 +7,7 @@ import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
 import {
   getRoleList,
+  getRole,
   createRole,
   updateRole,
   deleteRole
@@ -22,9 +23,6 @@ import type {
 } from "@/api/system/types";
 import { handleTree } from "@/utils/tree";
 import { ErrorCode } from "@/constants/error-code";
-import { useDictStoreHook } from "@/store/modules/dictionary";
-
-const dictStore = useDictStoreHook();
 
 const loading = ref(false);
 const list = ref<Role[]>([]);
@@ -186,13 +184,19 @@ async function openCreate() {
 
 async function openEdit(row: Role) {
   dialogTitle.value = "编辑角色";
-  const menuIds: number[] = row.menus?.map(m => m.id) ?? [];
-  const permCodes: string[] = row.permissions?.map(p => p.code) ?? [];
+  const res = await getRole(row.id);
+  if (res.code !== 0) {
+    ElMessage.error(res.message || "加载角色详情失败");
+    return;
+  }
+  const detail = res.data!;
+  const menuIds: number[] = detail.menus?.map(m => m.id) ?? [];
+  const permCodes: string[] = detail.permissions?.map(p => p.code) ?? [];
   Object.assign(form, {
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    description: row.description ?? "",
+    id: detail.id,
+    code: detail.code,
+    name: detail.name,
+    description: detail.description ?? "",
     permission_codes: permCodes,
     menu_ids: menuIds
   });
@@ -238,7 +242,6 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     onSearch();
-    dictStore.loadAll(true); // 角色变更 → 全局字典强制重拉（用户页等下拉同步最新）
   } catch (err: any) {
     if (err?.message) ElMessage.error(err.message);
   }
@@ -253,7 +256,6 @@ async function handleDelete(row: Role) {
     if (res.code === 0) {
       ElMessage.success(res.message || "已删除");
       onSearch();
-      dictStore.loadAll(true);
     } else {
       ElMessage.error(res.message || "删除失败");
     }

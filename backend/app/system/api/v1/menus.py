@@ -13,7 +13,7 @@ from app.core.dependencies import SessionDep, get_current_user
 from app.system.models import User
 from app.system.schemas.menu import (
     MenuCreate, MenuUpdate,
-    MenuListResponse, MenuBrief,
+    MenuItem, MenuListResponse, MenuBrief,
 )
 from app.core.response import ApiResponse
 from app.system.services.menu_service import MenuService
@@ -38,6 +38,18 @@ async def list_menus(
     menus = await MenuService(session).list_menus()
     data = MenuListResponse(items=menus, total=len(menus))
     return ApiResponse.ok(data=data)
+
+
+# GET /menus/{menu_id} — 菜单详情（编辑回显）
+
+@router.get("/{menu_id}", response_model=ApiResponse[MenuItem], summary="菜单详情")
+async def get_menu(
+    menu_id: Annotated[int, Path(description="菜单 ID")],
+    session: SessionDep,
+    user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
+) -> ApiResponse[MenuItem]:
+    menu = await MenuService(session).get_menu(menu_id)
+    return ApiResponse.ok(data=menu)
 
 
 # POST /menus — 创建菜单

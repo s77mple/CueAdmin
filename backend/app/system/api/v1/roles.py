@@ -43,6 +43,18 @@ async def list_roles(
     return ApiResponse.ok(data=result)
 
 
+# GET /roles/{role_id} — 角色详情（编辑回显）
+
+@router.get("/{role_id}", response_model=ApiResponse[RoleItem], summary="角色详情")
+async def get_role(
+    role_id: Annotated[int, Path(description="角色 ID")],
+    session: SessionDep,
+    user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
+) -> ApiResponse[RoleItem]:
+    role = await RoleService(session).get_role(role_id)
+    return ApiResponse.ok(data=role)
+
+
 # POST /roles — 创建角色
 
 @router.post("", response_model=ApiResponse[RoleBrief], status_code=201, summary="创建角色")

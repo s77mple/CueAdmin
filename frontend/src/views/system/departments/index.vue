@@ -6,6 +6,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import {
   getDepartmentList,
+  getDepartment,
   createDepartment,
   updateDepartment,
   deleteDepartment
@@ -13,9 +14,6 @@ import {
 import type { Department } from "@/api/system/types";
 import { handleTree } from "@/utils/tree";
 import { ErrorCode } from "@/constants/error-code";
-import { useDictStoreHook } from "@/store/modules/dictionary";
-
-const dictStore = useDictStoreHook();
 
 const loading = ref(false);
 const list = ref<Department[]>([]);
@@ -90,15 +88,21 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: Department) {
+async function openEdit(row: Department) {
   dialogTitle.value = "编辑部门";
+  const res = await getDepartment(row.id);
+  if (res.code !== 0) {
+    ElMessage.error(res.message || "加载部门详情失败");
+    return;
+  }
+  const detail = res.data!;
   Object.assign(form, {
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    parent_id: row.parent_id,
-    sort_order: row.sort_order,
-    description: row.description
+    id: detail.id,
+    code: detail.code,
+    name: detail.name,
+    parent_id: detail.parent_id,
+    sort_order: detail.sort_order,
+    description: detail.description ?? ""
   });
   dialogVisible.value = true;
 }
@@ -137,7 +141,6 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     onSearch();
-    dictStore.loadAll(true); // 部门变更 → 全局字典强制重拉（用户页等下拉同步最新）
   } catch (err: any) {
     if (err?.message) ElMessage.error(err.message);
   }
@@ -152,7 +155,6 @@ async function handleDelete(row: Department) {
     if (res.code === 0) {
       ElMessage.success(res.message ?? "已删除");
       onSearch();
-      dictStore.loadAll(true);
     } else {
       ElMessage.error(res.message || "删除失败");
     }

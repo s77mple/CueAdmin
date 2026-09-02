@@ -43,9 +43,20 @@ export interface User {
   phone: string | null;
   is_active: boolean;
   department_id: number | null;
+  /** 部门对象（表格显示名字用），对应后端 User.department 关系 */
+  department: DepartmentBrief | null;
   role_ids: number[];
+  /** 角色对象列表（表格显示名字用），对应后端 User.roles 关系 */
+  roles: RoleBrief[];
   created_at: string;
   updated_at: string;
+}
+
+/** 用户详情（单查接口 GET /users/{id} 返回，打包角色/部门下拉） */
+export interface UserDetail {
+  user: User;
+  roles: RoleBrief[];
+  departments: DepartmentBrief[];
 }
 
 /** 角色 */

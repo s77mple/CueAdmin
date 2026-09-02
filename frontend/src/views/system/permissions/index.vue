@@ -6,6 +6,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import { PureTableBar } from "@/components/RePureTableBar";
 import {
   getPermissionList,
+  getPermission,
   createPermission,
   updatePermission,
   deletePermission
@@ -113,15 +114,21 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: Permission) {
+async function openEdit(row: Permission) {
   dialogTitle.value = "编辑权限";
+  const res = await getPermission(row.id);
+  if (res.code !== 0) {
+    ElMessage.error(res.message || "加载权限详情失败");
+    return;
+  }
+  const detail = res.data!;
   Object.assign(form, {
-    id: row.id,
-    code: row.code,
-    name: row.name,
-    resource: row.resource,
-    action: row.action,
-    description: row.description ?? ""
+    id: detail.id,
+    code: detail.code,
+    name: detail.name,
+    resource: detail.resource,
+    action: detail.action,
+    description: detail.description ?? ""
   });
   fieldErrors.code = "";
   dialogVisible.value = true;

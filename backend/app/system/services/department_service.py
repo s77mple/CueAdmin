@@ -33,6 +33,13 @@ class DepartmentService:
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
         return dept
 
+    async def get_department(self, dept_id: int) -> Department:
+        """查询单个部门（编辑回显用）。"""
+        dept = await self.departments.get(dept_id)
+        if not dept:
+            raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
+        return dept
+
     # 创建
 
     async def create_department(self, body: DepartmentCreate) -> Department:

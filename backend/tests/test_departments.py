@@ -151,3 +151,24 @@ async def test_delete_department_with_child(client, admin_headers):
 async def test_delete_nonexistent_department(client, admin_headers):
     resp = await client.delete("/api/v1/system/departments/99999", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.DEPT_NOT_FOUND.value
+
+
+# ============ 单查 ============
+
+async def test_get_department(client, admin_headers):
+    created = await client.post(
+        "/api/v1/system/departments", headers=admin_headers,
+        json={"code": "tech", "name": "技术部"},
+    )
+    dept_id = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/system/departments/{dept_id}", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    assert body["data"]["code"] == "tech"
+    assert body["data"]["name"] == "技术部"
+
+
+async def test_get_department_nonexistent(client, admin_headers):
+    resp = await client.get("/api/v1/system/departments/99999", headers=admin_headers)
+    assert resp.json()["code"] == ErrorCode.DEPT_NOT_FOUND.value

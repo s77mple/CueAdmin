@@ -25,6 +25,15 @@ class RoleRepository(BaseRepository):
         )
         return result.scalars().first()
 
+    async def get_with_relations(self, role_id: int) -> Role | None:
+        """按 id 查询并预加载权限和菜单（单查回显用，不加锁）。"""
+        result = await self.session.execute(
+            select(Role)
+            .options(selectinload(Role.permissions), selectinload(Role.menus))
+            .where(Role.id == role_id)
+        )
+        return result.scalars().first()
+
     async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData:
         """分页返回角色（预加载权限和菜单）。角色数量少，默认一次返回全部。"""
         stmt = (

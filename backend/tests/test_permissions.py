@@ -120,3 +120,25 @@ async def test_delete_permission(client, admin_headers):
 async def test_delete_nonexistent_permission(client, admin_headers):
     resp = await client.delete("/api/v1/system/permissions/99999", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.PERM_NOT_FOUND.value
+
+
+# ============ 单查 ============
+
+async def test_get_permission(client, admin_headers):
+    created = await client.post(
+        "/api/v1/system/permissions", headers=admin_headers,
+        json={"code": "user:list", "name": "用户列表", "resource": "user", "action": "list"},
+    )
+    perm_id = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/system/permissions/{perm_id}", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    assert body["data"]["code"] == "user:list"
+    assert body["data"]["resource"] == "user"
+    assert body["data"]["action"] == "list"
+
+
+async def test_get_permission_nonexistent(client, admin_headers):
+    resp = await client.get("/api/v1/system/permissions/99999", headers=admin_headers)
+    assert resp.json()["code"] == ErrorCode.PERM_NOT_FOUND.value

@@ -10,7 +10,7 @@ from app.core.dependencies import SessionDep, get_current_user
 from app.system.models import User
 from app.system.schemas.department import (
     DepartmentCreate, DepartmentUpdate,
-    DepartmentListResponse, DepartmentBrief,
+    DepartmentItem, DepartmentListResponse, DepartmentBrief,
 )
 from app.core.response import ApiResponse
 from app.system.services.department_service import DepartmentService
@@ -35,6 +35,18 @@ async def list_departments(
     departments = await DepartmentService(session).list_departments()
     data = DepartmentListResponse(items=departments, total=len(departments))
     return ApiResponse.ok(data=data)
+
+
+# GET /departments/{dept_id} — 部门详情（编辑回显）
+
+@router.get("/{dept_id}", response_model=ApiResponse[DepartmentItem], summary="部门详情")
+async def get_department(
+    dept_id: Annotated[int, Path(description="部门 ID")],
+    session: SessionDep,
+    user: Annotated[User, Security(get_current_user, scopes=[DeptScope.LIST])],
+) -> ApiResponse[DepartmentItem]:
+    dept = await DepartmentService(session).get_department(dept_id)
+    return ApiResponse.ok(data=dept)
 
 
 # POST /departments — 创建部门

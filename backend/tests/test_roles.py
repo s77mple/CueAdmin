@@ -145,3 +145,27 @@ async def test_delete_system_role_forbidden(client, admin_headers):
 async def test_delete_nonexistent_role(client, admin_headers):
     resp = await client.delete("/api/v1/system/roles/99999", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.ROLE_NOT_FOUND.value
+
+
+# ============ 单查 ============
+
+async def test_get_role(client, admin_headers):
+    created = await client.post(
+        "/api/v1/system/roles",
+        headers=admin_headers,
+        json={"code": "viewer", "name": "访客"},
+    )
+    role_id = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/system/roles/{role_id}", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    assert body["data"]["code"] == "viewer"
+    assert body["data"]["name"] == "访客"
+    assert body["data"]["permissions"] == []
+    assert body["data"]["menus"] == []
+
+
+async def test_get_role_nonexistent(client, admin_headers):
+    resp = await client.get("/api/v1/system/roles/99999", headers=admin_headers)
+    assert resp.json()["code"] == ErrorCode.ROLE_NOT_FOUND.value

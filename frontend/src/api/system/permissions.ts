@@ -4,6 +4,8 @@ import type { Permission, PermissionBrief } from "./types";
 
 export const getPermissionList = () =>
   http.get<ApiResult<ListData<Permission>>>("/api/v1/system/permissions");
+export const getPermission = (id: number) =>
+  http.get<ApiResult<Permission>>(`/api/v1/system/permissions/${id}`);
 export const createPermission = (data?: object) =>
   http.post<ApiResult<PermissionBrief>>("/api/v1/system/permissions", { data });
 export const updatePermission = (id: number, data?: object) =>

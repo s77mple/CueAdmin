@@ -149,3 +149,24 @@ async def test_delete_menu_with_child(client, admin_headers):
 async def test_delete_nonexistent_menu(client, admin_headers):
     resp = await client.delete("/api/v1/system/menus/99999", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.MENU_NOT_FOUND.value
+
+
+# ============ 单查 ============
+
+async def test_get_menu(client, admin_headers):
+    created = await client.post(
+        "/api/v1/system/menus", headers=admin_headers,
+        json={"code": "system", "name": "系统管理"},
+    )
+    menu_id = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/system/menus/{menu_id}", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    assert body["data"]["code"] == "system"
+    assert body["data"]["name"] == "系统管理"
+
+
+async def test_get_menu_nonexistent(client, admin_headers):
+    resp = await client.get("/api/v1/system/menus/99999", headers=admin_headers)
+    assert resp.json()["code"] == ErrorCode.MENU_NOT_FOUND.value

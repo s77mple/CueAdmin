@@ -14,7 +14,7 @@ from app.core.security import hash_password
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.response import PageData
 from app.system.repositories import UserRepository, RoleRepository, DepartmentRepository
-from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead
+from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead, UserDetailResponse
 
 
 class UserService:
@@ -51,6 +51,15 @@ class UserService:
         if not target:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
         return target
+
+    async def get_user_detail(self, user_id: int) -> UserDetailResponse:
+        """查询单个用户详情，打包角色/部门下拉（编辑回显用）。"""
+        user = await self.users.get_with_roles(user_id)
+        if not user:
+            raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
+        roles = await self.roles.list_roles(page=1, page_size=100)
+        departments = await self.departments.list_departments()
+        return UserDetailResponse(user=user, roles=roles.items, departments=departments)
 
     # 创建
 
@@ -89,8 +98,8 @@ class UserService:
             await self.session.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
-        # commit 后重新查询并 eager load roles：
-        # 否则响应序列化时访问 new_user.roles 会触发 async lazy-load（MissingGreenlet 崩溃）
+        # commit 后重新查询：拿回 server_default 生成的时间戳（created_at/updated_at，
+        # flush 时不会回填到对象上），顺带用 selectinload 预加载 roles 保证序列化完整
         return await self.users.get_with_roles(new_user.id)
 
     # 全量更新
