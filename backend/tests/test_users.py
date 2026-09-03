@@ -257,6 +257,7 @@ async def test_update_user(client, admin_headers):
             "phone": None,
             "is_active": True,
             "role_ids": [],
+            "post_ids": [],
             "department_id": None,
         },
     )
@@ -286,6 +287,7 @@ async def test_update_user_duplicate_username(client, admin_headers):
             "phone": None,
             "is_active": True,
             "role_ids": [],
+            "post_ids": [],
             "department_id": None,
         },
     )
@@ -378,3 +380,83 @@ async def test_delete_self_conflict(client, admin_headers):
 async def test_delete_nonexistent_user(client, admin_headers):
     resp = await client.delete("/api/v1/system/users/99999", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.USER_NOT_FOUND.value
+
+
+# ============ 岗位关联（岗位与角色是正交的两条 M2M）============
+
+async def _create_post(client, headers, code: str, name: str) -> dict:
+    """岗位模块造数小助手。"""
+    resp = await client.post(
+        "/api/v1/system/posts", headers=headers,
+        json={"code": code, "name": name},
+    )
+    assert resp.json()["code"] == 0
+    return resp.json()["data"]
+
+
+async def test_user_detail_echoes_assigned_posts(client, admin_headers):
+    """详情 getInfo 同款第二维：user 纯列（无 post_ids）+ 全量岗位下拉 posts + 顶层 post_ids 回显。"""
+    post = await _create_post(client, admin_headers, "pm", "项目经理")
+    created = await client.post(
+        "/api/v1/system/users", headers=admin_headers,
+        json={"username": "post_echo", "password": "post1234",
+              "display_name": "岗位回显用户", "post_ids": [post["id"]]},
+    )
+    assert created.json()["code"] == 0
+    # UserRead 纯列镜像：岗位回显走详情，写返回不背 post_ids
+    assert "post_ids" not in created.json()["data"]
+    uid = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/system/users/{uid}", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    data = body["data"]
+    assert "post_ids" not in data["user"]
+    assert data["post_ids"] == [post["id"]]
+    # posts 是全量岗位下拉（含刚建的 pm）
+    assert "pm" in [p["code"] for p in data["posts"]]
+    assert data["user"]["username"] == "post_echo"
+
+
+async def test_create_user_invalid_post(client, admin_headers):
+    resp = await client.post(
+        "/api/v1/system/users", headers=admin_headers,
+        json={"username": "badpost", "password": "bad12345",
+              "display_name": "坏岗位用户", "post_ids": [9999]},
+    )
+    assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
+
+
+async def test_update_user_assign_posts(client, admin_headers):
+    """PUT 带 post_ids → 全量覆盖岗位关联；PATCH 单独动岗位不动角色。"""
+    post_a = await _create_post(client, admin_headers, "pa", "岗位甲")
+    post_b = await _create_post(client, admin_headers, "pb", "岗位乙")
+
+    created = await client.post(
+        "/api/v1/system/users", headers=admin_headers,
+        json={"username": "mgr", "password": "mgr12345", "display_name": "经理"},
+    )
+    uid = created.json()["data"]["id"]
+
+    # PUT 全量：挂两个岗位
+    resp = await client.put(
+        f"/api/v1/system/users/{uid}",
+        headers=admin_headers,
+        json={
+            "username": "mgr", "display_name": "经理", "phone": None,
+            "is_active": True, "role_ids": [], "post_ids": [post_a["id"], post_b["id"]],
+            "department_id": None,
+        },
+    )
+    assert resp.json()["code"] == 0
+    detail = (await client.get(f"/api/v1/system/users/{uid}", headers=admin_headers)).json()["data"]
+    assert sorted(detail["post_ids"]) == sorted([post_a["id"], post_b["id"]])
+
+    # PATCH 换成只留一个 → 岗位维度独立变更，不影响角色
+    resp = await client.patch(
+        f"/api/v1/system/users/{uid}", headers=admin_headers,
+        json={"post_ids": [post_a["id"]]},
+    )
+    assert resp.json()["code"] == 0
+    detail = (await client.get(f"/api/v1/system/users/{uid}", headers=admin_headers)).json()["data"]
+    assert detail["post_ids"] == [post_a["id"]]

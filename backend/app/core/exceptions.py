@@ -16,6 +16,7 @@
   16001+   = 访问控制（权限不足）
   17001+   = 通用错误（参数校验、数据冲突）
   18001+   = 部门相关
+  19001+   = 岗位相关
 
 为什么用 IntEnum？
   前端 switch/case 可以直接用数字判断，不需要字符串比较。
@@ -72,6 +73,10 @@ class ErrorCode(IntEnum):
     # ====== 部门 (DEPT)  18001-18099 ======
     DEPT_NOT_FOUND   = (18001, "部门不存在")
     DEPT_CODE_EXISTS = (18002, "部门编码已被占用")
+
+    # ====== 岗位 (POST)  19001-19099 ======
+    POST_NOT_FOUND   = (19001, "岗位不存在")
+    POST_CODE_EXISTS = (19002, "岗位编码已被占用")
 
     def __new__(cls, value: int, description: str):
         """构造 IntEnum 成员 — 保持 value 是纯 int，额外挂一个 description 属性。

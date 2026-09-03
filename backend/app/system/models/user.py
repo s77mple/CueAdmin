@@ -2,13 +2,16 @@
 
 为什么 department_id 用 SET NULL 而非 CASCADE：删部门时用户还在，只是变"无部门"，
 CASCADE 会把用户一起删掉。is_active 加索引是因为登录/列表筛选都按它过滤。
+
+角色与岗位都是 M2M 挂在用户下（RuoYi 的两张独立表 sys_user_role / sys_user_post）：
+角色管权限（登录鉴权要读），岗位只是职位标签，都不参与本表列。
 """
 
 from sqlalchemy import String, Boolean, BigInteger, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin
-from app.system.models.associations import user_roles
+from app.system.models.associations import user_roles, user_posts
 
 
 class User(Base, TimestampMixin):
@@ -29,6 +32,7 @@ class User(Base, TimestampMixin):
     )
 
     roles = relationship("Role", secondary=user_roles, back_populates="users", passive_deletes=True)  # 删用户 → user_roles 交给 DB CASCADE
+    posts = relationship("Post", secondary=user_posts, back_populates="users", passive_deletes=True)  # 删用户 → user_posts 交给 DB CASCADE
     department = relationship("Department", back_populates="users")
 
-    # role_ids 非表列：回显在 UserDetail.role_ids（getInfo 同款），由 get_user_detail 现算传构造器，不进模型
+    # role_ids / post_ids 非表列：回显在 UserDetail.role_ids / .post_ids（getInfo 同款），由 get_user_detail 现算传构造器，不进模型

@@ -9,11 +9,12 @@
   MySQL 已运行，数据库已创建（CREATE DATABASE cueadmin CHARACTER SET utf8mb4）
 
 种子数据内容：
-  1. 20 个权限（user/role/menu/permission/department × list/create/update/delete）
-  2. 12 个菜单（6 个模块 × 2 级：目录 + 列表页）
+  1. 24 个权限（user/role/menu/permission/department/post × list/create/update/delete）
+  2. 14 个菜单（7 个模块 × 2 级：目录 + 列表页）
   3. 1 个角色（admin 管理员，拥有全部权限和菜单）
   4. 4 个初始部门（总经理室、技术部、市场部、财务部）
-  5. 1 个管理员用户（admin / admin123）
+  5. 4 个初始岗位（董事长、项目经理、人力资源、普通员工）
+  6. 1 个管理员用户（admin / admin123）
 
 为什么用同步引擎？
   SQLAlchemy 的异步模式下 relationship.set 会触发 greenlet 错误，
@@ -25,7 +26,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 from app.core.storage import Base
-from app.system.models import User, Role, Permission, Menu, Department
+from app.system.models import User, Role, Permission, Menu, Department, Post
 from app.core.security import _hash_password_sync
 
 # 同步引擎 — async 替换为 pymysql
@@ -35,7 +36,7 @@ SyncSession = sessionmaker(_sync_engine, autoflush=False)
 
 
 # ============================================================
-# 1. 权限定义 — 5 资源 × 4 操作 = 20 个权限码
+# 1. 权限定义 — 6 资源 × 4 操作 = 24 个权限码
 # ============================================================
 
 PERMISSIONS = [
@@ -60,6 +61,10 @@ PERMISSIONS = [
     ("department:create","创建部门",   "department", "create"),
     ("department:update","更新部门",   "department", "update"),
     ("department:delete","删除部门",   "department", "delete"),
+    ("post:list",       "岗位列表",    "post",       "list"),
+    ("post:create",     "创建岗位",    "post",       "create"),
+    ("post:update",     "编辑岗位",    "post",       "update"),
+    ("post:delete",     "删除岗位",    "post",       "delete"),
 ]
 
 # admin 角色拥有所有权限
@@ -69,7 +74,7 @@ ROLE_PERMS = {
 
 
 # ============================================================
-# 2. 菜单定义 — 5 个模块，每个模块 2 级（目录 + 列表页）
+# 2. 菜单定义 — 7 个模块，每个模块 2 级（目录 + 列表页）
 # ============================================================
 # 格式: (code, name, icon, path, component, parent_code, sort_order)
 # - parent_code: 父菜单的 code（种子脚本自动转 parent_id）
@@ -96,8 +101,12 @@ MENUS = [
     ("departments",  "部门管理", "fa-solid:building",   "/departments",       None,                    None,    6),
     ("departments_index", "部门列表", None,             "/departments/index", "system/departments/index","departments", 1),
 
+    # 岗位管理
+    ("posts",        "岗位管理", "fa-solid:briefcase", "/posts",             None,                    None,    7),
+    ("posts_index",  "岗位列表", None,                  "/posts/index",       "system/posts/index",     "posts", 1),
+
     # 错误码字典（开发工具 — 只读，给联调用）
-    ("error-codes",       "错误码字典", "fa-solid:book",     "/error-codes",            None,                         None,    7),
+    ("error-codes",       "错误码字典", "fa-solid:book",     "/error-codes",            None,                         None,    8),
     ("error-codes_index", "错误码列表", None,                "/error-codes/index",      "system/error-codes/index",  "error-codes", 1),
 ]
 
@@ -106,6 +115,7 @@ ROLE_MENUS = {
     "admin": ["users", "users_index", "roles", "roles_index",
               "menus", "menus_index", "permissions", "permissions_index",
               "departments", "departments_index",
+              "posts", "posts_index",
               "error-codes", "error-codes_index"],
 }
 
@@ -124,16 +134,29 @@ DEPARTMENTS = [
 
 
 # ============================================================
-# 4. 种子数据主函数
+# 4. 岗位定义（学 RuoYi sys_post 的演示数据：董事长/项目经理/人力资源/普通员工）
+# ============================================================
+# (code, name, sort_order, description)
+
+POSTS = [
+    ("ceo",  "董事长",   1, "公司战略决策与整体经营管理"),
+    ("se",   "项目经理", 2, "负责项目规划、进度与交付"),
+    ("hr",   "人力资源", 3, "负责招聘、培训与员工关系"),
+    ("user", "普通员工", 4, "普通员工岗位"),
+]
+
+
+# ============================================================
+# 5. 种子数据主函数
 # ============================================================
 
 def seed(session: Session):
-    """#4 幂等初始化：已存在的记录跳过，不重复创建。"""
+    """#5 幂等初始化：已存在的记录跳过，不重复创建。"""
 
     print("=== 开始种子数据初始化 ===")
 
-    # ---- #4.1 创建权限 ----
-    print("\n[1/5] 创建权限...")
+    # ---- #5.1 创建权限 ----
+    print("\n[1/7] 创建权限...")
     perm_map: dict[str, Permission] = {}
     for code, name, resource, action in PERMISSIONS:
         perm = session.query(Permission).filter(Permission.code == code).first()
@@ -144,8 +167,8 @@ def seed(session: Session):
     session.flush()
     print(f"  -> 共 {len(perm_map)} 项权限")
 
-    # ---- #4.2 创建菜单 ----
-    print("\n[2/5] 创建菜单...")
+    # ---- #5.2 创建菜单 ----
+    print("\n[2/7] 创建菜单...")
     menu_map: dict[str, Menu] = {}
 
     # 第一遍：创建所有菜单（parent_id 先留空）
@@ -177,8 +200,8 @@ def seed(session: Session):
     session.flush()
     print(f"  -> 共 {len(menu_map)} 个菜单")
 
-    # ---- #4.3 创建角色 ----
-    print("\n[3/6] 创建角色...")
+    # ---- #5.3 创建角色 ----
+    print("\n[3/7] 创建角色...")
     roles: dict[str, Role] = {}
     for code, name, desc, is_sys in [
         ("admin", "管理员", "系统管理员", True),
@@ -190,8 +213,8 @@ def seed(session: Session):
         roles[code] = role
     session.flush()
 
-    # ---- #4.4 关联角色 → 权限 + 菜单 ----
-    print("\n[4/6] 关联角色权限和菜单...")
+    # ---- #5.4 关联角色 → 权限 + 菜单 ----
+    print("\n[4/7] 关联角色权限和菜单...")
     for role_code, perm_codes in ROLE_PERMS.items():
         role = roles[role_code]
         perms = [perm_map[c] for c in perm_codes if c in perm_map]
@@ -205,8 +228,8 @@ def seed(session: Session):
         print(f"  -> {role.name}: {len(menus)} 个菜单")
     session.flush()
 
-    # ---- #4.5 创建初始部门 ----
-    print("\n[5/6] 创建初始部门...")
+    # ---- #5.5 创建初始部门 ----
+    print("\n[5/7] 创建初始部门...")
     dept_map: dict[str, Department] = {}
     for code, name, parent_code, sort_order, desc in DEPARTMENTS:
         dept = session.query(Department).filter(Department.code == code).first()
@@ -220,8 +243,20 @@ def seed(session: Session):
     session.flush()
     print(f"  -> 共 {len(dept_map)} 个部门")
 
-    # ---- #4.6 创建管理员 ----
-    print("\n[6/6] 创建管理员...")
+    # ---- #5.6 创建初始岗位 ----
+    print("\n[6/7] 创建初始岗位...")
+    post_map: dict[str, Post] = {}
+    for code, name, sort_order, desc in POSTS:
+        post = session.query(Post).filter(Post.code == code).first()
+        if not post:
+            post = Post(code=code, name=name, sort_order=sort_order, description=desc)
+            session.add(post)
+        post_map[code] = post
+    session.flush()
+    print(f"  -> 共 {len(post_map)} 个岗位")
+
+    # ---- #5.7 创建管理员 ----
+    print("\n[7/7] 创建管理员...")
     user = session.query(User).filter(User.username == "admin").first()
     if not user:
         user = User(
@@ -230,10 +265,12 @@ def seed(session: Session):
             display_name="管理员",
         )
         session.add(user)
-    # 关联角色和部门（已存在也重新关联，确保数据一致）
+    # 关联角色、部门、岗位（已存在也重新关联，确保数据一致）
     user.roles = [roles["admin"]]
     if dept_map.get("ceo"):
         user.department_id = dept_map["ceo"].id
+    if post_map.get("ceo"):
+        user.posts = [post_map["ceo"]]
     session.flush()
 
     session.commit()
@@ -242,9 +279,10 @@ def seed(session: Session):
     print("""
 默认账号: admin / admin123
 角色: 管理员(admin)
-权限: 全部 20 项权限
-菜单: 全部 12 个菜单
+权限: 全部 24 项权限
+菜单: 全部 14 个菜单
 部门: 4 个初始部门
+岗位: 4 个初始岗位
 """)
 
 

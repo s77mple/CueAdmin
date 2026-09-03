@@ -30,6 +30,8 @@ export const ErrorCode = {
   PERM_CODE_EXISTS: 15002,
   /** 部门编码已被占用 */
   DEPT_CODE_EXISTS: 18002,
+  /** 岗位编码已被占用 */
+  POST_CODE_EXISTS: 19002,
 
   // —— 通用业务 ——
   /** 参数校验失败（前端提交的数据不符合要求） */

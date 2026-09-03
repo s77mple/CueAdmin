@@ -9,6 +9,13 @@ export interface RoleBrief {
   name: string;
 }
 
+/** 岗位简要信息 */
+export interface PostBrief {
+  id: number;
+  code: string;
+  name: string;
+}
+
 /** 权限简要信息 */
 export interface PermissionBrief {
   id: number;
@@ -79,14 +86,18 @@ export interface User {
   updated_at: string;
 }
 
-/** 用户详情（单查接口 GET /users/{id} 返回，编辑回显）— user 纯列 + 全量角色下拉 roles
- *  + 该用户已分配 role_ids（顶层，学若依 getInfo.roleIds；部门树独立取 /departments/tree） */
+/** 用户详情（单查接口 GET /users/{id} 返回，编辑回显）— user 纯列 + 全量角色/岗位下拉
+ *  + 已分配 role_ids/post_ids（顶层，学若依 getInfo.roleIds/postIds；部门树独立取 /departments/tree） */
 export interface UserDetail {
   user: User;
   /** 全部可选角色（下拉框选项） */
   roles: RoleBrief[];
   /** 该用户已分配的角色 ID（下拉框回显勾选） */
   role_ids: number[];
+  /** 全部可选岗位（下拉框选项，与角色维度正交，学若依 getInfo.posts） */
+  posts: PostBrief[];
+  /** 该用户已分配的岗位 ID（下拉框回显勾选，学若依 getInfo.postIds） */
+  post_ids: number[];
 }
 
 /** 角色 */
@@ -132,6 +143,15 @@ export interface Permission {
   description: string | null;
 }
 
+/** 岗位 */
+export interface Post {
+  id: number;
+  code: string;
+  name: string;
+  sort_order: number;
+  description: string | null;
+}
+
 // ===== 请求类型（POST/PUT/PATCH 的请求体，对应后端 XxxCreate/Update/Patch）=====
 
 /** 创建用户请求体（POST）— 无 is_active，新建默认启用 */
@@ -141,6 +161,7 @@ export interface UserCreate {
   display_name: string;
   phone?: string | null;
   role_ids?: number[];
+  post_ids?: number[];
   department_id?: number | null;
 }
 
@@ -151,6 +172,7 @@ export interface UserUpdate {
   phone: string | null;
   is_active: boolean;
   role_ids: number[];
+  post_ids: number[];
   department_id: number | null;
 }
 
@@ -161,6 +183,7 @@ export interface UserPatch {
   phone?: string | null;
   is_active?: boolean | null;
   role_ids?: number[] | null;
+  post_ids?: number[] | null;
   department_id?: number | null;
 }
 

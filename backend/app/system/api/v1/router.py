@@ -17,7 +17,7 @@ URL 三层结构（从外到内）：
 
 from fastapi import APIRouter
 
-from app.system.api.v1 import meta, auth, users, roles, menus, permissions, departments, routes
+from app.system.api.v1 import meta, auth, users, roles, menus, permissions, departments, posts, routes
 
 # 系统管理模块组 — 统一挂 /system 前缀（对应若依的 /system/*）
 system_router = APIRouter(prefix="/system")
@@ -26,6 +26,7 @@ system_router.include_router(roles.router)
 system_router.include_router(menus.router)
 system_router.include_router(permissions.router)
 system_router.include_router(departments.router)
+system_router.include_router(posts.router)
 system_router.include_router(meta.router)
 
 # 总路由 — 版本前缀 /api/v1 由 main.py 设置

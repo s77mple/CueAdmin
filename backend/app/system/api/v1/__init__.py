@@ -8,6 +8,7 @@
   menus.py       /menus         菜单管理
   permissions.py /permissions   权限管理
   departments.py /departments   部门管理
+  posts.py       /posts         岗位管理
   meta.py        /meta          数据字典（错误码等）
   routes.py      /routes        当前用户动态路由（仅认证不鉴权）
 

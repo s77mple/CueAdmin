@@ -17,10 +17,12 @@ import {
 import type {
   UserListItem,
   RoleBrief,
+  PostBrief,
   DepartmentTreeNode,
   UserListQuery
 } from "@/api/system/types";
 import { getRoleList } from "@/api/system/roles";
+import { getPostList } from "@/api/system/posts";
 import { getDepartmentTree } from "@/api/system/departments";
 import { ErrorCode } from "@/constants/error-code";
 
@@ -36,6 +38,8 @@ const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
 // 角色下拉选项：编辑时来自单查接口返回的全量角色，新增时现查
 const roleOptions = ref<RoleBrief[]>([]);
+// 岗位下拉选项：与角色同构（学若依 getInfo 的 posts/postIds 维度），编辑来自详情、新增现查
+const postOptions = ref<PostBrief[]>([]);
 // 部门树：页面初始化拉一次，左侧筛选面板 + 弹窗 tree-select 共用
 const deptTree = ref<DepartmentTreeNode[]>([]);
 // 左侧部门树当前选中节点，选中即过滤列表（null = 不过滤，即「全部部门」）
@@ -53,6 +57,7 @@ const form = reactive({
   phone: "",
   is_active: true,
   role_ids: [] as number[],
+  post_ids: [] as number[],
   department_id: null as number | null
 });
 const formRef = ref<FormInstance>();
@@ -163,6 +168,16 @@ async function loadRoleOptions() {
   }
 }
 
+// 岗位下拉选项现查（新增入口用；编辑直接复用详情返回的全量岗位 detail.posts）
+async function loadPostOptions() {
+  try {
+    const res = await getPostList({ page_size: 100 });
+    if (res.code === 0) postOptions.value = res.data?.items ?? [];
+  } catch {
+    /* 岗位下拉加载失败，保持空，用户可重试 */
+  }
+}
+
 // 左侧部门树：点某个节点 → 按 dept_id 筛「该部门 + 全部子孙部门」的用户（学 RuoYi find_in_set）
 function handleDeptNodeClick(data: DepartmentTreeNode) {
   selectedDeptId.value = data.id;
@@ -188,11 +203,12 @@ async function openCreate() {
     phone: "",
     is_active: true,
     role_ids: [],
+    post_ids: [],
     department_id: null
   });
   fieldErrors.username = "";
   dialogVisible.value = true;
-  await loadRoleOptions();
+  await Promise.all([loadRoleOptions(), loadPostOptions()]);
 }
 
 async function openEdit(row: UserListItem) {
@@ -211,9 +227,11 @@ async function openEdit(row: UserListItem) {
     phone: detail.user.phone ?? "",
     is_active: detail.user.is_active,
     role_ids: detail.role_ids ?? [],
+    post_ids: detail.post_ids ?? [],
     department_id: detail.user.department_id ?? null
   });
   roleOptions.value = detail.roles;
+  postOptions.value = detail.posts ?? [];
   // 部门树不进用户详情：弹窗 tree-select 直接复用页面初始化拉好的 deptTree
   fieldErrors.username = "";
   dialogVisible.value = true;
@@ -245,6 +263,7 @@ async function handleSubmit() {
         display_name: form.display_name,
         phone: form.phone || null,
         role_ids: form.role_ids,
+        post_ids: form.post_ids,
         department_id: form.department_id ?? null,
         is_active: form.is_active
       });
@@ -260,6 +279,7 @@ async function handleSubmit() {
         display_name: form.display_name,
         phone: form.phone || null,
         role_ids: form.role_ids,
+        post_ids: form.post_ids,
         department_id: form.department_id ?? null
       });
       if (res.code !== 0) {
@@ -502,6 +522,21 @@ onMounted(() => {
               :key="r.id"
               :label="r.name"
               :value="r.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="岗位">
+          <!-- 与角色维度正交（学若依 getInfo 的 posts/postIds） -->
+          <el-select
+            v-model="form.post_ids"
+            multiple
+            placeholder="请选择岗位"
+          >
+            <el-option
+              v-for="p in postOptions"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
             />
           </el-select>
         </el-form-item>

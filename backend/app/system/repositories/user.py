@@ -29,20 +29,20 @@ class UserRepository(BaseRepository):
         )
         return len(result.scalars().all())
 
-    async def get_with_roles(self, user_id: int) -> User | None:
-        """按 id 查询并预载角色（get_user_detail 现算 role_ids 用；部门不回显，不预载）。"""
+    async def get_with_roles_posts(self, user_id: int) -> User | None:
+        """按 id 查询并预载角色+岗位（get_user_detail 现算 role_ids/post_ids 用；部门不回显，不预载）。"""
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles))
+            .options(selectinload(User.roles), selectinload(User.posts))
             .where(User.id == user_id)
         )
         return result.scalars().first()
 
-    async def get_for_update_with_roles(self, user_id: int) -> User | None:
-        """带行级锁 + 预载角色（更新/删除用：admin 保护、角色关联比较）。"""
+    async def get_for_update_with_roles_posts(self, user_id: int) -> User | None:
+        """带行级锁 + 预载角色+岗位（更新/删除用：admin 保护、角色/岗位关联重写）。"""
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles))
+            .options(selectinload(User.roles), selectinload(User.posts))
             .where(User.id == user_id)
             .with_for_update()
         )

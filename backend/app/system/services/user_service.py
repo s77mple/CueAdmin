@@ -14,7 +14,7 @@ from app.core.security import hash_password
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.response import PageData
 from app.utils.tree import collect_subtree_ids
-from app.system.repositories import UserRepository, RoleRepository, DepartmentRepository
+from app.system.repositories import UserRepository, RoleRepository, DepartmentRepository, PostRepository
 from app.system.schemas.user import (
     UserCreate, UserUpdate, UserPatch, UserListItem, UserDetail,
 )
@@ -35,6 +35,7 @@ class UserService:
         self.users = UserRepository(session)
         self.roles = RoleRepository(session)
         self.departments = DepartmentRepository(session)
+        self.posts = PostRepository(session)
 
     # 查询
 
@@ -64,25 +65,29 @@ class UserService:
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""
-        target = await self.users.get_for_update_with_roles(user_id)
+        target = await self.users.get_for_update_with_roles_posts(user_id)
         if not target:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
         return target
 
     async def get_user_detail(self, user_id: int) -> UserDetail:
-        """单个用户详情（编辑回显）— user 纯列 + 全量角色下拉 + 已分配 role_ids。
+        """单个用户详情（编辑回显）— user 纯列 + 全量角色/岗位下拉 + 已分配 role_ids/post_ids。
 
+        学 RuoYi getInfo：roles/posts = 全部可选（下拉选项），role_ids/post_ids = 已分配（勾选回显）。
         部门树由列表页 /departments/tree 提供，不进详情。
-        role_ids 装配只此一处：其余接口返回纯列 UserRead，无需预载 roles。
+        role_ids/post_ids 装配只此一处：其余接口返回纯列 UserRead，无需预载 roles/posts。
         """
-        user = await self.users.get_with_roles(user_id)
+        user = await self.users.get_with_roles_posts(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
         roles = await self.roles.list_roles(page=1, page_size=100)
+        posts = await self.posts.list_all()  # 全部岗位（下拉选项）
         return UserDetail(
             user=user,
             roles=roles.items,
             role_ids=[role.id for role in user.roles],  # 该用户已分配（编辑回显勾选）
+            posts=posts,
+            post_ids=[post.id for post in user.posts],  # 该用户已分配岗位（编辑回显勾选）
         )
 
     # 创建
@@ -112,6 +117,9 @@ class UserService:
                 invalid = [rid for rid in body.role_ids if rid not in found]
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
             new_user.roles = roles
+
+        # 验证岗位存在 + 赋值
+        await self._resolve_posts(new_user, body.post_ids)
 
         self.users.add(new_user)
 
@@ -154,6 +162,9 @@ class UserService:
         old_role_ids = {r.id for r in target.roles}
         await self._resolve_roles(target, body.role_ids)
         roles_changed = {r.id for r in target.roles} != old_role_ids
+
+        # 岗位（只影响关联表，不涉及权限 → 不触发缓存清除）
+        await self._resolve_posts(target, body.post_ids)
 
         try:
             await self.session.commit()
@@ -202,6 +213,9 @@ class UserService:
         if "role_ids" in data:
             await self._resolve_roles(target, data["role_ids"])
 
+        if "post_ids" in data:
+            await self._resolve_posts(target, data["post_ids"])
+
         try:
             await self.session.commit()
         except IntegrityError:
@@ -218,7 +232,7 @@ class UserService:
 
     async def delete_user(self, user_id: int, operator_id: int, hard: bool = False) -> str:
         """软禁用（默认）或硬删除（?hard=true，仅已禁用用户）。"""
-        target = await self.users.get_for_update_with_roles(user_id)
+        target = await self.users.get_for_update_with_roles_posts(user_id)
         if not target:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
 
@@ -282,6 +296,20 @@ class UserService:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
 
         target.roles = roles
+
+    async def _resolve_posts(self, target: User, post_ids: list[int] | None) -> None:
+        """验证岗位 ID 存在并赋值（与 _resolve_roles 同构）。
+
+        岗位不参与权限判断，改岗位无需清 perm 缓存；None 与空列表都视为清空岗位。
+        """
+        post_ids = post_ids or []
+        posts = await self.posts.get_by_ids(post_ids)
+        if len(posts) != len(post_ids):
+            found = {p.id for p in posts}
+            invalid = [pid for pid in post_ids if pid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"岗位 ID 不存在: {invalid}")
+
+        target.posts = posts
 
     async def _guard_last_admin(self) -> None:
         """确保不禁用/删除最后一个管理员。"""

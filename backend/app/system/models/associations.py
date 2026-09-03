@@ -1,8 +1,9 @@
 """
 多对多关联表 — 纯 SQLAlchemy Core Table（没有 ORM 类）。
 
-三张关联表的含义：
+四张关联表的含义：
   user_roles         → 用户拥有哪些角色
+  user_posts         → 用户担任哪些岗位
   role_permissions   → 角色拥有哪些权限
   role_menus         → 角色拥有哪些菜单
 
@@ -38,6 +39,20 @@ user_roles = Table(
 
     # 按角色查用户时用：SELECT user_id FROM user_roles WHERE role_id = X
     Index("ix_user_roles_role_id", "role_id"),
+)
+
+
+# user_posts — 用户 ↔ 岗位（RuoYi 的 sys_user_post）
+# 与 user_roles 正交：角色管权限，岗位只是"职位标签"；一个用户可兼任多个岗位
+
+user_posts = Table(
+    "user_posts", Base.metadata,
+
+    Column("user_id", BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, comment="用户 ID"),
+    Column("post_id", BigInteger, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True, comment="岗位 ID"),
+
+    # 按岗位查用户时用：SELECT user_id FROM user_posts WHERE post_id = X
+    Index("ix_user_posts_post_id", "post_id"),
 )
 
 

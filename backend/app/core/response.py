@@ -24,9 +24,9 @@ T = TypeVar("T")
 class ApiResponse(BaseModel, Generic[T]):
     """通用响应包装 — 所有 API 都用这个返回。"""
 
-    code: Annotated[int, Field(description="响应码，0 表示成功，非 0 为错误码")] = 0
-    message: Annotated[str, Field(description="提示信息")] = "操作成功"
-    data: Annotated[T | None, Field(description="业务数据")] = None
+    code: Annotated[int, Field(description="响应码，0 表示成功，非 0 为错误码")]
+    message: Annotated[str, Field(description="提示信息")]
+    data: Annotated[T | None, Field(description="业务数据")]
 
     @classmethod
     def ok(cls, data: T | None = None, message: str = "操作成功") -> "ApiResponse[T]":
