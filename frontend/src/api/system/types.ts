@@ -49,7 +49,7 @@ export interface DepartmentTreeNode {
 /** 用户列表行 — GET /users 分页返回（对应后端 UserListItem）。
  *  学 RuoYi：行内带嵌套名字对象 department / roles 渲染表格，
  *  同时带 department_id（RuoYi 行里就有 deptId）供行级操作直接用；
- *  role_ids 不进列表 —— 勾选回显只发生在编辑弹窗，走单查接口的 UserRead（下方 User） */
+ *  role_ids 不进列表 —— 勾选回显只发生在编辑弹窗，详情接口的 UserDetail.role_ids 顶层带 */
 export interface UserListItem {
   id: number;
   username: string;
@@ -65,9 +65,9 @@ export interface UserListItem {
   updated_at: string;
 }
 
-/** 用户信息 — 对应后端 UserRead（单查回显 / 写返回 / 登录响应），字段与后端真实返回
- *  一一对应：只带 id / 回显字段，不背嵌套 department / roles
- *  （表格渲染的名字对象在 UserListItem 上，User 与 UserListItem 互补不重叠） */
+/** 用户信息 — 对应后端 UserRead（UserDetail.user / 写返回 / 登录响应）纯列镜像：
+ *  不含 role_ids（已分配角色的回显在 UserDetail.role_ids 顶层，学若依 getInfo.roleIds），
+ *  不含嵌套 department / roles（表格渲染的名字对象在 UserListItem 上，互补不重叠） */
 export interface User {
   id: number;
   username: string;
@@ -75,15 +75,18 @@ export interface User {
   phone: string | null;
   is_active: boolean;
   department_id: number | null;
-  role_ids: number[];
   created_at: string;
   updated_at: string;
 }
 
-/** 用户详情（单查接口 GET /users/{id} 返回，打包全量角色下拉；部门树独立取 /departments/tree） */
+/** 用户详情（单查接口 GET /users/{id} 返回，编辑回显）— user 纯列 + 全量角色下拉 roles
+ *  + 该用户已分配 role_ids（顶层，学若依 getInfo.roleIds；部门树独立取 /departments/tree） */
 export interface UserDetail {
   user: User;
+  /** 全部可选角色（下拉框选项） */
   roles: RoleBrief[];
+  /** 该用户已分配的角色 ID（下拉框回显勾选） */
+  role_ids: number[];
 }
 
 /** 角色 */

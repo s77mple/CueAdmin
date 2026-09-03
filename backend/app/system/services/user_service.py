@@ -70,17 +70,20 @@ class UserService:
         return target
 
     async def get_user_detail(self, user_id: int) -> UserDetail:
-        """查询单个用户详情 + 全量角色下拉（编辑回显用）。
+        """单个用户详情（编辑回显）— user 纯列 + 全量角色下拉 + 已分配 role_ids。
 
-        部门下拉改为前端调 GET /departments/tree 独立加载（学 RuoYi：部门树是列表页级
-        需求，不进用户详情）。
+        部门树由列表页 /departments/tree 提供，不进详情。
+        role_ids 装配只此一处：其余接口返回纯列 UserRead，无需预载 roles。
         """
         user = await self.users.get_with_roles(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
-        user.role_ids = [role.id for role in user.roles]
         roles = await self.roles.list_roles(page=1, page_size=100)
-        return UserDetail(user=user, roles=roles.items)
+        return UserDetail(
+            user=user,
+            roles=roles.items,
+            role_ids=[role.id for role in user.roles],  # 该用户已分配（编辑回显勾选）
+        )
 
     # 创建
 
@@ -119,11 +122,8 @@ class UserService:
             await self.session.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
-        # commit 后重新查询：拿回 server_default 生成的时间戳（created_at/updated_at，
-        # flush 时不会回填到对象上）；roles 预加载后现算 role_ids 挂到对象上（UserRead 回显）
-        user = await self.users.get_with_roles(new_user.id)
-        user.role_ids = [role.id for role in user.roles]
-        return user
+        # commit 后重查拿回 server 生成的时间戳；UserRead 纯列，无需预载 roles
+        return await self.users.get(new_user.id)
 
     # 全量更新
 
@@ -165,7 +165,6 @@ class UserService:
         if roles_changed:
             await self._clear_perm_cache(user_id)
 
-        target.role_ids = [role.id for role in target.roles]
         return target
 
     # 部分更新
@@ -213,7 +212,6 @@ class UserService:
         if "role_ids" in data:
             await self._clear_perm_cache(user_id)
 
-        target.role_ids = [role.id for role in target.roles]
         return target
 
     # 删除

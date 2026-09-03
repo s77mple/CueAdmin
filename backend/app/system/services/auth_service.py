@@ -64,8 +64,6 @@ class AuthService:
 
         # ---- 收集权限 ----
         permissions = sorted({perm.code for role in user.roles for perm in role.permissions})
-        # UserRead.user 回显要 role_ids：roles 已加载，现算挂临时属性（非 DB 列）
-        user.role_ids = [role.id for role in user.roles]
 
         # ---- 签发 access + refresh，并把 refresh 会话写入 Redis ----
         # session_id 把 access/refresh 绑到同一次登录，登出时按它撤销 refresh 会话

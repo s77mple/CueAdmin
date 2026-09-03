@@ -30,32 +30,29 @@ class UserRepository(BaseRepository):
         return len(result.scalars().all())
 
     async def get_with_roles(self, user_id: int) -> User | None:
-        """按 id 查询并预加载角色 + 部门（commit 后重新查询用）。"""
+        """按 id 查询并预载角色（get_user_detail 现算 role_ids 用；部门不回显，不预载）。"""
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles), selectinload(User.department))
+            .options(selectinload(User.roles))
             .where(User.id == user_id)
         )
         return result.scalars().first()
 
     async def get_for_update_with_roles(self, user_id: int) -> User | None:
-        """带行级锁 + 预加载角色 + 部门（更新/删除用）。"""
+        """带行级锁 + 预载角色（更新/删除用：admin 保护、角色关联比较）。"""
         result = await self.session.execute(
             select(User)
-            .options(selectinload(User.roles), selectinload(User.department))
+            .options(selectinload(User.roles))
             .where(User.id == user_id)
             .with_for_update()
         )
         return result.scalars().first()
 
     async def get_for_login(self, username: str) -> User | None:
-        """登录用 — 预加载角色、权限和部门，只查启用中的用户。"""
+        """登录用 — 预载角色及权限（权限码 + roles 回显都要），只查启用用户。"""
         stmt = (
             select(User)
-            .options(
-                selectinload(User.roles).selectinload(Role.permissions),
-                selectinload(User.department),
-            )
+            .options(selectinload(User.roles).selectinload(Role.permissions))
             .where(User.username == username, User.is_active == True)
         )
         result = await self.session.execute(stmt)
@@ -81,6 +78,7 @@ class UserRepository(BaseRepository):
         dept_ids 由 service 层用 collect_subtree_ids 展开好（dept_id → 该部门+子孙的
         id 集合）再传入；repo 只做 IN 过滤，不感知部门树的形状。
         """
+        # 列表行要渲染「部门」列 + 「角色」tag 列 → 预载 department / roles 两个对象
         stmt = select(User).options(
             selectinload(User.roles), selectinload(User.department)
         )

@@ -31,5 +31,4 @@ class User(Base, TimestampMixin):
     roles = relationship("Role", secondary=user_roles, back_populates="users", passive_deletes=True)  # 删用户 → user_roles 交给 DB CASCADE
     department = relationship("Department", back_populates="users")
 
-    # role_ids 不是表列：UserRead 回显要的「角色 ID 列表」由服务层现算
-    # （roles 预加载后 [role.id for role in user.roles]）以临时属性挂到对象上，模型不背计算。
+    # role_ids 非表列：回显在 UserDetail.role_ids（getInfo 同款），由 get_user_detail 现算传构造器，不进模型

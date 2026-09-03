@@ -108,7 +108,7 @@ async def test_list_users_filter_department_subtree(client, admin_headers):
 async def test_list_items_are_slim_rows(client, admin_headers):
     """列表行契约：不背勾选回显用的 role_ids，但带行内 department_id（学 RuoYi 行里下发 deptId）。
 
-    表格渲染靠嵌套 department/roles 对象；role_ids 只在单查接口的 UserRead 上。
+    表格渲染靠嵌套 department/roles 对象；role_ids 只在详情接口的 UserDetail 顶层。
     """
     role_id = await _admin_role_id(client, admin_headers)
     dept_id = (
@@ -124,8 +124,8 @@ async def test_list_items_are_slim_rows(client, admin_headers):
               "role_ids": [role_id]},
     )
     assert created.json()["code"] == 0
-    # 创建接口（UserRead）仍回 role_ids —— 详情/写返回不回显字段删掉
-    assert created.json()["data"]["role_ids"] == [role_id]
+    # 创建接口（UserRead）是纯列镜像 —— role_ids 不再回显（只有详情接口顶层带）
+    assert "role_ids" not in created.json()["data"]
 
     listed = await client.get("/api/v1/system/users", headers=admin_headers)
     target = next(
@@ -137,6 +137,32 @@ async def test_list_items_are_slim_rows(client, admin_headers):
     # 表格渲染的名字对象还在
     assert target["department"]["id"] == dept_id
     assert [r["code"] for r in target["roles"]] == ["admin"]
+
+
+# ============ 详情 ============
+
+async def test_user_detail_echoes_assigned_role_ids(client, admin_headers):
+    """详情 = getInfo 同款：user 纯列镜像（无 role_ids）+ 全量角色下拉 + 顶层 role_ids 回显已分配。"""
+    role_id = await _admin_role_id(client, admin_headers)
+    created = await client.post(
+        "/api/v1/system/users", headers=admin_headers,
+        json={"username": "detail_echo", "password": "detail123",
+              "display_name": "回显用户", "role_ids": [role_id], "department_id": None},
+    )
+    assert created.json()["code"] == 0
+    uid = created.json()["data"]["id"]
+
+    resp = await client.get(f"/api/v1/system/users/{uid}", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    data = body["data"]
+    # user 是纯列镜像，不带 role_ids
+    assert "role_ids" not in data["user"]
+    # role_ids 放顶层（RuoYi getInfo.roleIds 同款），回显的是该用户已分配的角色
+    assert data["role_ids"] == [role_id]
+    # roles 是全量角色下拉（至少含 admin），user 回显详情字段
+    assert "admin" in [r["code"] for r in data["roles"]]
+    assert data["user"]["username"] == "detail_echo"
 
 
 # ============ 创建 ============
@@ -161,7 +187,8 @@ async def test_create_user(client, admin_headers):
     assert data["username"] == "alice"
     assert data["display_name"] == "爱丽丝"
     assert data["is_active"] is True
-    assert data["role_ids"] == [role_id]
+    # UserRead 纯列镜像：已分配角色回显在详情接口（UserDetail.role_ids），不在写返回
+    assert "role_ids" not in data
 
 
 async def test_create_user_duplicate_username(client, admin_headers):

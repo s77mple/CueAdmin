@@ -210,7 +210,7 @@ async function openEdit(row: UserListItem) {
     display_name: detail.user.display_name,
     phone: detail.user.phone ?? "",
     is_active: detail.user.is_active,
-    role_ids: detail.user.role_ids ?? [],
+    role_ids: detail.role_ids ?? [],
     department_id: detail.user.department_id ?? null
   });
   roleOptions.value = detail.roles;

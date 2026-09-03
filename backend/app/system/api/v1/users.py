@@ -56,7 +56,7 @@ async def list_users(
     return ApiResponse.ok(data=result)
 
 
-# GET /users/{user_id} — 用户详情（编辑回显，打包全量角色下拉；部门树前端独立取 /departments/tree）
+# GET /users/{user_id} — 用户详情（编辑回显）
 
 @router.get("/{user_id}", response_model=ApiResponse[UserDetail], summary="用户详情")
 async def get_user(
