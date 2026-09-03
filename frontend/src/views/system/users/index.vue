@@ -100,7 +100,6 @@ const columns: TableColumnList = [
   { label: "显示名", prop: "display_name" },
   { label: "手机号", prop: "phone" },
   { label: "部门", slot: "department" },
-  { label: "角色", slot: "role", width: 220 },
   { label: "状态", slot: "status", width: 100 },
   { label: "创建时间", prop: "created_at", width: 180 },
   { label: "操作", slot: "operation", width: 220, fixed: "right" }
@@ -419,18 +418,6 @@ onMounted(() => {
           >
             <template #department="{ row }">
               {{ row.department?.name ?? "—" }}
-            </template>
-            <template #role="{ row }">
-              <template v-if="row.roles?.length">
-                <el-tag
-                  v-for="r in row.roles"
-                  :key="r.id"
-                  size="small"
-                  style="margin: 0 6px 4px 0"
-                  >{{ r.name }}</el-tag
-                >
-              </template>
-              <span v-else>—</span>
             </template>
             <template #status="{ row }">
               <el-tag :type="row.is_active ? 'success' : 'danger'">{{

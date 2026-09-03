@@ -54,9 +54,8 @@ export interface DepartmentTreeNode {
 // ===== 实体完整类型（列表接口返回）=====
 
 /** 用户列表行 — GET /users 分页返回（对应后端 UserListItem）。
- *  学 RuoYi：行内带嵌套名字对象 department / roles 渲染表格，
- *  同时带 department_id（RuoYi 行里就有 deptId）供行级操作直接用；
- *  role_ids 不进列表 —— 勾选回显只发生在编辑弹窗，详情接口的 UserDetail.role_ids 顶层带 */
+ *  学 RuoYi：行内只带嵌套 department 名字对象 + department_id（RuoYi 行里就有 deptId）；
+ *  角色/岗位不在列表行下发，勾选回显走编辑弹窗的 UserDetail.roles/post_ids */
 export interface UserListItem {
   id: number;
   username: string;
@@ -66,15 +65,13 @@ export interface UserListItem {
   department_id: number | null;
   /** 部门对象（表格「部门」列渲染用），对应后端 User.department 关系 */
   department: DepartmentBrief | null;
-  /** 角色对象列表（表格「角色」tag 列渲染用），对应后端 User.roles 关系 */
-  roles: RoleBrief[];
   created_at: string;
   updated_at: string;
 }
 
 /** 用户信息 — 对应后端 UserRead（UserDetail.user / 写返回 / 登录响应）纯列镜像：
  *  不含 role_ids（已分配角色的回显在 UserDetail.role_ids 顶层，学若依 getInfo.roleIds），
- *  不含嵌套 department / roles（表格渲染的名字对象在 UserListItem 上，互补不重叠） */
+ *  不含嵌套 department / roles（表格渲染的名字对象在 UserListItem 上，互补不重叠）；详情下拉在 UserDetail */
 export interface User {
   id: number;
   username: string;

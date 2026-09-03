@@ -106,9 +106,9 @@ async def test_list_users_filter_department_subtree(client, admin_headers):
 
 
 async def test_list_items_are_slim_rows(client, admin_headers):
-    """列表行契约：不背勾选回显用的 role_ids，但带行内 department_id（学 RuoYi 行里下发 deptId）。
+    """列表行契约：学 RuoYi 列表不下发角色 —— 无 roles/role_ids，只带嵌套 department + 行内 department_id。
 
-    表格渲染靠嵌套 department/roles 对象；role_ids 只在详情接口的 UserDetail 顶层。
+    role_ids/roles（全量下拉）只在详情接口的 UserDetail 顶层。
     """
     role_id = await _admin_role_id(client, admin_headers)
     dept_id = (
@@ -132,11 +132,12 @@ async def test_list_items_are_slim_rows(client, admin_headers):
         u for u in listed.json()["data"]["items"] if u["username"] == "slim_user"
     )
     assert "role_ids" not in target
+    # 学 RuoYi：列表行不下发角色对象，角色只在详情（UserDetail）里回显
+    assert "roles" not in target
     # 行内带 department_id（RuoYi 的 deptId 就在行里）
     assert target["department_id"] == dept_id
     # 表格渲染的名字对象还在
     assert target["department"]["id"] == dept_id
-    assert [r["code"] for r in target["roles"]] == ["admin"]
 
 
 # ============ 详情 ============

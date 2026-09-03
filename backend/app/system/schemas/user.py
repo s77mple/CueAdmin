@@ -92,7 +92,7 @@ class UserPatch(BaseModel):
 # ===== 响应体（出参）=====
 
 #   UserRead     回显（详情.user / 写返回 / 登录 user）— 纯列镜像，无 role_ids / post_ids
-#   UserListItem 列表行 — 表格渲染要的 department/roles 对象 + 行内 department_id
+#   UserListItem 列表行 — 表格渲染要的 department 名字对象 + 行内 department_id（学 RuoYi 列表行不下发角色）
 #   UserDetail   编辑回显 — user + 全量下拉 roles/posts + 已分配 role_ids/post_ids（getInfo 顶层同款）
 # role_ids / post_ids 装配只在 get_user_detail 一处现算；role 完整对象用 RoleItem，post 用 PostItem。
 #
@@ -113,7 +113,7 @@ class UserRead(BaseModel):
 
 
 class UserListItem(BaseModel):
-    """用户列表行 — 表格渲染要的 department/roles 对象 + 行内 department_id；不含 role_ids（回显走详情）。"""
+    """用户列表行 — 学 RuoYi 列表行不带角色：department 名字对象 + 行内 department_id，不含 role_ids/roles（回显走详情）。"""
     id: Annotated[int, Field(description="用户 ID")]
     username: Annotated[str, Field(description="用户名")]
     display_name: Annotated[str, Field(description="显示名")]
@@ -121,7 +121,6 @@ class UserListItem(BaseModel):
     is_active: Annotated[bool, Field(description="是否启用")]
     department_id: Annotated[int | None, Field(description="部门 ID")]
     department: Annotated[DepartmentBrief | None, Field(description="所属部门")]
-    roles: Annotated[list[RoleBrief], Field(description="已分配角色")]
     created_at: Annotated[datetime, Field(description="创建时间")]
     updated_at: Annotated[datetime, Field(description="更新时间")]
 

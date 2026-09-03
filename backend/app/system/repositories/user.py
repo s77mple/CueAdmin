@@ -78,10 +78,8 @@ class UserRepository(BaseRepository):
         dept_ids 由 service 层用 collect_subtree_ids 展开好（dept_id → 该部门+子孙的
         id 集合）再传入；repo 只做 IN 过滤，不感知部门树的形状。
         """
-        # 列表行要渲染「部门」列 + 「角色」tag 列 → 预载 department / roles 两个对象
-        stmt = select(User).options(
-            selectinload(User.roles), selectinload(User.department)
-        )
+        # 列表行只渲染「部门」列 → 预载 department（学 RuoYi：列表不下发角色，role_id 筛选用 join）
+        stmt = select(User).options(selectinload(User.department))
 
         if role_id is not None:
             stmt = stmt.join(User.roles).where(Role.id == role_id)
