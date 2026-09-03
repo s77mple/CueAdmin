@@ -109,17 +109,21 @@ class UserService:
             department_id=body.department_id,
         )
 
-        # 验证角色存在 + 赋值
-        if body.role_ids:
-            roles = await self.roles.get_by_ids(body.role_ids)
-            if len(roles) != len(body.role_ids):
-                found = {r.id for r in roles}
-                invalid = [rid for rid in body.role_ids if rid not in found]
-                raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
-            new_user.roles = roles
+        # 赋值关系时用 no_autoflush 包起来：new_user 此时还是 transient（未 add），
+        # 校验查询会触发 autoflush，而反向维护 role.users / post.users 时对象不在
+        # session 会告警。抑制 autoflush，等 add 之后再 commit 统一冲刷即可。
+        with self.session.no_autoflush:
+            # 验证角色存在 + 赋值
+            if body.role_ids:
+                roles = await self.roles.get_by_ids(body.role_ids)
+                if len(roles) != len(body.role_ids):
+                    found = {r.id for r in roles}
+                    invalid = [rid for rid in body.role_ids if rid not in found]
+                    raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
+                new_user.roles = roles
 
-        # 验证岗位存在 + 赋值
-        await self._resolve_posts(new_user, body.post_ids)
+            # 验证岗位存在 + 赋值
+            await self._resolve_posts(new_user, body.post_ids)
 
         self.users.add(new_user)
 
@@ -130,8 +134,10 @@ class UserService:
             await self.session.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
-        # commit 后重查拿回 server 生成的时间戳；UserRead 纯列，无需预载 roles
-        return await self.users.get(new_user.id)
+        # commit 后 refresh 原地同步，拿回 server 生成的时间戳（created_at/updated_at）；
+        # UserRead 纯列、无需预载 roles，refresh 只刷列足够
+        await self.session.refresh(new_user)
+        return new_user
 
     # 全量更新
 
