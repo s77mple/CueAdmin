@@ -172,3 +172,55 @@ async def test_get_department(client, admin_headers):
 async def test_get_department_nonexistent(client, admin_headers):
     resp = await client.get("/api/v1/system/departments/99999", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.DEPT_NOT_FOUND.value
+
+
+# ============ 部门树 ============
+
+async def test_get_department_tree_nested(client, admin_headers):
+    """GET /departments/tree：嵌套成树，顶层/子级均按 sort_order 排序，叶子空数组。"""
+    root_a = await client.post(
+        "/api/v1/system/departments", headers=admin_headers,
+        json={"code": "root_a", "name": "总公司", "sort_order": 10},
+    )
+    root_a_id = root_a.json()["data"]["id"]
+    root_b = await client.post(
+        "/api/v1/system/departments", headers=admin_headers,
+        json={"code": "root_b", "name": "分公司", "sort_order": 1},
+    )
+    root_b_id = root_b.json()["data"]["id"]
+    child = await client.post(
+        "/api/v1/system/departments", headers=admin_headers,
+        json={"code": "dev_dept", "name": "研发部", "parent_id": root_a_id, "sort_order": 2},
+    )
+    child_id = child.json()["data"]["id"]
+
+    resp = await client.get("/api/v1/system/departments/tree", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+
+    # 顶层按 sort_order 升序：root_b(1) 在前，root_a(10) 在后
+    roots = body["data"]
+    assert [r["id"] for r in roots] == [root_b_id, root_a_id]
+
+    # 子级嵌套在父节点 children 下，父节点保留完整字段
+    root = roots[1]
+    assert root["name"] == "总公司"
+    assert root["parent_id"] is None
+    assert root["sort_order"] == 10
+    assert len(root["children"]) == 1
+    child_node = root["children"][0]
+    assert child_node["id"] == child_id
+    assert child_node["parent_id"] == root_a_id
+    assert child_node["children"] == []  # 叶子为空数组
+
+    # 原扁平列表接口不带 children 键（无回归）
+    flat = await client.get("/api/v1/system/departments", headers=admin_headers)
+    for item in flat.json()["data"]["items"]:
+        assert "children" not in item
+
+
+async def test_get_department_tree_empty(client, admin_headers):
+    resp = await client.get("/api/v1/system/departments/tree", headers=admin_headers)
+    body = resp.json()
+    assert body["code"] == 0
+    assert body["data"] == []

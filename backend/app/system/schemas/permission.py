@@ -40,7 +40,7 @@ class PermissionItem(BaseModel):
     name: Annotated[str, Field(description="权限名称")]
     resource: Annotated[str, Field(description="资源标识")]
     action: Annotated[str, Field(description="操作标识")]
-    description: Annotated[str | None, Field(description="描述")] = None
+    description: Annotated[str | None, Field(description="描述")]
 
     model_config = {"from_attributes": True}
 

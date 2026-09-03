@@ -22,7 +22,9 @@ from fastapi import APIRouter, Path, Query, Security
 from app.core.dependencies import SessionDep, RedisDep, get_current_user
 from app.system.models import User
 from app.core.response import ApiResponse, PageData
-from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead, UserDetailResponse
+from app.system.schemas.user import (
+    UserCreate, UserUpdate, UserPatch, UserRead, UserListItem, UserDetail,
+)
 from app.system.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["用户管理"])
@@ -37,28 +39,31 @@ class UserScope:
 
 # GET /users — 用户列表
 
-@router.get("", response_model=ApiResponse[PageData[UserRead]], summary="用户列表")
+@router.get("", response_model=ApiResponse[PageData[UserListItem]], summary="用户列表")
 async def list_users(
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
     role_id: Annotated[int | None, Query(description="按角色 ID 筛选")] = None,
     is_active: Annotated[bool | None, Query(description="筛选启用/禁用状态，不传则查全部")] = None,
+    dept_id: Annotated[int | None, Query(description="按部门 ID 筛选：匹配该部门及其全部子孙（学 RuoYi，左侧部门树点选）")] = None,
     page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 20,
-) -> ApiResponse[PageData[UserRead]]:
+) -> ApiResponse[PageData[UserListItem]]:
     svc = UserService(session)
-    result = await svc.list_users(role_id=role_id, is_active=is_active, page=page, page_size=page_size)
+    result = await svc.list_users(
+        role_id=role_id, is_active=is_active, dept_id=dept_id, page=page, page_size=page_size,
+    )
     return ApiResponse.ok(data=result)
 
 
-# GET /users/{user_id} — 用户详情（编辑回显，打包角色/部门下拉）
+# GET /users/{user_id} — 用户详情（编辑回显，打包全量角色下拉；部门树前端独立取 /departments/tree）
 
-@router.get("/{user_id}", response_model=ApiResponse[UserDetailResponse], summary="用户详情")
+@router.get("/{user_id}", response_model=ApiResponse[UserDetail], summary="用户详情")
 async def get_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])],
-) -> ApiResponse[UserDetailResponse]:
+) -> ApiResponse[UserDetail]:
     detail = await UserService(session).get_user_detail(user_id)
     return ApiResponse.ok(data=detail)
 

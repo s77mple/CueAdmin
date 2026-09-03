@@ -51,6 +51,94 @@ async def test_list_users_filter_active(client, admin_headers):
     assert resp.json()["data"]["total"] == 1
 
 
+async def test_list_users_filter_department_subtree(client, admin_headers):
+    """dept_id 匹配「该部门 + 全部子孙」（学 RuoYi find_in_set）— 左树点父部门能带出子部门用户。"""
+    top = (
+        await client.post(
+            "/api/v1/system/departments", headers=admin_headers,
+            json={"code": "fixta", "name": "总公司"},
+        )
+    ).json()["data"]["id"]
+    child = (
+        await client.post(
+            "/api/v1/system/departments", headers=admin_headers,
+            json={"code": "fixta1", "name": "研发部", "parent_id": top},
+        )
+    ).json()["data"]["id"]
+    other = (
+        await client.post(
+            "/api/v1/system/departments", headers=admin_headers,
+            json={"code": "fixtb", "name": "分公司"},
+        )
+    ).json()["data"]["id"]
+
+    # alice 直属顶级，bob 挂在子孙部门，carol 在另一个顶级，dave 无部门
+    for username, dept in [("alice", top), ("bob", child), ("carol", other), ("dave", None)]:
+        resp = await client.post(
+            "/api/v1/system/users", headers=admin_headers,
+            json={"username": username, "password": "test1234",
+                  "display_name": username, "department_id": dept},
+        )
+        assert resp.json()["code"] == 0
+
+    # 点顶级 → 直属 alice + 子孙部门的 bob 都出；他部门/无部门的不出
+    resp = await client.get(
+        "/api/v1/system/users", params={"dept_id": top}, headers=admin_headers
+    )
+    body = resp.json()
+    assert body["code"] == 0
+    names = [u["username"] for u in body["data"]["items"]]
+    assert "alice" in names and "bob" in names
+    assert "carol" not in names and "dave" not in names and "admin" not in names
+
+    # 点叶子部门 → 只回直属的 bob
+    resp = await client.get(
+        "/api/v1/system/users", params={"dept_id": child}, headers=admin_headers
+    )
+    names = [u["username"] for u in resp.json()["data"]["items"]]
+    assert "bob" in names and "alice" not in names
+
+    # 未知部门 id → 收不到任何行（空页，与若依行为一致）
+    resp = await client.get(
+        "/api/v1/system/users", params={"dept_id": 99999}, headers=admin_headers
+    )
+    assert resp.json()["data"]["total"] == 0
+
+
+async def test_list_items_are_slim_rows(client, admin_headers):
+    """列表行契约：不背勾选回显用的 role_ids，但带行内 department_id（学 RuoYi 行里下发 deptId）。
+
+    表格渲染靠嵌套 department/roles 对象；role_ids 只在单查接口的 UserRead 上。
+    """
+    role_id = await _admin_role_id(client, admin_headers)
+    dept_id = (
+        await client.post(
+            "/api/v1/system/departments", headers=admin_headers,
+            json={"code": "slimdpt", "name": "瘦身部"},
+        )
+    ).json()["data"]["id"]
+    created = await client.post(
+        "/api/v1/system/users", headers=admin_headers,
+        json={"username": "slim_user", "password": "slim1234",
+              "display_name": "瘦身用户", "department_id": dept_id,
+              "role_ids": [role_id]},
+    )
+    assert created.json()["code"] == 0
+    # 创建接口（UserRead）仍回 role_ids —— 详情/写返回不回显字段删掉
+    assert created.json()["data"]["role_ids"] == [role_id]
+
+    listed = await client.get("/api/v1/system/users", headers=admin_headers)
+    target = next(
+        u for u in listed.json()["data"]["items"] if u["username"] == "slim_user"
+    )
+    assert "role_ids" not in target
+    # 行内带 department_id（RuoYi 的 deptId 就在行里）
+    assert target["department_id"] == dept_id
+    # 表格渲染的名字对象还在
+    assert target["department"]["id"] == dept_id
+    assert [r["code"] for r in target["roles"]] == ["admin"]
+
+
 # ============ 创建 ============
 
 async def test_create_user(client, admin_headers):

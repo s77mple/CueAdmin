@@ -72,10 +72,15 @@ class UserRepository(BaseRepository):
         self,
         role_id: int | None = None,
         is_active: bool | None = None,
+        dept_ids: set[int] | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> PageData:
-        """分页用户列表，支持按角色和启用状态筛选。"""
+        """分页用户列表，支持按角色、启用状态、部门集合（含子孙）筛选。
+
+        dept_ids 由 service 层用 collect_subtree_ids 展开好（dept_id → 该部门+子孙的
+        id 集合）再传入；repo 只做 IN 过滤，不感知部门树的形状。
+        """
         stmt = select(User).options(
             selectinload(User.roles), selectinload(User.department)
         )
@@ -84,6 +89,9 @@ class UserRepository(BaseRepository):
             stmt = stmt.join(User.roles).where(Role.id == role_id)
         if is_active is not None:
             stmt = stmt.where(User.is_active == is_active)
+        if dept_ids:
+            # 学 RuoYi：deptId 匹配「该部门 + 全部子孙部门」（若依靠 ancestors + find_in_set）
+            stmt = stmt.where(User.department_id.in_(dept_ids))
 
         stmt = stmt.order_by(User.id.asc())
         return await paginate(self.session, stmt, page, page_size)

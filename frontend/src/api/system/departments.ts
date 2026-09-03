@@ -1,11 +1,15 @@
 import { http } from "@/utils/http";
 import type { ApiResult, ListData } from "../types";
-import type { Department, DepartmentBrief } from "./types";
+import type { Department, DepartmentBrief, DepartmentTreeNode } from "./types";
 
 export const getDepartmentList = (params?: object) =>
   http.get<ApiResult<ListData<Department>>>("/api/v1/system/departments", {
     params
   });
+export const getDepartmentTree = () =>
+  http.get<ApiResult<DepartmentTreeNode[]>>(
+    "/api/v1/system/departments/tree"
+  );
 export const getDepartment = (id: number) =>
   http.get<ApiResult<Department>>(`/api/v1/system/departments/${id}`);
 export const createDepartment = (data?: object) =>

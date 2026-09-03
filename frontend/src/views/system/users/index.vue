@@ -14,13 +14,18 @@ import {
   deleteUser,
   hardDeleteUser
 } from "@/api/system/users";
-import type { User, RoleBrief, DepartmentBrief } from "@/api/system/types";
+import type {
+  UserListItem,
+  RoleBrief,
+  DepartmentTreeNode,
+  UserListQuery
+} from "@/api/system/types";
 import { getRoleList } from "@/api/system/roles";
-import { getDepartmentList } from "@/api/system/departments";
+import { getDepartmentTree } from "@/api/system/departments";
 import { ErrorCode } from "@/constants/error-code";
 
 const loading = ref(false);
-const list = ref<User[]>([]);
+const list = ref<UserListItem[]>([]);
 const pagination = reactive<PaginationProps>({
   total: 0,
   pageSize: 20,
@@ -29,9 +34,13 @@ const pagination = reactive<PaginationProps>({
 });
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
-// 弹窗下拉选项：编辑时来自单查接口返回，新增时来自角色/部门 API 现查
+// 角色下拉选项：编辑时来自单查接口返回的全量角色，新增时现查
 const roleOptions = ref<RoleBrief[]>([]);
-const departmentOptions = ref<DepartmentBrief[]>([]);
+// 部门树：页面初始化拉一次，左侧筛选面板 + 弹窗 tree-select 共用
+const deptTree = ref<DepartmentTreeNode[]>([]);
+// 左侧部门树当前选中节点，选中即过滤列表（null = 不过滤，即「全部部门」）
+const selectedDeptId = ref<number | null>(null);
+const deptTreeRef = ref();
 
 // "active" | "disabled" | "all"
 const statusFilter = ref<"active" | "disabled" | "all">("active");
@@ -86,6 +95,7 @@ const columns: TableColumnList = [
   { label: "显示名", prop: "display_name" },
   { label: "手机号", prop: "phone" },
   { label: "部门", slot: "department" },
+  { label: "角色", slot: "role", width: 220 },
   { label: "状态", slot: "status", width: 100 },
   { label: "创建时间", prop: "created_at", width: 180 },
   { label: "操作", slot: "operation", width: 220, fixed: "right" }
@@ -94,13 +104,15 @@ const columns: TableColumnList = [
 async function onSearch() {
   loading.value = true;
   try {
-    const params: { page: number; page_size: number; is_active?: boolean } = {
+    const params: UserListQuery = {
       page: pagination.currentPage,
       page_size: pagination.pageSize
     };
     if (statusFilter.value === "active") params.is_active = true;
     else if (statusFilter.value === "disabled") params.is_active = false;
     // "all" 不传 is_active，查全部
+    // 左侧部门树点选后按 dept_id 精确筛选
+    if (selectedDeptId.value != null) params.dept_id = selectedDeptId.value;
     const res = await getUserList(params);
     if (res.code === 0) {
       list.value = res.data?.items ?? [];
@@ -129,17 +141,41 @@ function onStatusChange(val: "active" | "disabled" | "all") {
   onSearch();
 }
 
-async function loadUserOptions() {
+// 部门树整棵拉一次（来源 GET /departments/tree，学 RuoYi 的 treeselect），
+// 左侧筛选面板与弹窗选择共用这份嵌套树，前端无需再拼
+async function loadDeptTree() {
   try {
-    const [rRes, dRes] = await Promise.all([
-      getRoleList(),
-      getDepartmentList()
-    ]);
-    if (rRes.code === 0) roleOptions.value = rRes.data?.items ?? [];
-    if (dRes.code === 0) departmentOptions.value = dRes.data?.items ?? [];
+    const res = await getDepartmentTree();
+    if (res.code === 0) deptTree.value = res.data ?? [];
   } catch {
-    /* 下拉加载失败，保持空，用户可重试 */
+    /* 部门树加载失败，保持空树，不影响列表 */
   }
+}
+
+// 角色下拉选项现查。必须带 page_size=100：角色列表分页默认每页 20，
+// 不带参只拿回第一页，角色多了下拉会被截断
+async function loadRoleOptions() {
+  try {
+    const res = await getRoleList({ page_size: 100 });
+    if (res.code === 0) roleOptions.value = res.data?.items ?? [];
+  } catch {
+    /* 角色下拉加载失败，保持空，用户可重试 */
+  }
+}
+
+// 左侧部门树：点某个节点 → 按 dept_id 筛「该部门 + 全部子孙部门」的用户（学 RuoYi find_in_set）
+function handleDeptNodeClick(data: DepartmentTreeNode) {
+  selectedDeptId.value = data.id;
+  pagination.currentPage = 1;
+  onSearch();
+}
+
+// 点「全部部门」→ 清筛选 + 去掉树高亮，回到全量列表
+function resetDeptFilter() {
+  selectedDeptId.value = null;
+  deptTreeRef.value?.setCurrentKey(null);
+  pagination.currentPage = 1;
+  onSearch();
 }
 
 async function openCreate() {
@@ -156,10 +192,10 @@ async function openCreate() {
   });
   fieldErrors.username = "";
   dialogVisible.value = true;
-  await loadUserOptions();
+  await loadRoleOptions();
 }
 
-async function openEdit(row: User) {
+async function openEdit(row: UserListItem) {
   dialogTitle.value = "编辑用户";
   const res = await getUser(row.id);
   if (res.code !== 0) {
@@ -178,7 +214,7 @@ async function openEdit(row: User) {
     department_id: detail.user.department_id ?? null
   });
   roleOptions.value = detail.roles;
-  departmentOptions.value = detail.departments;
+  // 部门树不进用户详情：弹窗 tree-select 直接复用页面初始化拉好的 deptTree
   fieldErrors.username = "";
   dialogVisible.value = true;
 }
@@ -241,7 +277,7 @@ async function handleSubmit() {
   }
 }
 
-async function handleDisable(row: User) {
+async function handleDisable(row: UserListItem) {
   try {
     const action = row.is_active ? "禁用" : "启用";
     await ElMessageBox.confirm(
@@ -273,7 +309,7 @@ async function handleDisable(row: User) {
   }
 }
 
-async function handleHardDelete(row: User) {
+async function handleHardDelete(row: UserListItem) {
   try {
     await ElMessageBox.confirm(
       `确认彻底删除用户 "${row.username}"？此操作不可恢复！`,
@@ -293,88 +329,125 @@ async function handleHardDelete(row: User) {
 }
 
 onMounted(() => {
+  loadDeptTree();
   onSearch();
 });
 </script>
 
 <template>
-  <div>
-    <PureTableBar :columns="columns" @refresh="onSearch">
-      <template #title>
-        <el-button
-          v-perms="['user:create']"
-          type="primary"
-          :icon="Plus"
-          @click="openCreate"
-          >新增用户</el-button
-        >
-      </template>
-      <template #buttons>
-        <el-radio-group
-          v-model="statusFilter"
-          size="small"
-          @change="onStatusChange"
-        >
-          <el-radio-button value="active">启用</el-radio-button>
-          <el-radio-button value="disabled">已禁用</el-radio-button>
-          <el-radio-button value="all">全部</el-radio-button>
-        </el-radio-group>
-      </template>
-      <template v-slot="{ size, dynamicColumns }">
-        <pure-table
-          row-key="id"
-          align-whole="center"
-          showOverflowTooltip
-          :loading="loading"
-          :size="size"
-          :data="list"
-          :columns="dynamicColumns"
-          :pagination="{ ...pagination, size }"
-          :header-cell-style="{
-            background: 'var(--el-fill-color-light)',
-            color: 'var(--el-text-color-primary)'
-          }"
-          @page-size-change="handleSizeChange"
-          @page-current-change="handleCurrentChange"
-        >
-          <template #department="{ row }">
-            {{ row.department?.name ?? "—" }}
-          </template>
-          <template #status="{ row }">
-            <el-tag :type="row.is_active ? 'success' : 'danger'">{{
-              row.is_active ? "启用" : "禁用"
-            }}</el-tag>
-          </template>
-          <template #operation="{ row }">
-            <template v-if="row.username !== 'admin'">
-              <el-button
-                v-perms="['user:update']"
-                size="small"
-                @click="openEdit(row)"
-                >编辑</el-button
-              >
-              <el-button
-                v-perms="[row.is_active ? 'user:delete' : 'user:update']"
-                size="small"
-                :type="row.is_active ? 'warning' : 'success'"
-                @click="handleDisable(row)"
-              >
-                {{ row.is_active ? "禁用" : "启用" }}
-              </el-button>
-              <el-button
-                v-if="!row.is_active"
-                v-perms="['user:delete']"
-                type="danger"
-                size="small"
-                @click="handleHardDelete(row)"
-              >
-                删除
-              </el-button>
+  <div class="users-page">
+    <!-- 左侧部门树面板：点节点按部门筛用户（学 RuoYi 左树右表布局）。
+         树的来源是 GET /departments/tree，与弹窗的部门选择共用同一份嵌套数据 -->
+    <aside class="dept-panel">
+      <div class="dept-panel__header">
+        <span>部门</span>
+        <el-button link type="primary" size="small" @click="resetDeptFilter">
+          全部部门
+        </el-button>
+      </div>
+      <el-tree
+        ref="deptTreeRef"
+        :data="deptTree"
+        node-key="id"
+        highlight-current
+        default-expand-all
+        :expand-on-click-node="false"
+        :props="{ label: 'name', children: 'children' }"
+        @node-click="handleDeptNodeClick"
+      />
+    </aside>
+
+    <!-- 右侧表格：flex:1 撑满剩余宽度，min-width:0 防止固定宽表格把父容器撑爆 -->
+    <section class="table-panel">
+      <PureTableBar :columns="columns" @refresh="onSearch">
+        <template #title>
+          <el-button
+            v-perms="['user:create']"
+            type="primary"
+            :icon="Plus"
+            @click="openCreate"
+            >新增用户</el-button
+          >
+        </template>
+        <template #buttons>
+          <el-radio-group
+            v-model="statusFilter"
+            size="small"
+            @change="onStatusChange"
+          >
+            <el-radio-button value="active">启用</el-radio-button>
+            <el-radio-button value="disabled">已禁用</el-radio-button>
+            <el-radio-button value="all">全部</el-radio-button>
+          </el-radio-group>
+        </template>
+        <template v-slot="{ size, dynamicColumns }">
+          <pure-table
+            row-key="id"
+            align-whole="center"
+            showOverflowTooltip
+            :loading="loading"
+            :size="size"
+            :data="list"
+            :columns="dynamicColumns"
+            :pagination="{ ...pagination, size }"
+            :header-cell-style="{
+              background: 'var(--el-fill-color-light)',
+              color: 'var(--el-text-color-primary)'
+            }"
+            @page-size-change="handleSizeChange"
+            @page-current-change="handleCurrentChange"
+          >
+            <template #department="{ row }">
+              {{ row.department?.name ?? "—" }}
             </template>
-          </template>
-        </pure-table>
-      </template>
-    </PureTableBar>
+            <template #role="{ row }">
+              <template v-if="row.roles?.length">
+                <el-tag
+                  v-for="r in row.roles"
+                  :key="r.id"
+                  size="small"
+                  style="margin: 0 6px 4px 0"
+                  >{{ r.name }}</el-tag
+                >
+              </template>
+              <span v-else>—</span>
+            </template>
+            <template #status="{ row }">
+              <el-tag :type="row.is_active ? 'success' : 'danger'">{{
+                row.is_active ? "启用" : "禁用"
+              }}</el-tag>
+            </template>
+            <template #operation="{ row }">
+              <template v-if="row.username !== 'admin'">
+                <el-button
+                  v-perms="['user:update']"
+                  size="small"
+                  @click="openEdit(row)"
+                  >编辑</el-button
+                >
+                <el-button
+                  v-perms="[row.is_active ? 'user:delete' : 'user:update']"
+                  size="small"
+                  :type="row.is_active ? 'warning' : 'success'"
+                  @click="handleDisable(row)"
+                >
+                  {{ row.is_active ? "禁用" : "启用" }}
+                </el-button>
+                <el-button
+                  v-if="!row.is_active"
+                  v-perms="['user:delete']"
+                  type="danger"
+                  size="small"
+                  @click="handleHardDelete(row)"
+                >
+                  删除
+                </el-button>
+              </template>
+            </template>
+          </pure-table>
+        </template>
+      </PureTableBar>
+    </section>
 
     <el-dialog
       v-model="dialogVisible"
@@ -403,18 +476,20 @@ onMounted(() => {
           <el-input v-model="form.phone" />
         </el-form-item>
         <el-form-item label="部门">
-          <el-select
+          <!-- 学 RuoYi：部门选项不打包进 getUser，用页面初始化拉好的 deptTree 现渲。
+               node-key="id" → v-model 绑的就是部门 id；check-strictly 允许选父节点 -->
+          <el-tree-select
             v-model="form.department_id"
+            :data="deptTree"
+            node-key="id"
+            check-strictly
+            :props="{ label: 'name', children: 'children' }"
+            :render-after-expand="false"
+            filterable
             clearable
             placeholder="请选择部门"
-          >
-            <el-option
-              v-for="d in departmentOptions"
-              :key="d.id"
-              :label="d.name"
-              :value="d.id"
-            />
-          </el-select>
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="角色">
           <el-select
@@ -445,3 +520,40 @@ onMounted(() => {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+/* 左树右表：左侧部门树固定 220px，右侧表格弹性占满剩余 */
+.users-page {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dept-panel {
+  flex-shrink: 0;
+  width: 220px;
+  margin-top: 4px;
+  padding: 10px 6px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 6px;
+  background: var(--el-bg-color);
+}
+
+.dept-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dept-panel :deep(.el-tree) {
+  padding: 4px 0;
+}
+
+.table-panel {
+  flex: 1;
+  min-width: 0;
+}
+</style>

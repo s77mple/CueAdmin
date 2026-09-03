@@ -39,9 +39,9 @@ class DepartmentItem(BaseModel):
     id: Annotated[int, Field(description="部门 ID")]
     code: Annotated[str, Field(description="部门编码")]
     name: Annotated[str, Field(description="部门名称")]
-    parent_id: Annotated[int | None, Field(description="父部门 ID")] = None
+    parent_id: Annotated[int | None, Field(description="父部门 ID")]
     sort_order: Annotated[int, Field(description="排序号")]
-    description: Annotated[str | None, Field(description="描述")] = None
+    description: Annotated[str | None, Field(description="描述")]
 
     model_config = {"from_attributes": True}
 
@@ -56,6 +56,27 @@ class DepartmentBrief(BaseModel):
     id: Annotated[int, Field(description="部门 ID")]
     code: Annotated[str, Field(description="部门编码")]
     name: Annotated[str, Field(description="部门名称")]
-    parent_id: Annotated[int | None, Field(description="父部门 ID")] = None
+    parent_id: Annotated[int | None, Field(description="父部门 ID")]
 
     model_config = {"from_attributes": True}
+
+
+class DepartmentTreeNode(BaseModel):
+    """部门树节点 — GET /departments/tree 返回的嵌套组织架构。
+
+    注意：本文件没有 ``from __future__ import annotations``，
+    自引用 children 必须用带引号的 ForwardRef，pydantic v2 会在模块
+    命名空间里延迟解析。若报 model_rebuild 错，在类定义后补一行
+    ``DepartmentTreeNode.model_rebuild()``。
+    """
+
+    id: Annotated[int, Field(description="部门 ID")]
+    code: Annotated[str, Field(description="部门编码")]
+    name: Annotated[str, Field(description="部门名称")]
+    parent_id: Annotated[int | None, Field(description="父部门 ID")]
+    sort_order: Annotated[int, Field(description="排序号")]
+    description: Annotated[str | None, Field(description="描述")]
+    children: Annotated[
+        list["DepartmentTreeNode"],
+        Field(description="子部门，叶子为空列表"),
+    ]

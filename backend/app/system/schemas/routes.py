@@ -20,6 +20,6 @@ class RoutesResponse(BaseModel):
     permissions → 回写 pinia，刷新按钮权限（改了权限不用重新登录）
     roles       → 回写 pinia，刷新角色（admin 判断 + 侧边栏过滤）
     """
-    routes: Annotated[list[dict], Field(default_factory=list)]
-    permissions: Annotated[list[str], Field(default_factory=list)]
-    roles: Annotated[list[RoleBrief], Field(default_factory=list)]
+    routes: Annotated[list[dict], Field(description="动态路由树")]
+    permissions: Annotated[list[str], Field(description="权限码列表")]
+    roles: Annotated[list[RoleBrief], Field(description="角色列表")]

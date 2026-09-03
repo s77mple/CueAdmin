@@ -13,8 +13,11 @@ from app.system.models import User
 from app.core.security import hash_password
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.response import PageData
+from app.utils.tree import collect_subtree_ids
 from app.system.repositories import UserRepository, RoleRepository, DepartmentRepository
-from app.system.schemas.user import UserCreate, UserUpdate, UserPatch, UserRead, UserDetailResponse
+from app.system.schemas.user import (
+    UserCreate, UserUpdate, UserPatch, UserListItem, UserDetail,
+)
 
 
 class UserService:
@@ -39,11 +42,25 @@ class UserService:
         self,
         role_id: int | None = None,
         is_active: bool | None = None,
+        dept_id: int | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> PageData[UserRead]:
-        """分页用户列表，支持按角色和启用状态筛选。"""
-        return await self.users.list_users(role_id, is_active, page, page_size)
+    ) -> PageData[UserListItem]:
+        """分页用户列表，支持按角色、启用状态、部门（含全部子孙）筛选。"""
+        dept_ids = None
+        if dept_id is not None:
+            # 学 RuoYi：deptId 匹配「该部门 + 全部子孙部门」（若依靠 ancestors + find_in_set）。
+            # 部门量小，全量拉平后用 collect_subtree_ids 收子树 id 集合，不必加 ancestors 列
+            departments = await self.departments.list_departments()
+            dept_ids = collect_subtree_ids(
+                departments,
+                root_id=dept_id,
+                get_id=lambda d: d.id,
+                get_parent_id=lambda d: d.parent_id,
+            )
+        return await self.users.list_users(
+            role_id=role_id, is_active=is_active, dept_ids=dept_ids, page=page, page_size=page_size,
+        )
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""
@@ -52,14 +69,18 @@ class UserService:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
         return target
 
-    async def get_user_detail(self, user_id: int) -> UserDetailResponse:
-        """查询单个用户详情，打包角色/部门下拉（编辑回显用）。"""
+    async def get_user_detail(self, user_id: int) -> UserDetail:
+        """查询单个用户详情 + 全量角色下拉（编辑回显用）。
+
+        部门下拉改为前端调 GET /departments/tree 独立加载（学 RuoYi：部门树是列表页级
+        需求，不进用户详情）。
+        """
         user = await self.users.get_with_roles(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
+        user.role_ids = [role.id for role in user.roles]
         roles = await self.roles.list_roles(page=1, page_size=100)
-        departments = await self.departments.list_departments()
-        return UserDetailResponse(user=user, roles=roles.items, departments=departments)
+        return UserDetail(user=user, roles=roles.items)
 
     # 创建
 
@@ -99,8 +120,10 @@ class UserService:
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
         # commit 后重新查询：拿回 server_default 生成的时间戳（created_at/updated_at，
-        # flush 时不会回填到对象上），顺带用 selectinload 预加载 roles 保证序列化完整
-        return await self.users.get_with_roles(new_user.id)
+        # flush 时不会回填到对象上）；roles 预加载后现算 role_ids 挂到对象上（UserRead 回显）
+        user = await self.users.get_with_roles(new_user.id)
+        user.role_ids = [role.id for role in user.roles]
+        return user
 
     # 全量更新
 
@@ -142,6 +165,7 @@ class UserService:
         if roles_changed:
             await self._clear_perm_cache(user_id)
 
+        target.role_ids = [role.id for role in target.roles]
         return target
 
     # 部分更新
@@ -189,6 +213,7 @@ class UserService:
         if "role_ids" in data:
             await self._clear_perm_cache(user_id)
 
+        target.role_ids = [role.id for role in target.roles]
         return target
 
     # 删除

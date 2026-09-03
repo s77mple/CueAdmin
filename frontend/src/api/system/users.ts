@@ -1,9 +1,19 @@
 import { http } from "@/utils/http";
 import type { ApiResult, PageData } from "../types";
-import type { User, UserCreate, UserUpdate, UserPatch, UserListQuery, UserDetail } from "./types";
+import type {
+  User,
+  UserListItem,
+  UserCreate,
+  UserUpdate,
+  UserPatch,
+  UserListQuery,
+  UserDetail
+} from "./types";
 
 export const getUserList = (params?: UserListQuery) =>
-  http.get<ApiResult<PageData<User>>>("/api/v1/system/users", { params });
+  http.get<ApiResult<PageData<UserListItem>>>("/api/v1/system/users", {
+    params
+  });
 export const getUser = (id: number) =>
   http.get<ApiResult<UserDetail>>(`/api/v1/system/users/${id}`);
 export const createUser = (data: UserCreate) =>

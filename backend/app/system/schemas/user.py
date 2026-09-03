@@ -98,35 +98,61 @@ class UserPatch(BaseModel):
         return _validate_username(v)
 
 
-# UserRead — 查询响应体
-# 学 RuoYi：列表同时返回「嵌套对象带名字」和「数字 ID」，两者并存各司其职：
-#   - department / roles → 表格直接显示名字（前端不用再拿 dictStore 翻 id）
-#   - department_id / role_ids → 表单回显勾选（el-select 的 v-model 是数字）
+# UserRead vs UserListItem — 学 RuoYi：接口职责分离，各自 schema 只写真实返回的字段。
+#   - UserRead（UserDetail.user / 写返回 / 登录 user）：回显 + 认证场景。编辑弹窗回显
+#     勾选要的是 id —— department_id / role_ids；表格渲染要的嵌套对象 department / roles
+#     后端在这类响应里不返回，所以 UserRead 不声明它们（那归 UserListItem）。
+#   - UserListItem（PageData[UserListItem]）：列表行 = 渲染名字对象（department / roles）
+#     + 行内 department_id（RuoYi 行里就带 deptId）；role_ids 不进列表，
+#     勾选回显只发生在编辑弹窗，由 UserRead 承担。
 # 需要 role 的 permissions/menus 时用 RoleItem（见 schemas/role.py），不在这里外溢。
+#
+# 纪律：response 字段一律不加 = None / default_factory 默认值 → OpenAPI 文档里全部「必返」；
+# null / 空列表是合法值，用类型表达（str | None、list[T]），不带默认值 ≠ 不可为空。
 
 class UserRead(BaseModel):
-    """用户查询返回的字段。"""
+    """用户信息（单查回显 / 写返回 / 登录响应共用）— 字段与这三个接口真实返回一一对应。"""
     id: Annotated[int, Field(description="用户 ID")]
     username: Annotated[str, Field(description="用户名")]
     display_name: Annotated[str, Field(description="显示名")]
-    phone: Annotated[str | None, Field(description="手机号")] = None
+    phone: Annotated[str | None, Field(description="手机号（未填写时为 null）")]
     is_active: Annotated[bool, Field(description="是否启用")]
-    department_id: Annotated[int | None, Field(description="部门 ID（表单回显用）")] = None
-    department: Annotated[DepartmentBrief | None, Field(description="部门对象（表格显示名字用）")] = None
-    role_ids: Annotated[list[int], Field(default_factory=list, description="角色 ID 列表（表单回显勾选用）")]
-    roles: Annotated[list[RoleBrief], Field(default_factory=list, description="角色对象列表（表格显示名字用）")]
+    department_id: Annotated[int | None, Field(description="部门 ID")]
+    role_ids: Annotated[list[int], Field(description="角色 ID 列表")]
     created_at: Annotated[datetime, Field(description="创建时间")]
     updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
 
 
-class UserDetailResponse(BaseModel):
+# UserListItem — 列表专用瘦行（GET /users 分页返回）
+
+class UserListItem(BaseModel):
+    """用户列表行 — 表格要渲染的字段 + 行内 id。
+
+    学 RuoYi：列表行带嵌套对象（department / roles，管表格「部门」列 / 「角色」tag 列渲染），
+    同时行内带 department_id（RuoYi 的 deptId 就下发行里）供行级操作直接用；
+    role_ids 仍不进列表（回显勾选只发生在编辑弹窗，由单查接口的 UserRead 承担）。
+    """
+    id: Annotated[int, Field(description="用户 ID")]
+    username: Annotated[str, Field(description="用户名")]
+    display_name: Annotated[str, Field(description="显示名")]
+    phone: Annotated[str | None, Field(description="手机号")]
+    is_active: Annotated[bool, Field(description="是否启用")]
+    department_id: Annotated[int | None, Field(description="部门 ID（行内 id，学 RuoYi 下发行带 deptId）")]
+    department: Annotated[DepartmentBrief | None, Field(description="部门对象（表格「部门」列显示名字用）")]
+    roles: Annotated[list[RoleBrief], Field(description="角色对象列表（表格「角色」tag 列渲染用）")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
+
+    model_config = {"from_attributes": True}
+
+
+class UserDetail(BaseModel):
     """用户详情响应 — 单查接口 GET /users/{id} 返回。
 
-    学 RuoYi 的 getInfo：一次返回「用户详情 + 全量角色/部门下拉」，
-    编辑弹窗一次请求拿全（详情回显 + 下拉选项），不依赖列表行数据和全局字典。
+    学 RuoYi 的 getInfo：一次返回「用户详情 + 全量角色下拉」；
+    部门下拉/部门树不进详情（列表页级需求），前端独立调 GET /departments/tree。
     """
     user: Annotated[UserRead, Field(description="用户详情")]
     roles: Annotated[list[RoleBrief], Field(description="全量角色列表（下拉框用）")]
-    departments: Annotated[list[DepartmentBrief], Field(description="全量部门列表（下拉框用）")]

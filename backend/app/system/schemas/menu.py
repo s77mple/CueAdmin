@@ -41,10 +41,10 @@ class MenuItem(BaseModel):
     id: Annotated[int, Field(description="菜单 ID")]
     code: Annotated[str, Field(description="菜单编码")]
     name: Annotated[str, Field(description="菜单名称")]
-    icon: Annotated[str | None, Field(description="图标")] = None
-    path: Annotated[str | None, Field(description="路由路径")] = None
-    component: Annotated[str | None, Field(description="组件路径")] = None
-    parent_id: Annotated[int | None, Field(description="父菜单 ID")] = None
+    icon: Annotated[str | None, Field(description="图标")]
+    path: Annotated[str | None, Field(description="路由路径")]
+    component: Annotated[str | None, Field(description="组件路径")]
+    parent_id: Annotated[int | None, Field(description="父菜单 ID")]
     sort_order: Annotated[int, Field(description="排序号")]
 
     model_config = {"from_attributes": True}
@@ -60,6 +60,6 @@ class MenuBrief(BaseModel):
     id: Annotated[int, Field(description="菜单 ID")]
     code: Annotated[str, Field(description="菜单编码")]
     name: Annotated[str, Field(description="菜单名称")]
-    parent_id: Annotated[int | None, Field(description="父菜单 ID")] = None
+    parent_id: Annotated[int | None, Field(description="父菜单 ID")]
 
     model_config = {"from_attributes": True}

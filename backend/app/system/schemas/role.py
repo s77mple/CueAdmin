@@ -42,10 +42,10 @@ class RoleItem(BaseModel):
     id: Annotated[int, Field(description="角色 ID")]
     code: Annotated[str, Field(description="角色编码")]
     name: Annotated[str, Field(description="角色名称")]
-    description: Annotated[str | None, Field(description="描述")] = None
+    description: Annotated[str | None, Field(description="描述")]
     is_system: Annotated[bool, Field(description="是否系统内置角色")]
-    permissions: Annotated[list[PermissionBrief], Field(default_factory=list, description="权限列表")]
-    menus: Annotated[list[MenuBrief], Field(default_factory=list, description="菜单列表")]
+    permissions: Annotated[list[PermissionBrief], Field(description="权限列表")]
+    menus: Annotated[list[MenuBrief], Field(description="菜单列表")]
 
     model_config = {"from_attributes": True}
 

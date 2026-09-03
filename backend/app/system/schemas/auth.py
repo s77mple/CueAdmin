@@ -44,7 +44,7 @@ class LoginResponse(BaseModel):
     refresh_token: Annotated[str, Field(description="刷新令牌")]
     user: Annotated[UserRead, Field(description="用户信息")]
     permissions: Annotated[list[str], Field(description="权限码列表")]
-    roles: Annotated[list[RoleBrief], Field(default_factory=list, description="角色列表")]
+    roles: Annotated[list[RoleBrief], Field(description="角色列表")]
 
     model_config = {"from_attributes": True}
 

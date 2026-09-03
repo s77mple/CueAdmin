@@ -10,7 +10,7 @@ from app.core.dependencies import SessionDep, get_current_user
 from app.system.models import User
 from app.system.schemas.department import (
     DepartmentCreate, DepartmentUpdate,
-    DepartmentItem, DepartmentListResponse, DepartmentBrief,
+    DepartmentItem, DepartmentListResponse, DepartmentBrief, DepartmentTreeNode,
 )
 from app.core.response import ApiResponse
 from app.system.services.department_service import DepartmentService
@@ -35,6 +35,18 @@ async def list_departments(
     departments = await DepartmentService(session).list_departments()
     data = DepartmentListResponse(items=departments, total=len(departments))
     return ApiResponse.ok(data=data)
+
+
+# GET /departments/tree — 部门组织架构树（children 嵌套）
+# 注意：必须声明在 GET /departments/{dept_id} 之前，否则 "tree" 会被 int 路径参数吞掉 → 422
+
+@router.get("/tree", response_model=ApiResponse[list[DepartmentTreeNode]], summary="部门树")
+async def get_department_tree(
+    session: SessionDep,
+    user: Annotated[User, Security(get_current_user, scopes=[DeptScope.LIST])],
+) -> ApiResponse[list[DepartmentTreeNode]]:
+    tree = await DepartmentService(session).get_department_tree()
+    return ApiResponse.ok(data=tree)
 
 
 # GET /departments/{dept_id} — 部门详情（编辑回显）

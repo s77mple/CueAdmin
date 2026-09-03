@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.system.models import Department
 from app.core.exceptions import BusinessException, ErrorCode
 from app.system.repositories import DepartmentRepository
-from app.system.schemas.department import DepartmentCreate, DepartmentUpdate
+from app.system.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentTreeNode
+from app.utils.tree import nest_by_parent
 
 
 class DepartmentService:
@@ -25,6 +26,27 @@ class DepartmentService:
     async def list_departments(self) -> list[Department]:
         """返回全部部门（扁平列表，前端用 parent_id 转树）。"""
         return await self.departments.list_departments()
+
+    async def get_department_tree(self) -> list[DepartmentTreeNode]:
+        """全部部门 → 嵌套组织架构树（顶层与各级均按 sort_order 排序）。
+
+        repo 已按 (sort_order, id) 全局排序，nest 后天然保持同级有序，无需二次排序。
+        """
+        departments = await self.departments.list_departments()
+        nodes = [
+            DepartmentTreeNode(
+                id=d.id, code=d.code, name=d.name, parent_id=d.parent_id,
+                sort_order=d.sort_order, description=d.description,
+                children=[],  # 空列表起点，nest_by_parent 会往里追加
+            )
+            for d in departments
+        ]
+        return nest_by_parent(
+            nodes,
+            get_id=lambda n: n.id,
+            get_parent_id=lambda n: n.parent_id,
+            children_of=lambda n: n.children,
+        )
 
     async def get_department_for_update(self, dept_id: int) -> Department:
         """带行级锁获取部门。"""
