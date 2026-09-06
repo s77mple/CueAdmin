@@ -65,10 +65,10 @@ class UserService:
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""
-        target = await self.users.get_for_update_with_roles_posts(user_id)
-        if not target:
+        user = await self.users.get_for_update_with_roles_posts(user_id)
+        if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
-        return target
+        return user
 
     async def get_user_detail(self, user_id: int) -> UserDetail:
         """单个用户详情（编辑回显）— user 纯列 + 全量角色/岗位下拉 + 已分配 role_ids/post_ids。
@@ -143,118 +143,118 @@ class UserService:
 
     async def update_user(self, user_id: int, body: UserUpdate) -> User:
         """PUT 全量更新 — 所有字段覆盖写入。"""
-        target = await self.get_user_for_update(user_id)
-        self._guard_superadmin(target)
+        user = await self.get_user_for_update(user_id)
+        self._guard_superadmin(user)
 
         # 用户名
-        if body.username != target.username:
+        if body.username != user.username:
             await self._validate_username_unique(body.username, exclude_user_id=user_id)
-            target.username = body.username
+            user.username = body.username
 
-        target.display_name = body.display_name
-        target.phone = body.phone
+        user.display_name = body.display_name
+        user.phone = body.phone
 
         # 禁用保护（superadmin 已在上方校验过，这里只需确保不删最后一个管理员）
         if not body.is_active:
             await self._guard_last_admin()
 
-        target.is_active = body.is_active
+        user.is_active = body.is_active
 
         # 部门
         await self._validate_department(body.department_id)
-        target.department_id = body.department_id
+        user.department_id = body.department_id
 
         # 角色
-        old_role_ids = {r.id for r in target.roles}
-        await self._resolve_roles(target, body.role_ids)
-        roles_changed = {r.id for r in target.roles} != old_role_ids
+        old_role_ids = {r.id for r in user.roles}
+        await self._resolve_roles(user, body.role_ids)
+        roles_changed = {r.id for r in user.roles} != old_role_ids
 
         # 岗位（只影响关联表，不涉及权限 → 不触发缓存清除）
-        await self._resolve_posts(target, body.post_ids)
+        await self._resolve_posts(user, body.post_ids)
 
         try:
             await self.session.commit()
         except IntegrityError:
             await self.session.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
-        await self.session.refresh(target)
+        await self.session.refresh(user)
 
         if roles_changed:
             await self._clear_perm_cache(user_id)
 
-        return target
+        return user
 
     # 部分更新
 
     async def patch_user(self, user_id: int, body: UserPatch) -> User:
         """PATCH 部分更新 — 只改传了的字段。"""
-        target = await self.get_user_for_update(user_id)
-        self._guard_superadmin(target)
+        user = await self.get_user_for_update(user_id)
+        self._guard_superadmin(user)
         data = body.model_dump(exclude_unset=True)
 
         if "username" in data:
             if data["username"] is None:
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, "username 不能为 null")
-            if data["username"] != target.username:
+            if data["username"] != user.username:
                 await self._validate_username_unique(data["username"], exclude_user_id=user_id)
-                target.username = data["username"]
+                user.username = data["username"]
 
         if "display_name" in data:
             if data["display_name"] is None:
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, "display_name 不能为 null")
-            target.display_name = data["display_name"]
+            user.display_name = data["display_name"]
 
         if "phone" in data:
-            target.phone = data["phone"]
+            user.phone = data["phone"]
 
         if "is_active" in data:
             if not data["is_active"]:
                 await self._guard_last_admin()
-            target.is_active = data["is_active"]
+            user.is_active = data["is_active"]
 
         if "department_id" in data:
             await self._validate_department(data["department_id"])
-            target.department_id = data["department_id"]
+            user.department_id = data["department_id"]
 
         if "role_ids" in data:
-            await self._resolve_roles(target, data["role_ids"])
+            await self._resolve_roles(user, data["role_ids"])
 
         if "post_ids" in data:
-            await self._resolve_posts(target, data["post_ids"])
+            await self._resolve_posts(user, data["post_ids"])
 
         try:
             await self.session.commit()
         except IntegrityError:
             await self.session.rollback()
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
-        await self.session.refresh(target)
+        await self.session.refresh(user)
 
         if "role_ids" in data:
             await self._clear_perm_cache(user_id)
 
-        return target
+        return user
 
     # 删除
 
     async def delete_user(self, user_id: int, operator_id: int, hard: bool = False) -> str:
         """软禁用（默认）或硬删除（?hard=true，仅已禁用用户）。"""
-        target = await self.users.get_for_update_with_roles_posts(user_id)
-        if not target:
+        user = await self.users.get_for_update_with_roles_posts(user_id)
+        if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
 
         if operator_id == user_id:
             raise BusinessException(ErrorCode.CONFLICT, "不允许操作自己的账号")
-        self._guard_superadmin(target)
+        self._guard_superadmin(user)
 
         if hard:
-            if target.is_active:
+            if user.is_active:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许彻底删除启用状态的用户，请先禁用")
-            if any(r.code == "admin" for r in target.roles):
+            if any(r.code == "admin" for r in user.roles):
                 if await self.users.count_active_admins() < 1:
                     raise BusinessException(ErrorCode.CONFLICT, "不允许删除最后一个拥有管理员角色的用户")
 
             await self._clear_perm_cache(user_id)
-            await self.users.delete(target)
+            await self.users.delete(user)
             try:
                 await self.session.commit()
             except IntegrityError:
@@ -262,12 +262,12 @@ class UserService:
                 raise BusinessException(ErrorCode.CONFLICT, "删除失败：存在关联数据")
             return "已彻底删除"
         else:
-            if not target.is_active:
+            if not user.is_active:
                 raise BusinessException(ErrorCode.CONFLICT, "该用户已被禁用")
-            if any(r.code == "admin" for r in target.roles):
+            if any(r.code == "admin" for r in user.roles):
                 await self._guard_last_admin()
 
-            target.is_active = False
+            user.is_active = False
             await self.session.commit()
             return "已禁用"
 
@@ -284,7 +284,7 @@ class UserService:
             if not await self.departments.get(department_id):
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {department_id}")
 
-    async def _resolve_roles(self, target: User, role_ids: list[int] | None) -> None:
+    async def _resolve_roles(self, user: User, role_ids: list[int] | None) -> None:
         """验证角色 ID 存在并赋值，包含最后管理员保护。"""
         role_ids = role_ids or []  # None（未传）与空列表均视为清空角色
         roles = await self.roles.get_by_ids(role_ids)
@@ -294,16 +294,16 @@ class UserService:
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
 
         admin_role = next((r for r in roles if r.code == "admin"), None)
-        had_admin = any(r.code == "admin" for r in target.roles)
+        had_admin = any(r.code == "admin" for r in user.roles)
         will_lose_admin = had_admin and admin_role is None
 
         if will_lose_admin:
             if await self.users.count_active_admins() <= 1:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
 
-        target.roles = roles
+        user.roles = roles
 
-    async def _resolve_posts(self, target: User, post_ids: list[int] | None) -> None:
+    async def _resolve_posts(self, user: User, post_ids: list[int] | None) -> None:
         """验证岗位 ID 存在并赋值（与 _resolve_roles 同构）。
 
         岗位不参与权限判断，改岗位无需清 perm 缓存；None 与空列表都视为清空岗位。
@@ -315,7 +315,7 @@ class UserService:
             invalid = [pid for pid in post_ids if pid not in found]
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"岗位 ID 不存在: {invalid}")
 
-        target.posts = posts
+        user.posts = posts
 
     async def _guard_last_admin(self) -> None:
         """确保不禁用/删除最后一个管理员。"""
@@ -323,11 +323,11 @@ class UserService:
             raise BusinessException(ErrorCode.CONFLICT, "不允许禁用最后一个管理员")
 
     @staticmethod
-    def _guard_superadmin(target: User) -> None:
+    def _guard_superadmin(user: User) -> None:
         """禁止操作超级管理员（admin 用户名）。"""
-        if target.username == "admin":
+        if user.username == "admin":
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许操作超级管理员")
-
+    
     async def _clear_perm_cache(self, user_id: int) -> None:
         """清除用户权限缓存。"""
         if not self.redis:
