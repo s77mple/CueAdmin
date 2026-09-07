@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通路1 · 批次链路推进（界面演示）</title>
+<style>
+:root{--primary:#409eff;--success:#67c23a;--warning:#e6a23c;--danger:#f56c6c;--info:#909399;
+--text:#303133;--text2:#606266;--text3:#909399;--border:#ebeef5;--bd:#dcdfe6;--bg:#f0f2f5;
+--sp:#ecf5ff;--spb:#b3d8ff;--spt:#409eff;--suc:#f0f9eb;--sucb:#b3e19d;--succt:#67c23a;
+--warn:#fdf6ec;--warnb:#f5dab1;--warnt:#e6a23c;--info2:#f4f4f5;--info2b:#d3d4d6;--infot:#909399;
+--dngr:#fef0f0;--dngrb:#fbc4c4;--dngrt:#f56c6c;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
+button{font-family:inherit;cursor:pointer}
+.app{display:flex;min-height:100vh}
+.sidebar{width:210px;background:#001529;color:#bfcbd9;display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:100}
+.slogo{height:50px;display:flex;align-items:center;gap:9px;padding:0 18px;color:#fff;font-size:15px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.06);flex:none}
+.slogo .dot{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#36cfc9,#1890ff);display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex:none}
+.slogo small{display:block;font-size:10px;font-weight:400;color:#5c6b7a}
+.menu{flex:1;padding:6px 0;overflow:auto}
+.menu::-webkit-scrollbar{width:0}
+.mi{display:flex;align-items:center;gap:10px;height:46px;padding:0 20px;cursor:pointer;color:#bfcbd9;font-size:14px;user-select:none}
+.mi svg{width:16px;height:16px;fill:#8a99ab;flex:none}
+.mi:hover{background:#001c3d;color:#fff}
+.mi.on{background:var(--primary);color:#fff}
+.mi.on svg{fill:#fff}
+.mi .mtag{margin-left:auto;font-size:11px;padding:3px 8px;border-radius:9px;background:#16324f;color:#7f95ab}
+.mi.on .mtag{background:rgba(255,255,255,.22);color:#fff}
+.sfoot{margin:12px 14px;padding:10px 12px;border-radius:8px;background:#0c2a47;color:#7f95ab;font-size:11.5px;line-height:1.7;flex:none}
+.sfoot b{color:var(--warning)}
+.main{flex:1;margin-left:210px;display:flex;flex-direction:column;min-height:100vh;min-width:0}
+.hd{height:50px;background:#fff;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:90}
+.crumb{font-size:14px}.crumb .sep{margin:0 8px;color:#c0c4cc}.crumb .cur{color:#97a8be}
+.hd .sp{flex:1}
+.user{display:flex;align-items:center;gap:9px;cursor:pointer;padding:5px 9px;border-radius:6px;position:relative}
+.user:hover{background:#f5f7fa}
+.avatar{width:32px;height:32px;border-radius:50%;background:#409eff;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex:none}
+.avatar.green{background:#67c23a}.avatar.orange{background:#e6a23c}.avatar.purple{background:#8e44ad}
+.user .un{font-size:13.5px;font-weight:500}.user .ud{font-size:11px;color:var(--text3)}
+.user .caret{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #909399;margin-left:4px}
+.drop{position:absolute;right:0;top:44px;background:#fff;border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.1);min-width:236px;padding:6px 0;z-index:200;display:none}
+.drop.show{display:block}
+.di{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer}
+.di:hover{background:#f5f7fa}
+.di .dn{font-size:13px}.di .dd{font-size:11.5px;color:var(--text3)}
+.di .chk{margin-left:auto;color:var(--primary);visibility:hidden}
+.di.on .chk{visibility:visible}
+.content{flex:1;padding:16px;min-width:0}
+.card{background:#fff;border:1px solid var(--border);border-radius:6px;padding:16px}
+.card+.card{margin-top:14px}
+.cd-h{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.cd-h h2{font-size:16px;font-weight:600}
+.cd-h .sub{font-size:12px;color:#c0c4cc}
+/* tag */
+.tag{display:inline-block;padding:0 8px;height:22px;line-height:20px;border-radius:4px;font-size:12px;border:1px solid transparent;white-space:nowrap}
+.t-sp{background:var(--sp);color:var(--spt);border-color:var(--spb)}
+.t-suc{background:var(--suc);color:var(--succt);border-color:var(--sucb)}
+.t-warn{background:var(--warn);color:var(--warnt);border-color:var(--warnb)}
+.t-inf{background:var(--info2);color:var(--infot);border-color:var(--info2b)}
+.t-dgr{background:var(--dngr);color:var(--dngrt);border-color:var(--dngrb)}
+/* 按钮 */
+.btn{height:32px;padding:0 15px;border-radius:4px;border:1px solid transparent;font-size:13px;background:var(--primary);color:#fff;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{opacity:.85}
+.btn.plain{background:#fff;border-color:var(--bd);color:var(--text)}
+.btn.plain:hover{color:var(--primary);border-color:var(--primary);opacity:1}
+.btn.sm{height:26px;padding:0 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+/* 表格 */
+input.in,select.in{height:32px;border:1px solid var(--bd);border-radius:4px;padding:0 10px;font-size:13px;color:var(--text);outline:none;background:#fff}
+input.in:focus,select.in:focus{border-color:var(--primary)}
+input.in[disabled]{background:#f5f7fa;color:var(--text3)}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl thead th{background:#fafafa;color:var(--text3);font-weight:500;text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;white-space:nowrap}
+.tbl tbody td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text2)}
+.tbl tbody tr:hover td{background:#f5f7fa}
+.lk{color:var(--primary);cursor:pointer;background:none;border:none;padding:0;font-size:13px}
+.lk:hover{text-decoration:underline}.lk.danger{color:var(--danger)}.lk.dis{color:#c0c4cc;cursor:not-allowed}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.toolbar .right{margin-left:auto;display:flex;gap:8px}
+.page{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding-top:14px;font-size:13px;color:var(--text2)}
+.page .pg{display:flex;gap:4px}
+.pbtn{min-width:28px;height:28px;border:1px solid var(--bd);background:#fff;border-radius:4px;font-size:12px;color:var(--text2);padding:0 6px}
+.pbtn.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.pbtn.dis{color:#c0c4cc;cursor:not-allowed}
+.empty{padding:52px 0;text-align:center;color:var(--text3);font-size:13px}
+.empty .eico{font-size:28px;margin-bottom:8px;opacity:.4}
+/* 弹窗/消息 */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:8vh 16px}
+.dlg{background:#fff;border-radius:6px;width:100%;max-width:780px;box-shadow:0 10px 40px rgba(0,0,0,.2);display:flex;flex-direction:column;max-height:82vh;animation:pop .15s ease}
+@keyframes pop{from{transform:translateY(-8px);opacity:.5}to{opacity:1;transform:none}}
+.dlg-hd{display:flex;align-items:center;padding:13px 20px;border-bottom:1px solid var(--border);font-size:15.5px;font-weight:600}
+.dlg-hd .x{margin-left:auto;border:none;background:none;font-size:20px;color:#909399;cursor:pointer}
+.dlg-bd{padding:16px 20px;overflow:auto;font-size:13px}
+.dlg-ft{display:flex;justify-content:flex-end;gap:10px;padding:11px 20px;border-top:1px solid var(--border);background:#fafafa;border-radius:0 0 6px 6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px}
+.fld label{display:block;font-size:12.5px;color:var(--text2);margin-bottom:5px}
+.fld input.in,.fld select.in{width:100%}
+.money-in{background:#f7f8fa!important;color:#f56c6c;font-weight:600}
+.sec-t{font-size:13.5px;font-weight:600;margin:14px 0 8px;display:flex;align-items:center;gap:6px}
+.sec-t:first-of-type{margin-top:0}
+.sec-t::before{content:"";width:3px;height:13px;background:var(--primary);border-radius:1px}
+.msg{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--border);border-radius:4px;padding:9px 16px;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:999;display:flex;gap:8px;align-items:center}
+.ro-note{background:var(--warn);border:1px solid var(--warnb);color:#b26e00;border-radius:4px;padding:8px 12px;font-size:12.5px;margin-bottom:12px;display:flex;gap:8px;align-items:center}
+/* 批次链路工作台 */
+.ws-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.ws-head h2{font-size:16px;font-weight:600}
+.ws-head .sp{flex:1}
+.demo-tools{display:flex;gap:8px;align-items:center}
+.pb-wrap{height:6px;border-radius:3px;background:#eef1f6;overflow:hidden;margin:10px 0 4px}
+.pb-fill{height:100%;background:linear-gradient(90deg,#67c23a,#409eff);border-radius:3px;transition:width .4s}
+.pb-txt{font-size:12px;color:var(--text3)}
+.step{display:flex;gap:13px;position:relative;padding:0 0 4px}
+.step::before{content:"";position:absolute;left:15px;top:34px;bottom:6px;width:2px;background:#e6ebf0}
+.step:last-child::before{display:none}
+.sd{width:31px;height:31px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;z-index:1;border:2px solid #fff;box-shadow:0 0 0 2px #dcdfe6;background:#fff}
+.sd.done{background:var(--success);box-shadow:0 0 0 2px var(--sucb)}
+.sd.cur{background:var(--warning);box-shadow:0 0 0 2px var(--warnb);animation:pl 1.6s infinite}
+.sd.wait{background:#f2f4f7;color:#b6bcc6;box-shadow:0 0 0 2px #e6e9ee}
+@keyframes pl{0%,100%{box-shadow:0 0 0 2px var(--warnb)}50%{box-shadow:0 0 0 6px rgba(230,162,60,.25)}}
+.sb{flex:1;padding:2px 0 14px;min-width:0}
+.sb .sl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sb .sl .t{font-size:13.5px;font-weight:500;color:var(--text)}
+.sb .sub{font-size:12px;color:var(--text3);margin-top:2px}
+.sb .chips{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.sb .act{margin-top:9px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);background:#fafbfc;border-radius:14px;padding:3px 11px;font-size:12px;color:var(--text2)}
+.pill i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.av-mini{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;margin-right:4px}
+.finish{background:linear-gradient(135deg,#064e3b,#0e9f6e);color:#fff;border-radius:10px;padding:16px 18px;margin-top:4px;font-size:13.5px}
+.warn-line{background:var(--warn);border:1px solid var(--warnb);color:#b26e00;border-radius:8px;padding:10px 14px;margin-top:8px;font-size:13px;line-height:1.7}
+/* 批次看板 */
+.bcard{border:1px solid var(--border);border-radius:8px;padding:15px 18px;margin-bottom:12px;background:#fff;display:flex;gap:18px;align-items:center;flex-wrap:wrap;cursor:pointer;transition:border-color .2s,box-shadow .2s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.bcard:hover{border-color:var(--primary);box-shadow:0 3px 12px rgba(64,158,255,.12)}
+.bcard.closed{opacity:.72;filter:grayscale(.3)}
+.bc-main{flex:1;min-width:280px}
+.bc-l1{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bc-l1 .no{font-size:16px;font-weight:700;color:var(--text)}
+.bc-route{font-size:12.5px;color:var(--text2);margin-top:3px}
+.bc-route b{color:var(--text)}
+.bc-next{font-size:12.5px;color:#5b6b80;margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bc-right{display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:210px}
+.bc-right .pb-wrap{width:200px;margin:0}
+/* 附件上传占位 */
+.upz{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 2px;margin-top:2px;border-top:1px dashed #eef1f5}
+.upc{display:flex;gap:6px;flex-wrap:wrap}
+.up-chip{display:inline-flex;align-items:center;gap:4px;background:#f0f9eb;border:1px solid var(--sucb);color:#4a7c2f;border-radius:4px;padding:3px 9px;font-size:12px}
+.up-chip .x{cursor:pointer;color:#67c23a;font-weight:700}
+.piao{margin-top:10px;border:1px dashed #c6d4e3;border-radius:8px;padding:10px 12px;background:#fbfdff}
+.piao .p-hd{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5b6b80;margin-bottom:2px;flex-wrap:wrap}
+.piao .p-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:6px 0;font-size:12.5px}
+.piao .p-row+.p-row{border-top:1px dashed #e8edf3}
+.piao .p-c{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex:none}
+.demo-hint{border-left:3px solid #d9e7ff;background:#f7fbff;padding:8px 12px;font-size:12px;color:#5b6b80;margin-bottom:14px;border-radius:0 6px 6px 0;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="slogo"><span class="dot">通</span><div>通路1 购销系统<small>批次链路推进</small></div></div>
+    <nav class="menu" id="menu"></nav>
+    <div class="sfoot" id="sfoot"></div>
+  </aside>
+  <div class="main">
+    <header class="hd">
+      <div class="crumb"><span class="cur">业务</span><span class="sep">/</span><span id="crumbCur"></span></div>
+      <div class="sp"></div>
+      <span class="tag t-inf" id="scopeTag" style="margin-right:12px"></span>
+      <div class="user" id="userBox">
+        <span class="avatar" id="uAv"></span>
+        <div><div class="un" id="uName"></div><div class="ud" id="uDept"></div></div>
+        <span class="caret"></span>
+        <div class="drop" id="drop"></div>
+      </div>
+    </header>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<script>
+var ICONB='<svg viewBox="0 0 1024 1024"><path d="M880 298.4H521L403.7 186.2a8.15 8.15 0 0 0-5.5-2.2H144c-17.7 0-32 14.3-32 32v592c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V330.4c0-17.7-14.3-32-32-32z"/></svg>';
+var ICOND='<svg viewBox="0 0 1024 1024"><path d="M904 476H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8z"/><path d="M858.5 763.6a374 374 0 0 0-80.6-119.5 375.6 375.6 0 0 0-119.5-80.6c-.4-.2-.8-.3-1.2-.5C719.5 518 760 444.5 760 362c0-137-111-248-248-248S264 225 264 362c0 82.5 40.5 156 102.8 201.1-.4.2-.8.3-1.2.5-44.8 18.9-85 46-119.5 80.6a375.6 375.6 0 0 0-80.6 119.5A371.7 371.7 0 0 0 136 901.8a8 8 0 0 0 8 8.2h60c4.4 0 7.9-3.5 8-7.8 2-77.2 33-149.5 87.8-204.3 56.7-56.7 132-87.9 212.2-87.9s155.5 31.2 212.2 87.9C779 752.5 810 824.9 812 902c.1 4.4 3.6 7.8 8 7.8h60a8 8 0 0 0 8-8.2c-1-47.7-10.8-93.2-29.5-134z"/></svg>';
+var ICONL='<svg viewBox="0 0 1024 1024"><path d="M906 94H118c-17.7 0-32 14.3-32 32v804c0 17.7 14.3 32 32 32h788c17.7 0 32-14.3 32-32V126c0-17.7-14.3-32-14.3-32-32s-14.6-32-32-32s-32 14-32 32v140z"/></svg>';
+var ICONU='<svg viewBox="0 0 1024 1024"><path d="M858.5 763.6a374 374 0 0 0-80.6-119.5 375.6 375.6 0 0 0-119.5-80.6c-.4-.2-.8-.3-1.2-.5C719.5 518 760 444.5 760 362c0-137-111-248-248-248S264 225 264 362c0 82.5 40.5 156 102.8 201.1-.4.2-.8.3-1.2.5-44.8 18.9-85 46-119.5 80.6a375.6 375.6 0 0 0-80.6 119.5A371.7 371.7 0 0 0 136 901.8a8 8 0 0 0 8 8.2h60c4.4 0 7.9-3.5 8-7.8 2-77.2 33-149.5 87.8-204.3 56.7-56.7 132-87.9 212.2-87.9s155.5 31.2 212.2 87.9C779 752.5 810 824.9 812 902c.1 4.4 3.6 7.8 8 7.8h60a8 8 0 0 0 8-8.2c-1-47.7-10.8-93.2-29.5-134zM512 608c-135.5 0-248-112.5-248-248s112.5-248 248-248 248 112.5 248 248-112.5 248-248 248z"/></svg>';
+var MENUMETA={
+ batch:{label:'批次链路',icon:ICONB},
+ deals:{label:'交易记录明细',icon:ICOND},
+ quality:{label:'质检记录',icon:ICONL},
+ subjects:{label:'主体档案',icon:ICONU}
+};
+var ROLES={
+ boss:{key:'boss',name:'陈总',dept:'系统管理员',init:'B',scope:'all',record:['cnsm','ke','libo','gp','gh'],menus:['batch','deals','quality','subjects'],note:'全部可录可看',foot:'管理员：全部可录可看'},
+ chen:{key:'chen',name:'陈雄珍',dept:'昌农商贸 · 采购',init:'陈',scope:['cnsm','ke','libo'],record:['cnsm','ke','libo'],menus:['batch','deals','subjects'],note:'录：昌农 / 客都文旅 / 立博',foot:'可录：昌农商贸 · 客都文旅 · 立博 抬头采购（质检由林丽薇）'},
+ bao:{key:'bao',name:'鲍雅丹',dept:'金骏康 / 金柚康 · 采购',init:'鲍',scope:['gp','gh'],record:['gp','gh'],menus:['batch','deals','subjects'],note:'录：GP / GH',foot:'可录：GP / GH 采购（质检由林丽薇）'},
+ lin:{key:'lin',name:'林丽薇',dept:'金柚康 · 质检',init:'林',scope:['gp','gh','libo','cnsm','ke'],record:[],menus:['batch','quality'],note:'录：质检（无金额）',foot:'质检角色：只录质检环节，不碰金额'}
+};
+var AV={'boss':'purple','chen':'green','bao':'','lin':'orange'};
+var SUBJ={cnsm:'昌农商贸',libo:'立博 · 代工厂',ke:'客都文旅',gp:'GP 金柚康',gh:'GH 金骏康',farmer:'果农/合作社',kang:'康懿嘉'};
+function byKey(k){return ROLES[k]}
+
+/* ========== 主链（只走实物/生产/质检 8 环） ==========
+   ③④ 两笔纯票层(昌农→客都文旅转票、客都文旅→GP 开票)折到 ① 下的 PIAO 旁支，不占推进 */
+var ROUTE=[
+ {id:'s1',by:'chen',kind:'deal',t:'① 果农/合作社 ──干柚果/片──▶ 昌农',sub:'果农/合作社 供货给 昌农商贸，货直发 GP 厂（不走昌农仓库）；昌农录下第一笔采购单，首次生成批号 P260901',recs:[{no:'CG-2026-0903-01',batch:'P260901',type:'贸易类',buyer:'昌农商贸',bs:'cnsm',seller:'果农/合作社',ss:'farmer',goods:'干柚果/片',qty:20000,price:9,amount:180000,cno:'HC-20260903-11',status:'进行中',date:'2026-09-03',paid:54000,recv:'直发 GP 厂，过磅入库',ro:'上游供应商无账号，昌农录'}]},
+ {id:'s2',by:'lin',kind:'qc',t:'② 干柚果/片 ──到GP采购检验──▶ GP 金柚康',sub:'林丽薇在 GP 收货后检测含量 → 结果决定昌农向果农谈的单价',recs:[{no:'QC-20260903-01',batch:'P260901',stage:'采购检验',qs:'gp',subj:'GP 金柚康',product:'干柚果/片',result:'含量 26.4% · 水分 13.1% · 合格',date:'2026-09-03',note:'含量用于上游议价'}]},
+ {id:'s3',by:'lin',kind:'qc',t:'③ 柚苷（自产）──GP生产检验──▶ GP 金柚康',sub:'GP 收货后投料自产柚苷（这段只有票层、无购销单）→ 产出质检，单挂批号',recs:[{no:'QC-20260905-02',batch:'P260901',stage:'生产检验',qs:'gp',subj:'GP 金柚康',product:'柚苷（自产产出）',result:'柚苷含量 98.2% · 合格',date:'2026-09-05',note:'自产段无票，质检独立成单'}]},
+ {id:'s4',by:'chen',kind:'deal',t:'④ GP 金柚康 ──柚苷──▶ 立博 · 代工厂',sub:'立博由昌农代管、无账号 → 昌农代录买方立博这手采购',recs:[{no:'CG-2026-0905-03',batch:'P260901',type:'贸易类',buyer:'立博 · 代工厂',bs:'libo',seller:'GP 金柚康',ss:'gp',goods:'柚苷',qty:3000,price:60,amount:180000,cno:'DG-20260905-05',status:'进行中',date:'2026-09-05',paid:0,recv:'2026-09-06 立博收柚苷',ro:'昌农代录买方立博（代管抬头）'}]},
+ {id:'s5',by:'lin',kind:'qc',t:'⑤ 柚苷收料 + 新橙皮苷产出 ──双质检──▶ 立博 · 代工厂',sub:'代工厂自测 + 金柚康复测 + 双方确认含量，结果给昌农向立博定价',recs:[{no:'QC-20260906-03',batch:'P260901',stage:'采购检验',qs:'libo',subj:'立博 · 代工厂',product:'柚苷（收料）',result:'含量 ≥98.0% · 合格',date:'2026-09-06',note:'代工厂自测 + 金柚康复测'},{no:'QC-20260906-04',batch:'P260901',stage:'生产检验',qs:'libo',subj:'立博 · 代工厂',product:'新橙皮苷（产出）',result:'双方确认含量 97.6% · 合格',date:'2026-09-06',note:'昌农据此定价'}]},
+ {id:'s6',by:'chen',kind:'deal',t:'⑥ 立博 · 代工厂 ──新橙皮苷──▶ 昌农',sub:'昌农向立博买新橙皮苷；单价按⑤确认含量商定',recs:[{no:'CG-2026-0906-04',batch:'P260901',type:'代工类',buyer:'昌农商贸',bs:'cnsm',seller:'立博 · 代工厂',ss:'libo',goods:'新橙皮苷',qty:2000,price:52,amount:104000,cno:'DG-20260906-07',status:'进行中',date:'2026-09-06',paid:31200,recv:'双方确认含量后入库',ro:'按⑤确认含量定价'}]},
+ {id:'s7',by:'bao',kind:'deal',t:'⑦ 昌农 ──新橙皮苷·终点──▶ GP 金柚康',sub:'同一批 2000KG，GP 最后向昌农买回做 NHDC 原料',recs:[{no:'CG-2026-0907-05',batch:'P260901',type:'贸易类',buyer:'GP 金柚康',bs:'gp',seller:'昌农商贸',ss:'cnsm',goods:'新橙皮苷',qty:2000,price:70,amount:140000,cno:'HC-20260907-09',status:'进行中',date:'2026-09-07',paid:0,recv:'GP 收货',ro:''}]},
+ {id:'s8',by:'lin',kind:'qc',t:'⑧ 新橙皮苷 ──到GP采购检验──▶ GP 金柚康',sub:'GP 收终点原料到货也要采购检验，至此整批走完',recs:[{no:'QC-20260907-05',batch:'P260901',stage:'采购检验',qs:'gp',subj:'GP 金柚康',product:'新橙皮苷（到货）',result:'合格 · 与⑤复核一致',date:'2026-09-07',note:'GP 到货检验'}]}
+];
+/* ===== 货款/票层 · 挂在①（货到 GP 后可随时补，不占推进；两笔都录完 → 闭环） ===== */
+var PIAO=[
+ {id:'pa',by:'chen',t:'票② · 昌农 → 客都文旅（转开票 · 内部挂账）',rec:{no:'CG-2026-0903-02',batch:'P260901',type:'贸易类',buyer:'客都文旅',bs:'ke',seller:'昌农商贸',ss:'cnsm',goods:'干柚果/片（转开票·无实货）',qty:20000,price:9,amount:180000,cno:'ZZ-20260903-01',status:'进行中',date:'2026-09-03',paid:0,recv:'无实货，仅票/资金层',ro:'票②：果农直发 GP，此段只走转开票+内部挂账（昌农代录买方客都文旅）'}},
+ {id:'pb',by:'bao',t:'票③ · 客都文旅 → GP（开票层，货已到 GP）',rec:{no:'CG-2026-0904-02',batch:'P260901',type:'贸易类',buyer:'GP 金柚康',bs:'gp',seller:'客都文旅',ss:'ke',goods:'干柚果/片（原料）',qty:20000,price:11,amount:220000,cno:'HC-20260904-08',status:'进行中',date:'2026-09-04',paid:66000,recv:'GP 收货（货 9-3 已直发到厂）',ro:'票③：GP 向客都文旅开票层收货，货款回到昌农体系'}}
+];
+
+/* 库存（演示起点为空：P260901 各步一边录一边落进来） */
+var DEALS=[];
+var QCS=[];
+/* 批次档案：每批一条，走自己的链路（现在只有 P260901 在跑） */
+var BATCHES=[
+ {no:'P260901',goods:'干柚果/片 → 柚苷 → 新橙皮苷',route:'果农 → 昌农 →(客都文旅票层)→ GP 自产 → 立博代工 → 昌农 → GP',start:'2026-09-03',entry:'昌农商贸（陈雄珍）'}
+];
+
+/* ==================== 状态 ==================== */
+var cur=ROLES.chen,page='batch',bview='board',autoRun=false;
+var doneIdx=[]; // 已完成步骤 id 集合
+var f={kw:'',type:'',status:'',batch:''};
+
+function $(_){return document.querySelector(_)}
+function esc(s){return (''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function money(n){return '¥'+Number(n).toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function num(n){return Number(n).toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function toast(msg,type){type=type||'success';var e=document.createElement('div');e.className='msg';e.innerHTML='<span style="color:'+(type==='success'?'#67c23a':'#909399')+'">'+(type==='success'?'✓':'ℹ')+'</span><span>'+esc(msg)+'</span>';document.body.appendChild(e);setTimeout(function(){e.style.transition='opacity .3s';e.style.opacity='0';setTimeout(function(){e.remove()},300)},1600)}
+function uid(){return 'r'+Date.now().toString(36)+Math.floor(Math.random()*999)}
+function inScope(r,slug){return r.scope==='all'||(Object.prototype.toString.call(r.scope)==='[object Array]'&&r.scope.indexOf(slug)>=0)}
+function stepDone(i){return doneIdx.indexOf(ROUTE[i].id)>=0}
+function curStepIdx(){for(var i=0;i<ROUTE.length;i++)if(!stepDone(i))return i;return ROUTE.length}
+function stepCan(i){return cur.scope==='all'||cur.key===ROUTE[i].by}
+function dealVisible(d){return inScope(cur,d.bs)||inScope(cur,d.ss)}
+function dealEditable(d){return cur.scope==='all'||cur.record.indexOf(d.bs)>=0}
+function qcVisible(q){if(cur.scope==='all')return true;if(inScope(cur,q.qs))return true;return deals().some(function(d){return d.batch===q.batch&&dealVisible(d)})}
+function deals(){return DEALS}
+function qcArr(){return QCS}
+function stTag(s){var m={'进行中':'t-warn','待收货':'t-sp','已结算':'t-suc','待检验':'t-dgr'};return '<span class="tag '+m[s]+'">'+s+'</span>'}
+function avDot(k,n){return '<span class="av-mini" style="background:'+({'chen':'#0e9f6e','bao':'#409eff','lin':'#e6a23c','boss':'#8e44ad'})[k]+'">'+n[0]+'</span>'}
+/* —— 货款/票层（PIAO）辅助 —— */
+function canBy(b){return cur.scope==='all'||cur.key===b}
+function piaoRec(id){return DEALS.find(function(d){return d.ck===id})}
+function piaoDoneAll(){return PIAO.every(function(p){return !!piaoRec(p.id)})}
+function piaoOpen(){var n=0;PIAO.forEach(function(p){if(!piaoRec(p.id))n++});return n}
+function piaoOpenNames(){var a=[];PIAO.forEach(function(p){if(!piaoRec(p.id))a.push(p.t)});return a.join('；')}
+function fillPiao(){PIAO.forEach(function(p){if(!piaoRec(p.id)){var c=JSON.parse(JSON.stringify(p.rec));c.key=uid();c.ck=p.id;DEALS.unshift(c)}})}
+function piaoBoxHtml(){var open=stepDone(0);var rows=PIAO.map(function(p){var rec=piaoRec(p.id);var who=ROLES[p.by];var right='';
+ if(rec)right=chipForRec(rec);
+ else if(!open)right='<span style="color:#c0c4cc;font-size:12px">① 录完后开放</span>';
+ else if(canBy(p.by))right='<button class="btn sm" data-pid="'+p.id+'">录入本笔</button>';
+ else right='<button class="btn sm plain" data-pgo="'+p.id+'">以 '+who.name+' 视角录入</button>';
+ return '<div class="p-row"><span class="p-c" style="background:'+(rec?'#67c23a':'#b6bcc6')+'">'+(rec?'✓':'票')+'</span><div style="flex:1;min-width:200px"><div>'+p.t+'</div><div style="font-size:11px;color:#909399">经办：'+who.name+' · '+who.dept.split(' · ')[0]+'</div></div>'+right+'</div>'});
+ return '<div class="piao"><div class="p-hd"><b>货款 / 票层</b><span style="color:#c0c4cc">· 挂在①（货直发 GP，票不走实货）· 不占推进</span><span style="flex:1"></span><span class="tag '+(piaoDoneAll()?'t-suc':'t-warn')+'">'+(piaoDoneAll()?'已闭环':'待录 '+piaoOpen()+' 笔')+'</span></div>'+rows.join('')+'</div>'}
+function piaoGo(id){var p=PIAO.find(function(x){return x.id===id});if(cur.key!==p.by&&cur.scope!=='all'){switchUser(p.by);toast('已切换为 '+cur.name)}piaoModal(id)}
+
+/* ==================== 侧栏 / 顶栏 ==================== */
+function mtagStr(k){if(k!=='batch')return '';if(bview==='board'){var n=BATCHES.length-(allDone()&&piaoDoneAll()?1:0);return n>0?'<span class="mtag" id="mtag">进行中 '+n+'</span>':''}return allDone()?'':'<span class="mtag" id="mtag">'+Math.min(curStepIdx()+1,ROUTE.length)+'/'+ROUTE.length+'</span>'}
+function renderMenu(){var m=$('#menu');m.innerHTML=cur.menus.map(function(k){return '<div class="mi'+(page===k?' on':'')+'" data-p="'+k+'">'+MENUMETA[k].icon+'<span>'+MENUMETA[k].label+'</span>'+mtagStr(k)+'</div>'}).join('');m.querySelectorAll('.mi').forEach(function(x){x.onclick=function(){page=x.dataset.p;render()}});$('#crumbCur').textContent=MENUMETA[page].label;$('#sfoot').innerHTML=cur.foot}
+function allDone(){return curStepIdx()>=ROUTE.length}
+function renderUser(){var r=cur;$('#uAv').textContent=r.init;$('#uAv').className='avatar '+(AV[r.key]||'');$('#uName').textContent=r.name;$('#uDept').textContent=r.dept;$('#scopeTag').textContent=r.note;var dd=$('#drop');dd.innerHTML=Object.keys(ROLES).map(function(k){var x=ROLES[k];return '<div class="di'+(k===r.key?' on':'')+'" data-k="'+k+'"><span class="avatar '+(AV[k]||'')+'" style="width:28px;height:28px;font-size:12px">'+x.init+'</span><div><div class="dn">'+x.name+'</div><div class="dd">'+x.dept+'</div></div><span class="chk">✓</span></div>'}).join('');dd.querySelectorAll('.di').forEach(function(x){x.onclick=function(){dd.classList.remove('show');switchUser(x.dataset.k)}})}
+function switchUser(k){cur=ROLES[k];if(cur.menus.indexOf(page)<0)page='batch';render()}
+
+function render(){renderMenu();renderUser();if(page==='batch'){if(bview==='board')renderBoard();else renderBatch()}else if(page==='deals')renderDeals();else if(page==='quality')renderQuality();else renderSubjects()}
+
+/* ==================== 批次链路工作台 ==================== */
+function chipForRec(rec){
+ var v;
+ if(rec.no&&rec.no.indexOf('CG')===0){v=dealVisible(rec);var ed=dealEditable(rec);if(!v)return '<span class="tag t-inf">已完成 · 对方内部环节</span>';return '<span class="tag '+(ed?'t-suc':'t-inf')+'">'+(ed?'✎ ':'🔒 ')+rec.no+' · '+rec.buyer+' ← '+rec.seller+' · '+money(rec.amount)+'</span>'}
+ v=qcVisible(rec);if(!v)return '<span class="tag t-inf">已完成 · 对方质检</span>';return '<span class="tag t-warn">'+rec.no+' · '+rec.stage+' · '+rec.product+' · '+rec.result+'</span>'
+}
+function chipsFromStep(st){var out='';st.recs.forEach(function(r){if(st.kind==='deal'){var d=DEALS.find(function(x){return x.ck===st.id});if(d)out+=chipForRec(d)}else{QCS.filter(function(q){return q.ck===st.id}).forEach(function(q){out+=chipForRec(q)})}});return out}
+function renderBatch(){
+ var ci=curStepIdx(),doneN=doneIdx.length,tot=ROUTE.length,md=allDone(),pNum=piaoOpen(),pd=piaoDoneAll();
+ var statTxt=!md?'进行中':(pd?'本批已闭环':'链路走完 · 票层待结');
+ var statCls=!md?'t-warn':(pd?'t-suc':'t-sp');
+ var content=$('#content');
+ var autoLbl=md?('补录票层 '+(pNum>0?pNum+' 笔':'')):'▶ 一键走到终点';
+ var autoDis=(md&&pd)?' disabled':'';
+ var fill=(doneN+(PIAO.length-pNum))/(tot+PIAO.length)*100;
+ var html='<div class="card"><div class="ws-head"><button class="btn plain sm" id="bBack">← 批次看板</button><h2>批次 P260901 · 链路推进</h2><span class="tag '+statCls+'">'+statTxt+'</span><span class="sp"></span><div class="demo-tools"><button class="btn plain sm" id="rpReset">↺ 从①重新走</button><button class="btn plain sm" id="rpAuto"'+autoDis+'>'+autoLbl+'</button></div></div>';
+ html+='<div class="pb-wrap"><div class="pb-fill" style="width:'+fill+'%"></div></div><div class="pb-txt" id="pbTxt"></div></div>';
+ html+='<div class="card"><div class="demo-hint">主界面「批次链路」只按<b>实物</b>走 ①→⑧（采购/收货/质检/生产），进度全员可见；每一环由「买方抬头 / 被检主体所属团队」录，其它团队只读、录不了那一步，质检只有林丽薇录。两笔<b>纯票层</b>（昌农→客都文旅 转票、客都文旅→GP 开票）折成 ① 下的「货款/票层」旁支：货直发 GP、票不走实货，不占推进，两笔录完即闭环。用右上角头像换人，或点“一键走到终点”看完整过程。</div>';
+ for(var i=0;i<ROUTE.length;i++){var st=ROUTE[i];
+  var sD=stepDone(i)?'done':(i===ci&&!md?'cur':'wait');
+  var mark=stepDone(i)?'✓':(i===ci&&!md)?(st.kind==='qc'?'检':(st.by==='bao'?'GP':st.by==='chen'?'昌':'·')):(i+1);
+  html+='<div class="step"><div class="sd '+sD+'">'+mark+'</div><div class="sb"><div class="sl"><span class="t">'+st.t+'</span>'+(stepDone(i)?'<span class="tag t-suc">已录</span>':(i===ci&&!md?'<span class="tag t-warn">当前</span>':''))+'</div><div class="sub">'+st.sub+'</div><div class="chips">'+chipsFromStep(st)+'</div>';
+  if(stepDone(i)){/* 已录过，显示经办 */}
+  else if(i===ci&&!md){var who=ROLES[st.by];var can=stepCan(i);
+   html+='<div class="act"><span class="pill"><i style="background:'+({'chen':'#0e9f6e','bao':'#409eff','lin':'#e6a23c'})[st.by]+'"></i>本步经办：'+who.name+' · '+who.dept.split(' · ')[0]+'</span>';
+   if(can)html+='<button class="btn sm" data-rec="'+i+'">录入本步（'+(st.kind==='deal'?'采购记录':'质检记录')+'）</button>';
+   else html+='<button class="btn sm plain" data-sw="'+st.by+'">'+avDot(st.by,who.name)+'以 '+who.name+' 视角演示本步 →</button><span style="color:#c0c4cc;font-size:12px">当前账号（'+cur.name+'）不是经办团队，无权录</span>';
+  }
+  if(i===0)html+=piaoBoxHtml();
+  html+='</div></div></div>';
+ }
+ if(md&&pd)html+='<div class="finish">✅ <b>P260901 整批闭环</b>：主链 ①→⑧（采购 ①④⑥⑦、质检 ②③⑤⑧）+ 货款/票层 2 笔（票② 昌农→客都文旅、票③ 客都文旅→GP）全部落库，同一批号从头串到尾。销售侧不建台账：GP/昌农“卖出去”的段，都在对方采购记录里以供应商身份🔒只读可见。</div>';
+ else if(md&&!pd)html+='<div class="warn-line">⚠️ 货已走完但<b>未闭环</b>：主链 8 环已全绿，上方「货款/票层」还差 '+pNum+' 笔（'+piaoOpenNames()+'）。这两笔是货款结算凭据，录完本批才算完。</div>';
+ html+='</div>';
+ content.innerHTML=html;
+ var ptxt;
+ if(!md)ptxt='环节 '+(ci+1)+'/'+tot+' · 当前：'+ROUTE[ci].t.replace(/^[①②③④⑤⑥⑦⑧]+\s*/,'');
+ else if(!pd)ptxt='主链 '+tot+'/'+tot+' 已走完 · 货款/票层剩 '+pNum+' 笔待录';
+ else ptxt='整批闭环：主链 '+tot+' 环 + 票层 '+PIAO.length+' 笔全部落库';
+ $('#pbTxt').textContent=ptxt;
+ content.querySelectorAll('[data-rec]').forEach(function(b){b.onclick=function(){stepModal(+b.dataset.rec)}});
+ content.querySelectorAll('[data-sw]').forEach(function(b){b.onclick=function(){switchUser(b.dataset.sw);toast('已切换为 '+cur.name)}});
+ content.querySelectorAll('[data-pid]').forEach(function(b){b.onclick=function(){piaoModal(b.dataset.pid)}});
+ content.querySelectorAll('[data-pgo]').forEach(function(b){b.onclick=function(){piaoGo(b.dataset.pgo)}});
+ var bb=$('#bBack');if(bb)bb.onclick=function(){bview='board';render()};
+ $('#rpReset').onclick=resetBatch;
+ var a=$('#rpAuto');if(a)a.onclick=autoPlay;
+}
+function resetBatch(){autoStop();doneIdx=[];DEALS=DEALS.filter(function(d){return !d.ck});QCS=QCS.filter(function(q){return !q.ck});toast('已回到起点：① 待昌农录第一笔');render()}
+var autoT=null;
+function autoStop(){if(autoT){clearTimeout(autoT);autoT=null}}
+function autoPlay(){if(autoT)return;
+ if(autoRun){autoRun=false;autoStop();$('#rpAuto').textContent=allDone()?'补录票层':'▶ 一键走到终点';return}
+ if(allDone()){if(piaoOpen()>0){fillPiao();render();toast('已补录票层，本批闭环')}return}
+ autoRun=true;$('#rpAuto').textContent='⏸ 暂停';
+ (function tick(){
+  var ci=curStepIdx();if(ci>=ROUTE.length){autoRun=false;$('#rpAuto').textContent='▶ 一键走到终点';if(piaoOpen()>0){fillPiao();render()}toast('本批已全部走完');return}
+  var st=ROUTE[ci];
+  st.recs.forEach(function(rc){var c=JSON.parse(JSON.stringify(rc));c.key=uid();c.ck=st.id;if(st.kind==='deal'){DEALS.unshift(c)}else{QCS.push(c)}});
+  if(ci===0)fillPiao();
+  doneIdx.push(st.id);render();
+  autoT=setTimeout(tick,380);
+ })();
+}
+
+/* ==================== 批次看板（多批时的主页第 1 层） ==================== */
+function batchStat(){
+ var md=allDone(),pd=piaoDoneAll(),ci=curStepIdx(),doneN=doneIdx.length,pNum=piaoOpen(),tot=ROUTE.length;
+ var closed=md&&pd,segTxt,piaoTxt,next;
+ if(closed){segTxt='环节 '+tot+'/'+tot;next='主链 ①→⑧ + 票层 2 笔全部落库 · 闭环'}
+ else if(md){segTxt='环节 '+tot+'/'+tot;next='主链已走完 · 货款/票层剩 '+pNum+' 笔待录'}
+ else{segTxt='环节 '+(ci+1)+'/'+tot;var st=ROUTE[ci];next='当前：'+st.t.replace(/^[①②③④⑤⑥⑦⑧]+\s*/,'')+'　← 待 '+ROLES[st.by].name+' 录'}
+ piaoTxt=(!closed&&pNum>0)?(' · 票层待录 '+pNum):'';
+ return {md:md,pd:pd,ci:ci,doneN:doneN,pNum:pNum,tot:tot,closed:closed,
+  statTxt:closed?'已闭环':(md?'链路走完 · 票层待结':'进行中'),
+  statCls:closed?'t-suc':(md?'t-sp':'t-warn'),
+  fill:(doneN+(PIAO.length-pNum))/(tot+PIAO.length)*100,
+  seg:segTxt,piao:piaoTxt,next:next};
+}
+function renderBoard(){
+ var content=$('#content');
+ var s=batchStat();var actN=BATCHES.length-(s.closed?1:0);
+ var html='<div class="card"><div class="ws-head"><h2>批次看板</h2><span class="tag t-inf">共 '+BATCHES.length+' 批</span><span class="tag '+(actN>0?'t-warn':'t-inf')+'">'+(actN>0?actN+' 批进行中':'无进行中')+'</span><span class="sp"></span></div>'+
+  '<div style="font-size:12px;color:#c0c4cc;margin:-2px 0 14px;line-height:1.7">看板列<b>进行中的批</b>——目前就是 P260901 这一批。链路实物进度<b>所有人可见</b>；每一步由「买方抬头 / 被检主体所属团队」录、其它团队只读，质检只有林丽薇。点卡片进该批的链路推进工作台。已闭环的批收在下方灰显、可查看链路。</div>';
+ BATCHES.forEach(function(b){
+  var bs=batchStat();
+  var main='<div class="bc-main"><div class="bc-l1"><span class="no">'+b.no+'</span><span class="tag '+bs.statCls+'">'+bs.statTxt+'</span><span class="tag t-inf">'+b.start+' 开批 · '+b.entry+'</span></div>'+
+   '<div class="bc-route"><b>'+b.goods+'</b><div>'+b.route+'</div></div>'+
+   '<div class="bc-next">'+bs.next+'</div></div>';
+  var right='<div class="bc-right"><div class="pb-wrap"><div class="pb-fill" style="width:'+bs.fill+'%"></div></div><div style="font-size:12px;color:#909399">'+bs.seg+bs.piao+'</div><button class="btn sm">'+(bs.closed?'查看链路（只读）':'进入链路推进 →')+'</button></div>';
+  html+='<div class="bcard'+(bs.closed?' closed':'')+'" data-open="1">'+main+right+'</div>';
+ });
+ html+='</div>';
+ content.innerHTML=html;
+ content.querySelectorAll('.bcard').forEach(function(c){c.onclick=function(){bview='chain';render()}});
+}
+
+/* —— 录单字段 helper（字段名对齐供应商采购流程 Excel：①合同 ②货/物流/收货 ③票/款） —— */
+function fldTxt(k,label){return '<div class="fld"><label>'+label+'</label><input class="in" data-fd="'+k+'"></div>'}
+function fldNum(k,label){return '<div class="fld"><label>'+label+'</label><input class="in" data-fd="'+k+'" type="number" step="0.01"></div>'}
+function fldSel(k,label,opts){return '<div class="fld"><label>'+label+'</label><select class="in" data-fd="'+k+'">'+opts.map(function(o){return '<option>'+o+'</option>'}).join('')+'</select></div>'}
+function upzHtml(key,label){return '<div class="upz"><span style="font-size:12px;color:#909399">附件</span><button type="button" class="btn plain sm" data-up="'+label+'" data-box="up_'+key+'">＋ 上传 '+label+'</button><div class="upc" id="up_'+key+'"></div></div>'}
+function wireUps(root){root.querySelectorAll('[data-up]').forEach(function(btn){btn.onclick=function(){var inp=document.createElement('input');inp.type='file';inp.style.display='none';document.body.appendChild(inp);inp.onchange=function(){var f=inp.files&&inp.files[0];var box=root.querySelector('#'+btn.dataset.box);if(f&&box){var chip=document.createElement('span');chip.className='up-chip';chip.innerHTML='📎 '+esc(f.name)+'<span class="x">×</span>';chip.querySelector('.x').onclick=function(){chip.remove()};box.appendChild(chip);toast('（演示）已占位上传「'+btn.dataset.up+'」：'+f.name)}inp.remove()};inp.click()}})}
+var CONTRACT_F=[['date','采购日期（年月日）','t'],['cno','合同编号','t'],['goods','货物名称','t'],['spec','规格型号','t'],['qty','合同数量 / KG','n'],['price','含税单价（元/KG）','n'],['status','单据状态','s:进行中,待收货,已结算']];
+var GOODS_F=[['logiCo','物流公司','t'],['logiNo','物流单号 / 车牌号','t'],['recvDate','收货日期（年月日）','t'],['recvQty','收货数量 / KG','n'],['recvAddr','收货地址','t'],['recvBy','收货人','t'],['cond','货物情况','s:正常,包装破损'],['coa','COA 批号','t'],['recv','收货/发货备注','t']];
+var BILL_F=[['invDate','发票日期（年月日）','t'],['invNo','发票号码','t'],['invType','发票类型','s:增值税专用发票,增值税普通发票'],['tax','税率 %','n'],['invAmt','发票金额（元）','n'],['credit','账期 / 天','n'],['payDate','付款日期（年月日）','t'],['paid','已付款金额（元）','n']];
+function secGridHtml(list){var h='<div class="grid2">';list.forEach(function(f){var k=f[0],lab=f[1],ty=f[2];if(ty==='n')h+=fldNum(k,lab);else if(ty==='s')h+=fldSel(k,lab,f[2].slice(2).split(','));else h+=fldTxt(k,lab)});return h+'</div>'}
+/* —— 通用：录入一笔采购记录（本步/票层共用，保存后交给回调） —— */
+function dealEntryModal(title,rc,onSave,note){
+ var foot='<button class="btn plain" id="mNo">取 消</button><button class="btn" id="mOk">保 存</button>';
+ var ov=openDlg('<b>'+title+'</b>','',foot);
+ var bd=ov.querySelector('.dlg-bd');
+ var gv=function(k){return rc[k]===undefined?'':rc[k]};
+ var selOpts=Object.keys(SUBJ).map(function(s){return '<option value="'+s+'">'+SUBJ[s]+'</option>'}).join('');
+ var html='<div class="ro-note">'+note+'　字段按「供应商采购流程」Excel 分组：①合同 ②货/物流/收货 ③票/款。</div>';
+ html+='<div class="sec-t">① 合同</div><div class="grid2">';
+ html+='<div class="fld"><label>采购方名称（锁）</label><input class="in" disabled value="'+rc.buyer+'"></div>';
+ html+='<div class="fld"><label>供应商名称</label><select class="in" data-s="ss"><option value="">—请选择—</option>'+selOpts+'</select></div>';
+ html+=fldTxt('date','采购日期（年月日）')+fldTxt('cno','合同编号');
+ html+=fldTxt('goods','货物名称')+fldTxt('spec','规格型号');
+ html+=fldNum('qty','合同数量 / KG')+fldNum('price','含税单价（元/KG）');
+ html+='<div class="fld"><label>合同金额（元，自动）</label><input class="in money-in" data-fd="amount" disabled></div>';
+ html+=fldSel('status','单据状态',['进行中','待收货','已结算']);
+ html+='<div class="fld"><label>批号（锁，沿用本批）</label><input class="in" disabled value="'+gv('batch')+'"></div>';
+ html+='</div>'+upzHtml('ct','合同扫描件 / 电子合同');
+ html+='<div class="sec-t">② 货 · 物流 · 收货</div>'+secGridHtml(GOODS_F)+upzHtml('pd','磅单 / 过磅单')+upzHtml('lg','物流单凭证');
+ html+='<div class="sec-t">③ 票 / 款</div><div class="grid2">';
+ html+=BILL_F.map(function(f){var k=f[0],lab=f[1],ty=f[2];if(ty==='n')return fldNum(k,lab);if(ty==='s')return fldSel(k,lab,f[2].slice(2).split(','));return fldTxt(k,lab)}).join('');
+ html+='<div class="fld"><label>未付款金额（元，自动）</label><input class="in money-in" data-fd="unpaid" disabled></div>';
+ html+='</div>'+upzHtml('iv','发票扫描件');
+ bd.innerHTML=html;
+ bd.querySelector('[data-s="ss"]').value=rc.ss;
+ CONTRACT_F.concat(GOODS_F,BILL_F).forEach(function(f){var el=bd.querySelector('[data-fd="'+f[0]+'"]');if(!el)return;var v=gv(f[0]);if(f[2]==='s'){el.value=(v||f[2].split(':')[1].split(',')[0])}else if(v!=='')el.value=v});
+ function amt(){bd.querySelector('[data-fd="amount"]').value=money((+bd.querySelector('[data-fd="qty"]').value||0)*(+bd.querySelector('[data-fd="price"]').value||0))}
+ function un(){var paid=+bd.querySelector('[data-fd="paid"]').value||0;var amtVal=+String(bd.querySelector('[data-fd="amount"]').value).replace(/[^\d.-]/g,'')||0;bd.querySelector('[data-fd="unpaid"]').value=money(Math.max(amtVal-paid,0))}
+ bd.querySelector('[data-fd="qty"]').oninput=function(){amt();un()};
+ bd.querySelector('[data-fd="price"]').oninput=function(){amt();un()};
+ bd.querySelector('[data-fd="paid"]').oninput=un;
+ amt();un();
+ wireUps(bd);
+ ov.querySelector('#mNo').onclick=function(){ov.remove()};
+ ov.querySelector('#mOk').onclick=function(){
+  var ss=bd.querySelector('[data-s="ss"]').value;if(!ss){toast('请选供应商','');return}
+  var n=JSON.parse(JSON.stringify(rc));
+  n.ss=ss;n.seller=SUBJ[ss];
+  CONTRACT_F.concat(GOODS_F,BILL_F).forEach(function(f){var k=f[0];var el=bd.querySelector('[data-fd="'+k+'"]');if(!el)return;var val=el.value;if(f[2]==='n')n[k]=(val===''?'':(+val));else n[k]=val});
+  n.qty=+n.qty||0;n.price=+n.price||0;n.amount=n.qty*n.price;n.key=uid();ov.remove();onSave(n)
+ };
+}
+/* —— 录入本步（主链，保存即推进一格） —— */
+function stepModal(i){var st=ROUTE[i];if(!stepCan(i)){toast('当前账号无权录入此步','');return}
+ if(st.kind==='deal'){dealEntryModal('录入本步 · '+st.t,st.recs[0],function(n){n.ck=st.id;DEALS.unshift(n);doneIdx.push(st.id);render();toast('已录入 '+n.no+'，链路推进一格')},'保存后链路自动推进一格、记录落入明细。')}
+ else{
+  var foot='<button class="btn plain" id="mNo">取 消</button><button class="btn" id="mOk">保存并推进一格</button>';
+  var ov=openDlg('<b>录入本步 · '+st.t+'</b>','',foot);
+  var bd=ov.querySelector('.dlg-bd');
+  var parts=st.recs.map(function(rc,k){
+   return '<div class="sec-t">质检 '+(st.recs.length>1?('·'+(k+1)):'')+'：'+rc.product+'</div><div class="grid2">'+
+   '<div class="fld"><label>检验环节</label><input class="in" disabled value="'+rc.stage+'"></div>'+
+   '<div class="fld"><label>被检主体</label><select class="in" data-q="'+k+'" data-f="qs"></select></div>'+
+   '<div class="fld"><label>产品</label><input class="in" data-q="'+k+'" data-f="product"></div>'+
+   '<div class="fld"><label>含量结果</label><input class="in" data-q="'+k+'" data-f="result"></div></div>'}).join('');
+  bd.innerHTML='<div class="ro-note">质检只记环节/含量等结果，<b>不含金额</b>。字段可按「代工厂检测结果 / 金柚康检测结果」拆：待检产品 / 批号 / 检测日期 / 含量 / 水分 / 复测。</div>'+parts+'<div style="margin-top:10px">'+upzHtml('qc','检测报告 / COA')+'</div>';
+  var bd2=bd;
+  st.recs.forEach(function(rc,k){var sel=bd2.querySelector('[data-q="'+k+'"][data-f="qs"]');sel.innerHTML=Object.keys(SUBJ).map(function(s){return '<option>'+SUBJ[s]+'</option>'}).join('');sel.value=rc.subj;
+   bd2.querySelector('[data-q="'+k+'"][data-f="product"]').value=rc.product;
+   bd2.querySelector('[data-q="'+k+'"][data-f="result"]').value=rc.result});
+  wireUps(bd2);
+  ov.querySelector('#mNo').onclick=function(){ov.remove()};
+  ov.querySelector('#mOk').onclick=function(){
+   var made=st.recs.map(function(rc,k){var n=JSON.parse(JSON.stringify(rc));var subjV=bd2.querySelector('[data-q="'+k+'"][data-f="qs"]').value;n.subj=subjV;var sl=Object.keys(SUBJ).find(function(s){return SUBJ[s]===subjV});n.qs=sl||'';n.product=bd2.querySelector('[data-q="'+k+'"][data-f="product"]').value;n.result=bd2.querySelector('[data-q="'+k+'"][data-f="result"]').value;n.key=uid();n.ck=st.id;n.by=cur.name;return n});
+   made.forEach(function(q){QCS.push(q)});saveStep(i,ov);render();toast('已录入质检，链路推进一格')
+  }
+ }
+}
+/* —— 录入票层一笔 —— */
+function piaoModal(id){var p=PIAO.find(function(x){return x.id===id});if(!p)return;dealEntryModal('录入 · '+p.t,p.rec,function(n){n.ck=p.id;DEALS.unshift(n);render();toast('已录入票层 '+n.no)},'本笔是「货款/票层」之一：不占链路推进，录完点亮闭环。')}
+function saveStep(i,ov){doneIdx.push(ROUTE[i].id);ov.remove()}
+function openDlg(title,body,foot){var ov=document.createElement('div');ov.className='ov';ov.innerHTML='<div class="dlg"><div class="dlg-hd">'+title+'<button class="x">×</button></div><div class="dlg-bd">'+body+'</div>'+(foot?'<div class="dlg-ft">'+foot+'</div>':'')+'</div>';ov.querySelector('.x').onclick=function(){ov.remove()};ov.addEventListener('mousedown',function(e){if(e.target===ov)ov.remove()});document.body.appendChild(ov);return ov}
+function mbox(title,body){var ov=openDlg('<b>'+title+'</b>',body,'');ov.querySelector('.dlg').style.maxWidth='420px';return ov}
+
+/* ==================== 交易记录明细 ==================== */
+function filteredDeals(){return deals().filter(function(d){if(!dealVisible(d))return false;if(f.kw&&(d.no+' '+d.buyer+' '+d.seller+' '+d.goods+' '+d.batch).indexOf(f.kw)<0)return false;if(f.type&&d.type!==f.type)return false;if(f.status&&d.status!==f.status)return false;if(f.batch&&d.batch!==f.batch)return false;return true})}
+function renderDeals(){var list=filteredDeals();var body='<div class="toolbar"><input class="in" style="width:190px" placeholder="单号 / 主体 / 货物 / 批号" id="kw">'+
+ '<select class="in" id="fType"><option value="">单据类型</option><option>贸易类</option><option>代工类</option></select>'+
+ '<select class="in" id="fStatus"><option value="">状态</option><option>待收货</option><option>进行中</option><option>已结算</option></select>'+
+ '<button class="btn plain sm" style="height:32px" id="qBtn">查询</button><button class="btn plain sm" style="height:32px" id="rBtn">重置</button>'+
+ '<div class="right"><button class="btn" id="toBatch">← 去批次链路录单</button></div></div>'+
+ '<div style="font-size:12px;color:#c0c4cc;margin-bottom:8px">明细页按数据范围过滤、分可编辑/只读 —— 采购录入都在「批次链路」页按步骤发生，这里只查只看。当前批 P260901 记录随链路录入逐条出现。</div>';
+ body+='<table class="tbl"><thead><tr><th style="width:128px">单据编号</th><th>类型</th><th>采购方 → 供应商</th><th>货物</th><th style="text-align:right">数量/KG</th><th style="text-align:right">合同金额</th><th>批号</th><th>状态</th><th style="width:120px">操作</th></tr></thead><tbody>';
+ if(!list.length)body+='<tr><td colspan="9"><div class="empty"><div class="eico">🗂</div>当前账号范围内暂无记录<br><span style="font-size:12px;color:#c0c4cc">去「批次链路」录几笔，或换个账号看它的范围</span></div></td></tr>';
+ list.forEach(function(d){var ed=dealEditable(d);body+='<tr><td>'+d.no+'<div style="font-size:11px;color:#c0c4cc">'+d.date+'</div></td><td><span class="tag '+(d.type==='代工类'?'t-warn':'t-sp')+'">'+d.type+'</span></td><td><div>'+d.buyer+' <span style="color:#c0c4cc">←</span> '+d.seller+'</div>'+(d.ro?'<div style="font-size:11px;color:#c0c4cc">'+d.ro+'</div>':'')+'</td><td>'+d.goods+'</td><td class="num" style="text-align:right">'+num(d.qty)+'</td><td class="num" style="text-align:right">'+money(d.amount)+'</td><td><span class="tag t-inf">'+d.batch+'</span></td><td>'+stTag(d.status)+'</td>'+
+ '<td><div class="btns"><button class="lk" data-v="'+d.key+'">详情</button>'+(ed?'<button class="lk" data-e="'+d.key+'">编辑</button><button class="lk danger" data-x="'+d.key+'">删除</button>':'<span style="color:#c0c4cc;font-size:12px">'+(inScope(cur,d.bs)?'买方只读':'供应商方 · 只读')+'</span>')+'</div></td></tr>'});
+ body+='</tbody></table><div class="page"><span>共 '+list.length+' 条（'+cur.name+' 数据范围）</span></div>';
+ $('#content').innerHTML='<div class="card">'+body+'</div>';
+ var c=$('#content');c.querySelector('#kw').value=f.kw;c.querySelector('#fType').value=f.type;c.querySelector('#fStatus').value=f.status;
+ c.querySelector('#qBtn').onclick=function(){f.kw=c.querySelector('#kw').value.trim();f.type=c.querySelector('#fType').value;f.status=c.querySelector('#fStatus').value;renderDeals()};
+ c.querySelector('#rBtn').onclick=function(){f={kw:'',type:'',status:'',batch:''};renderDeals()};
+ c.querySelector('#toBatch').onclick=function(){page='batch';render()};
+ c.querySelectorAll('[data-v]').forEach(function(x){x.onclick=function(){openDeal(x.dataset.v)}});
+ c.querySelectorAll('[data-e]').forEach(function(x){x.onclick=function(){editDeal(x.dataset.e)}});
+ c.querySelectorAll('[data-x]').forEach(function(x){x.onclick=function(){delDeal(x.dataset.x)}})
+}
+function editDeal(key){var d=deals().find(function(x){return x.key===key});var foot='<button class="btn plain" id="mNo">取 消</button><button class="btn" id="mOk">保 存</button>';var ov=openDlg('<b>编辑 · '+d.no+'</b>','',foot);var bd=ov.querySelector('.dlg-bd');
+ bd.innerHTML='<div class="grid2"><div class="fld"><label>货物名称</label><input class="in" id="e1" value="'+d.goods+'"></div><div class="fld"><label>合同数量/KG</label><input class="in" id="e2" type="number" value="'+d.qty+'"></div><div class="fld"><label>含税单价</label><input class="in" id="e3" type="number" value="'+d.price+'"></div><div class="fld"><label>合同编号</label><input class="in" id="e4" value="'+d.cno+'"></div><div class="fld"><label>状态</label><select class="in" id="e5"><option>进行中</option><option>已结算</option><option>待收货</option></select></div><div class="fld"><label>收货说明</label><input class="in" id="e6" value="'+d.recv+'"></div></div>';bd.querySelector('#e5').value=d.status;
+ ov.querySelector('#mOk').onclick=function(){d.goods=bd.querySelector('#e1').value;d.qty=+bd.querySelector('#e2').value||0;d.price=+bd.querySelector('#e3').value||0;d.amount=d.qty*d.price;d.cno=bd.querySelector('#e4').value;d.status=bd.querySelector('#e5').value;d.recv=bd.querySelector('#e6').value;ov.remove();renderDeals();toast('已保存')};ov.querySelector('#mNo').onclick=function(){ov.remove()}}
+function delDeal(key){var ov=mbox('提示','确认删除该笔记录？删除后对方只读视图同步消失。');ov.querySelector('.dlg-bd').innerHTML+='<div style="margin-top:14px;text-align:right"><button class="btn plain" id="dNo">取 消</button> <button class="btn" style="background:#f56c6c" id="dYes">删 除</button></div>';ov.querySelector('#dNo').onclick=function(){ov.remove()};ov.querySelector('#dYes').onclick=function(){deals().splice(deals().findIndex(function(x){return x.key===key}),1);ov.remove();renderDeals();toast('已删除')}}
+function openDeal(key){var d=deals().find(function(x){return x.key===key});var ed=dealEditable(d);var qr=qcArr().filter(function(q){return q.batch===d.batch&&qcVisible(q)});var unpaid=d.amount-d.paid;
+ var bd='';if(!ed)bd+='<div class="ro-note">🔒 只读视图：你不是这笔的买方体系，但交易中出现你方主体。数据由对方录入。</div>';
+ bd+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span class="tag t-sp">'+d.type+'</span>'+stTag(d.status)+(ed?'<span class="tag t-suc">我方可编辑</span>':'<span class="tag t-inf">只读</span>')+'<span style="margin-left:auto;color:#c0c4cc;font-size:12px">录于 '+d.date+'</span></div>';
+ bd+='<div class="sec-t">主档</div><div class="grid2">'+f2('单据编号',d.no)+f2('批号',d.batch)+f2('采购方（买方）',d.buyer)+f2('供应商',d.seller)+f2('货物',d.goods)+f2('合同数量',num(d.qty)+' KG')+f2('含税单价',money(d.price)+' /KG')+f2('合同编号',d.cno)+f2('合同金额','<b style="color:#f56c6c">'+money(d.amount)+'</b>')+f2('收货',esc(d.recv||'—'))+'</div>';
+ bd+='<div class="sec-t">票 / 款</div><div class="grid2">'+f2('已付',money(d.paid))+f2('未付（=金额−Σ已付，自动）',money(unpaid))+'</div>';
+ if(d.ro)bd+='<div style="color:#c0c4cc;font-size:12px;margin-top:6px">备注：'+esc(d.ro)+'</div>';
+ bd+='<div class="sec-t">同批质检结果（'+qr.length+'）</div>'+(qr.length?qr.map(function(q){return '<div style="display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:4px;padding:7px 10px;margin-bottom:6px;font-size:12.5px"><span class="tag t-warn">'+q.stage+'</span><div style="flex:1"><b>'+q.product+'</b> · '+q.subj+'<div style="color:#909399">'+q.result+'</div></div><span style="color:#c0c4cc">'+q.no+'</span></div>'}).join(''):'<div style="color:#c0c4cc;font-size:12px">该批号暂无可见质检。</div>');
+ var ov=openDlg('<b>采购记录详情 · '+d.no+'</b>',bd,'<button class="btn plain" id="dC">关 闭</button>');ov.querySelector('#dC').onclick=function(){ov.remove()};ov.querySelector('.dlg').style.maxWidth='760px'}
+function f2(k,v){return '<div class="fld"><label>'+k+'</label><div style="line-height:30px;padding:0 10px;background:#f7f8fa;border:1px solid #ebeef5;border-radius:4px;color:#303133">'+v+'</div></div>'}
+
+/* ==================== 质检记录 ==================== */
+function renderQuality(){var canEdit=cur.scope==='all'||cur.key==='lin';
+ var list=qcArr().filter(function(q){return canEdit||qcVisible(q)});
+ if(f.kw)list=list.filter(function(q){return (q.no+' '+q.product+' '+q.subj+' '+q.batch).indexOf(f.kw)>=0});
+ var body='<div class="toolbar"><input class="in" style="width:210px" placeholder="单号 / 产品 / 主体 / 批号" id="qkw"><div class="right">'+(canEdit?'<button class="btn" id="qAdd">＋ 录入质检</button>':'')+'</div></div>'+
+ '<div style="font-size:12px;color:#c0c4cc;margin:-4px 0 12px">质检只记环节 / 产品 / 含量等结果，不含金额；链路中的质检步骤也在这里汇总。</div>';
+ body+='<table class="tbl"><thead><tr><th style="width:118px">单号</th><th>检验环节</th><th>产品 / 被检主体</th><th>结果</th><th>批号</th><th>检测人</th><th>日期</th></tr></thead><tbody>';
+ if(!list.length)body+='<tr><td colspan="7"><div class="empty"><div class="eico">🧪</div>暂无质检记录</div></td></tr>';
+ list.forEach(function(q){body+='<tr><td>'+q.no+'</td><td><span class="tag '+(q.stage==='采购检验'?'t-sp':'t-warn')+'">'+q.stage+'</span></td><td><b>'+q.product+'</b><div style="font-size:12px;color:#909399">'+q.subj+'</div></td><td>'+q.result+'</td><td><span class="tag t-inf">'+q.batch+'</span></td><td>'+q.by+'</td><td>'+q.date+'</td></tr>'});
+ body+='</tbody></table><div class="page"><span>共 '+list.length+' 条</span></div>';
+ $('#content').innerHTML='<div class="card">'+body+'</div>';
+ var c=$('#content');c.querySelector('#qkw').value=f.kw;c.querySelector('#qkw').oninput=function(){f.kw=this.value;renderQuality()};
+ var ab=c.querySelector('#qAdd');if(ab)ab.onclick=function(){qcAdd()}}
+function qcAdd(){var foot='<button class="btn plain" id="dNo">取 消</button><button class="btn" id="dOk">保 存</button>';var ov=openDlg('<b>录入质检</b>','',foot);var bd=ov.querySelector('.dlg-bd');
+ bd.innerHTML='<div class="grid2"><div class="fld"><label>检验环节</label><select class="in" id="a1"><option>采购检验</option><option>生产检验</option></select></div><div class="fld"><label>被检主体</label><select class="in" id="a2">'+Object.keys(SUBJ).filter(function(s){return s!=='farmer'&&s!=='kang'}).map(function(s){return '<option>'+SUBJ[s]+'</option>'}).join('')+'</select></div><div class="fld"><label>产品</label><input class="in" id="a3"></div><div class="fld"><label>批号</label><input class="in" id="a4"></div><div class="fld" style="grid-column:1/3"><label>含量结果</label><input class="in" id="a5"></div></div>';
+ ov.querySelector('#dOk').onclick=function(){var g=function(i){return bd.querySelector(i).value};var subj=g('#a2');var slug=Object.keys(SUBJ).find(function(s){return SUBJ[s]===subj});QCS.push({key:uid(),no:'QC-'+Date.now().toString().slice(0,8),batch:g('#a4'),stage:g('#a1'),qs:slug||'',subj:subj,product:g('#a3'),result:g('#a5'),date:new Date().toISOString().slice(0,10),by:cur.name,note:''});ov.remove();renderQuality();toast('已保存')};
+ ov.querySelector('#dNo').onclick=function(){ov.remove()}}
+
+/* ==================== 主体档案 ==================== */
+function renderSubjects(){var can=cur.scope==='all';
+ var teamOf={'cnsm':'昌农团队','ke':'昌农团队','libo':'昌农团队 · 代管','gp':'GH/GP 团队','gh':'GH/GP 团队','farmer':'外部（不登录）','kang':'外部（不登录）'};
+ var roleOf={'cnsm':'采购平台','ke':'转开票抬头','libo':'代工厂（代录）','gp':'买方（自产）','gh':'买方','farmer':'上游供应商','kang':'上游供应商'};
+ var rows=Object.keys(SUBJ).map(function(s){return '<tr><td><b>'+SUBJ[s]+'</b></td><td>'+roleOf[s]+'</td><td>'+teamOf[s]+'</td><td>'+(s==='farmer'||s==='kang'?'<span class="tag t-inf">不登录</span>':'<span class="tag t-suc">内部账号</span>')+'</td></tr>'}).join('');
+ $('#content').innerHTML='<div class="card"><div class="cd-h"><h2>主体档案</h2><span class="sub">谁录谁的采购 / 谁只读 —— 由“主体 + 所属团队 + 代管”决定；链路某步由哪队录，就看这步买方抬头归谁。</span></div><table class="tbl"><thead><tr><th>主体名称</th><th>业务角色</th><th>所属团队 / 代管</th><th style="width:110px">是否登录</th></tr></thead><tbody>'+rows+'</tbody></table>'+(can?'<div style="margin-top:12px"><button class="btn" onclick="toast(\'主体新建表单见 M1 实现；字段=名称/类型/所属团队/代管\')">＋ 新增主体</button></div>':'')+'</div>'}
+
+/* 顶栏 */
+var dopen=false;
+$('#userBox').addEventListener('click',function(e){if(e.target.closest('.drop'))return;dopen=!dopen;$('#drop').classList.toggle('show',dopen)});
+document.addEventListener('click',function(e){if(!e.target.closest('#userBox')){dopen=false;$('#drop').classList.remove('show')}});
+
+render();
+</script>
+</body>
+</html>
