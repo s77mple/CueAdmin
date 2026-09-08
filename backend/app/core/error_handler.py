@@ -35,7 +35,7 @@ async def business_exception_handler(request: Request, exc: BusinessException):
         code=int(exc.code),
     ).warning(f"[{int(exc.code)}] {exc.message}")
     result = ApiResponse.fail(code=int(exc.code), message=exc.message)
-    return JSONResponse(status_code=200, content=result.model_dump())
+    return JSONResponse(status_code=200, content=result.model_dump()) # pydantic实例转 dict 用 model_dump()，而不是 dict(result)，否则会丢失字段描述信息
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):

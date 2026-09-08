@@ -80,11 +80,11 @@ class UserService:
         user = await self.users.get_with_roles_posts(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
-        roles = await self.roles.list_roles(page=1, page_size=100)
+        roles = await self.roles.list_all()  # 全部角色（下拉选项）
         posts = await self.posts.list_all()  # 全部岗位（下拉选项）
         return UserDetail(
             user=user,
-            roles=roles.items,
+            roles=roles,
             role_ids=[role.id for role in user.roles],  # 该用户已分配（编辑回显勾选）
             posts=posts,
             post_ids=[post.id for post in user.posts],  # 该用户已分配岗位（编辑回显勾选）
@@ -109,23 +109,27 @@ class UserService:
             department_id=body.department_id,
         )
 
-        # 赋值关系时用 no_autoflush 包起来：new_user 此时还是 transient（未 add），
-        # 校验查询会触发 autoflush，而反向维护 role.users / post.users 时对象不在
-        # session 会告警。抑制 autoflush，等 add 之后再 commit 统一冲刷即可。
-        with self.session.no_autoflush:
-            # 验证角色存在 + 赋值
-            if body.role_ids:
-                roles = await self.roles.get_by_ids(body.role_ids)
-                if len(roles) != len(body.role_ids):
-                    found = {r.id for r in roles}
-                    invalid = [rid for rid in body.role_ids if rid not in found]
-                    raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
-                new_user.roles = roles
+        # 先做完全部「校验类查询」，再 add、再赋值（取代原来的 no_autoflush 包法）：
+        #   · 校验时 session 还没挂任何脏对象 → autoflush 无物可刷，等价于原 no_autoflush 的效果；
+        #   · add 之后不再发查询 → 唯一一次 flush 发生在 commit，并发撞唯一约束仍被
+        #     commit 的 try/except IntegrityError 接住，不会在途中提前炸。
+        roles = await self.roles.get_by_ids(body.role_ids) if body.role_ids else []
+        if len(roles) != len(body.role_ids):
+            found = {r.id for r in roles}
+            invalid = [rid for rid in body.role_ids if rid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
 
-            # 验证岗位存在 + 赋值
-            await self._resolve_posts(new_user, body.post_ids)
+        posts = await self.posts.get_by_ids(body.post_ids) if body.post_ids else []
+        if len(posts) != len(body.post_ids): # 找到的岗位ID不等于传入的岗位ID数量
+            found = {p.id for p in posts} # 找到的岗位ID集合 
+            invalid = [pid for pid in body.post_ids if pid not in found]
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"岗位 ID 不存在: {invalid}")
 
         self.users.add(new_user)
+        if body.role_ids:
+            new_user.roles = roles
+        if body.post_ids:
+            new_user.posts = posts
 
         # 数据库层唯一性兜底（TOCTOU 防护）
         try:

@@ -43,6 +43,17 @@ class RoleRepository(BaseRepository):
         )
         return await paginate(self.session, stmt, page, page_size)
 
+    async def list_all(self) -> list[Role]:
+        """返回全部角色（编辑用户的弹窗下拉选项，get_user_detail 用）。
+
+        角色做下拉是全量语义，不走 paginate —— paginate 会把 page_size 硬顶到 100，
+        角色一旦超过 100 个，下拉里的后段角色会静默丢失。
+        """
+        result = await self.session.execute(
+            select(Role).order_by(Role.id.asc())
+        )
+        return result.scalars().all()
+
     async def get_by_ids(self, role_ids: Collection[int]) -> list[Role]:
         """按 ID 列表查询（角色关联校验用）。"""
         result = await self.session.execute(
