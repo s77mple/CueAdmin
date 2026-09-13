@@ -4,7 +4,7 @@
 parent_id 自引用 + ondelete="SET NULL"：删父菜单后子菜单变顶级。
 """
 
-from sqlalchemy import String, BigInteger, Integer, ForeignKey
+from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin

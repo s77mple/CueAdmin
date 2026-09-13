@@ -10,6 +10,9 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
+from app.system.schemas.menu import MenuBrief
+from app.system.schemas.permission import PermissionBrief
+
 
 class RoleCreate(BaseModel):
     code: Annotated[str, Field(
@@ -32,9 +35,6 @@ class RoleUpdate(BaseModel):
 
 
 # 响应 Schema
-
-from app.system.schemas.permission import PermissionBrief
-from app.system.schemas.menu import MenuBrief
 
 
 class RoleItem(BaseModel):

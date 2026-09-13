@@ -7,12 +7,16 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Security
 
 from app.core.dependencies import SessionDep, get_current_user
+from app.core.response import ApiResponse
 from app.system.models import User
 from app.system.schemas.department import (
-    DepartmentCreate, DepartmentUpdate,
-    DepartmentItem, DepartmentListResponse, DepartmentBrief, DepartmentTreeNode,
+    DepartmentBrief,
+    DepartmentCreate,
+    DepartmentItem,
+    DepartmentListResponse,
+    DepartmentTreeNode,
+    DepartmentUpdate,
 )
-from app.core.response import ApiResponse
 from app.system.services.department_service import DepartmentService
 
 router = APIRouter(prefix="/departments", tags=["部门管理"])

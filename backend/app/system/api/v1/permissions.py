@@ -6,13 +6,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Security
 
-from app.core.dependencies import SessionDep, RedisDep, get_current_user
+from app.core.dependencies import RedisDep, SessionDep, get_current_user
+from app.core.response import ApiResponse
 from app.system.models import User
 from app.system.schemas.permission import (
-    PermissionCreate, PermissionUpdate,
-    PermissionItem, PermissionListResponse, PermissionBrief,
+    PermissionBrief,
+    PermissionCreate,
+    PermissionItem,
+    PermissionListResponse,
+    PermissionUpdate,
 )
-from app.core.response import ApiResponse
 from app.system.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/permissions", tags=["权限管理"])

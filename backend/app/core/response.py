@@ -14,14 +14,12 @@
   不需要在 200/400/422/500 之间跳来跳去。
 """
 
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-T = TypeVar("T")
 
-
-class ApiResponse(BaseModel, Generic[T]):
+class ApiResponse[T](BaseModel):
     """通用响应包装 — 所有 API 都用这个返回。"""
 
     code: Annotated[int, Field(description="响应码，0 表示成功，非 0 为错误码")]
@@ -39,7 +37,7 @@ class ApiResponse(BaseModel, Generic[T]):
         return cls(code=code, message=message, data=None)
 
 
-class PageData(BaseModel, Generic[T]):
+class PageData[T](BaseModel):
     """分页响应 — 列表接口专用。
 
     前端拿到后：

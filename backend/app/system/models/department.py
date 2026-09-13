@@ -4,7 +4,7 @@
 Department.users 一对多关联 User，删部门不删用户（SET NULL）。
 """
 
-from sqlalchemy import String, BigInteger, Integer, ForeignKey, Text
+from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin

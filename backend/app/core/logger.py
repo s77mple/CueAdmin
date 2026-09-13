@@ -11,7 +11,9 @@
 """
 
 import sys
+
 from loguru import logger
+
 from app.core.config import settings
 
 # 清空默认 handler（loguru 自带一个 stderr handler）

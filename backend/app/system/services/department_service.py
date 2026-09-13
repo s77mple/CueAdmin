@@ -7,10 +7,10 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.system.models import Department
 from app.core.exceptions import BusinessException, ErrorCode
+from app.system.models import Department
 from app.system.repositories import DepartmentRepository
-from app.system.schemas.department import DepartmentCreate, DepartmentUpdate, DepartmentTreeNode
+from app.system.schemas.department import DepartmentCreate, DepartmentTreeNode, DepartmentUpdate
 from app.utils.tree import nest_by_parent
 
 

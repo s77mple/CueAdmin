@@ -4,12 +4,12 @@
 """
 
 from app.system.repositories.base import BaseRepository
-from app.system.repositories.user import UserRepository
-from app.system.repositories.role import RoleRepository
 from app.system.repositories.department import DepartmentRepository
 from app.system.repositories.menu import MenuRepository
 from app.system.repositories.permission import PermissionRepository
 from app.system.repositories.post import PostRepository
+from app.system.repositories.role import RoleRepository
+from app.system.repositories.user import UserRepository
 
 __all__ = [
     "BaseRepository",

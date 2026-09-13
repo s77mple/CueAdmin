@@ -12,17 +12,18 @@
 """
 
 import time
-from redis.asyncio import Redis, RedisError
+
 from fastapi import APIRouter
 from jose import JWTError
+from redis.asyncio import RedisError
 
-from app.core.dependencies import SessionDep, BearerTokenDep, RedisDep
+from app.core.dependencies import BearerTokenDep, RedisDep, SessionDep
+from app.core.exceptions import BusinessException, ErrorCode
+from app.core.logger import logger
+from app.core.response import ApiResponse
 from app.core.security import decode_token
 from app.system.schemas.auth import LoginRequest, LoginResponse, RefreshRequest, RefreshResponse
-from app.core.response import ApiResponse
 from app.system.services.auth_service import AuthService
-from app.core.logger import logger
-from app.core.exceptions import BusinessException, ErrorCode
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 

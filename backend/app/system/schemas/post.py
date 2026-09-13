@@ -8,7 +8,6 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
-
 # ===== 请求体（入参）=====
 
 # PostCreate — POST 新建

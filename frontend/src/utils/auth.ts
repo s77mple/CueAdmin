@@ -51,12 +51,19 @@ export function setToken(data: {
   if (permissions) useUserStoreHook().SET_PERMS(permissions);
   if (roles) useUserStoreHook().SET_ROLES(roles);
   storageLocal().setItem(userKey, {
-    accessToken, refreshToken, username, permissions, roles: roles ?? [],
+    accessToken,
+    refreshToken,
+    username,
+    permissions,
+    roles: roles ?? []
   });
 }
 
 /** 刷新令牌后回写新 token（access + refresh 都换新，用户信息不变） */
-export function updateToken(data: { accessToken: string; refreshToken?: string }) {
+export function updateToken(data: {
+  accessToken: string;
+  refreshToken?: string;
+}) {
   const { accessToken, refreshToken } = data;
   Cookies.set(TokenKey, JSON.stringify({ accessToken, refreshToken }));
   const cur = storageLocal().getItem<DataInfo>(userKey);

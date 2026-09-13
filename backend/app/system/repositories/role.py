@@ -1,6 +1,6 @@
 """角色数据访问 — 角色表 + 关联表查询。"""
 
-from typing import Collection
+from collections.abc import Collection
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload

@@ -10,12 +10,15 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Security
 
 from app.core.dependencies import SessionDep, get_current_user
+from app.core.response import ApiResponse
 from app.system.models import User
 from app.system.schemas.menu import (
-    MenuCreate, MenuUpdate,
-    MenuItem, MenuListResponse, MenuBrief,
+    MenuBrief,
+    MenuCreate,
+    MenuItem,
+    MenuListResponse,
+    MenuUpdate,
 )
-from app.core.response import ApiResponse
 from app.system.services.menu_service import MenuService
 
 router = APIRouter(prefix="/menus", tags=["菜单管理"])

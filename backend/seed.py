@@ -25,9 +25,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.storage import Base
-from app.system.models import User, Role, Permission, Menu, Department, Post
 from app.core.security import _hash_password_sync
+from app.core.storage import Base
+from app.system.models import Department, Menu, Permission, Post, Role, User
 
 # 同步引擎 — async 替换为 pymysql
 _sync_url = settings.database_url.replace("+aiomysql", "+pymysql", 1).replace("@localhost:", "@127.0.0.1:")

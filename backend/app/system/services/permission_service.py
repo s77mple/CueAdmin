@@ -8,9 +8,9 @@ from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.system.models import Permission
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
+from app.system.models import Permission
 from app.system.repositories import PermissionRepository
 from app.system.schemas.permission import PermissionCreate, PermissionUpdate
 

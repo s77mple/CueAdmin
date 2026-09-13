@@ -10,11 +10,11 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.system.models import User, Menu
+from app.core.exceptions import BusinessException, ErrorCode
+from app.core.logger import logger
+from app.system.models import Menu, User
 from app.system.repositories import MenuRepository
 from app.system.schemas.menu import MenuCreate, MenuUpdate
-from app.core.logger import logger
-from app.core.exceptions import BusinessException, ErrorCode
 
 
 async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:

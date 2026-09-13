@@ -12,10 +12,10 @@ from typing import Annotated
 from fastapi import APIRouter, Security
 
 from app.core.dependencies import SessionDep, get_current_user
+from app.core.response import ApiResponse
 from app.system.models import User
 from app.system.schemas.routes import RoutesResponse
-from app.core.response import ApiResponse
-from app.system.services.menu_service import collect_user_menus, build_routes
+from app.system.services.menu_service import build_routes, collect_user_menus
 
 router = APIRouter(prefix="/routes", tags=["动态路由"])
 

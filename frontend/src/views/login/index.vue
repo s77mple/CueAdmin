@@ -55,7 +55,7 @@ const ruleForm = reactive({
 
 const onLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
-  if (loading.value) return;  // 防止重复提交
+  if (loading.value) return; // 防止重复提交
   await formEl.validate(valid => {
     if (valid) {
       loading.value = true;
@@ -96,7 +96,6 @@ useEventListener(document, "keydown", ({ code }) => {
   )
     immediateDebounce(ruleFormRef.value);
 });
-
 </script>
 
 <template>

@@ -19,11 +19,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Security
 
-from app.core.dependencies import SessionDep, RedisDep, get_current_user
-from app.system.models import User
+from app.core.dependencies import RedisDep, SessionDep, get_current_user
 from app.core.response import ApiResponse, PageData
+from app.system.models import User
 from app.system.schemas.user import (
-    UserCreate, UserUpdate, UserPatch, UserRead, UserListItem, UserDetail,
+    UserCreate,
+    UserDetail,
+    UserListItem,
+    UserPatch,
+    UserRead,
+    UserUpdate,
 )
 from app.system.services.user_service import UserService
 

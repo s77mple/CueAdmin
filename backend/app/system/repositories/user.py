@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.paginate import paginate
 from app.core.response import PageData
-from app.system.models import User, Role
+from app.system.models import Role, User
 from app.system.repositories.base import BaseRepository
 
 
@@ -24,7 +24,7 @@ class UserRepository(BaseRepository):
         """统计启用状态的 admin 用户数（最后管理员保护用）。"""
         result = await self.session.execute(
             select(User).join(User.roles).where(
-                Role.code == "admin", User.is_active == True
+                Role.code == "admin", User.is_active
             ).with_for_update()
         )
         return len(result.scalars().all())
@@ -53,7 +53,7 @@ class UserRepository(BaseRepository):
         stmt = (
             select(User)
             .options(selectinload(User.roles).selectinload(Role.permissions))
-            .where(User.username == username, User.is_active == True)
+            .where(User.username == username, User.is_active)
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
@@ -61,7 +61,7 @@ class UserRepository(BaseRepository):
     async def get_active(self, user_id: int) -> User | None:
         """查询启用中的用户（refresh 令牌校验用）。"""
         result = await self.session.execute(
-            select(User).where(User.id == user_id, User.is_active == True)
+            select(User).where(User.id == user_id, User.is_active)
         )
         return result.scalars().first()
 

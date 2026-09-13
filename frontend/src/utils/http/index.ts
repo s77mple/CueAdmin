@@ -110,7 +110,7 @@ class PureHttp {
           forceLogout();
         } else if (httpCode === 500) {
           message("服务器繁忙，请稍后重试", { type: "error" });
-        } else if (error.code === 'ECONNABORTED') {
+        } else if (error.code === "ECONNABORTED") {
           message("请求超时，请重试", { type: "error" });
         } else if (!error?.response) {
           message("网络异常，请检查网络连接", { type: "error" });
@@ -188,27 +188,52 @@ class PureHttp {
     param?: AxiosRequestConfig,
     axiosConfig?: PureHttpRequestConfig
   ): Promise<T> {
-    const config = { method, url, ...param, ...axiosConfig } as PureHttpRequestConfig;
+    const config = {
+      method,
+      url,
+      ...param,
+      ...axiosConfig
+    } as PureHttpRequestConfig;
     return PureHttp.axiosInstance.request(config) as Promise<T>;
   }
 
-  public post<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
+  public post<T>(
+    url: string,
+    params?: AxiosRequestConfig,
+    config?: PureHttpRequestConfig
+  ): Promise<T> {
     return this.request<T>("post", url, params, config);
   }
 
-  public get<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
+  public get<T>(
+    url: string,
+    params?: AxiosRequestConfig,
+    config?: PureHttpRequestConfig
+  ): Promise<T> {
     return this.request<T>("get", url, params, config);
   }
 
-  public put<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
+  public put<T>(
+    url: string,
+    params?: AxiosRequestConfig,
+    config?: PureHttpRequestConfig
+  ): Promise<T> {
     return this.request<T>("put", url, params, config);
   }
 
-  public patch<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
+  public patch<T>(
+    url: string,
+    params?: AxiosRequestConfig,
+    config?: PureHttpRequestConfig
+  ): Promise<T> {
     return this.request<T>("patch", url, params, config);
   }
 
-  public delete<T>(url: string, params?: AxiosRequestConfig, config?: PureHttpRequestConfig): Promise<T> {
+  public delete<T>(
+    url: string,
+    params?: AxiosRequestConfig,
+    config?: PureHttpRequestConfig
+  ): Promise<T> {
     return this.request<T>("delete", url, params, config);
   }
 }

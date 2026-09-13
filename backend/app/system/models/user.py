@@ -7,11 +7,11 @@ CASCADE 会把用户一起删掉。is_active 加索引是因为登录/列表筛�
 角色管权限（登录鉴权要读），岗位只是职位标签，都不参与本表列。
 """
 
-from sqlalchemy import String, Boolean, BigInteger, ForeignKey
+from sqlalchemy import BigInteger, Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin
-from app.system.models.associations import user_roles, user_posts
+from app.system.models.associations import user_posts, user_roles
 
 
 class User(Base, TimestampMixin):

@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,17 +18,17 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
-from app.system.api.v1.router import v1_router
-from app.core.logger import logger
-from app.core.exceptions import BusinessException, ErrorCode
+from app.core.dependencies import get_redis
 from app.core.error_handler import (
     business_exception_handler,
-    unhandled_exception_handler,
     db_operational_error_handler,
+    unhandled_exception_handler,
 )
+from app.core.exceptions import BusinessException, ErrorCode
+from app.core.logger import logger
 from app.core.response import ApiResponse
-from app.core.storage import close_redis, async_engine
-from app.core.dependencies import get_redis
+from app.core.storage import async_engine, close_redis
+from app.system.api.v1.router import v1_router
 
 
 def _docs_base_url() -> str:

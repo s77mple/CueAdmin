@@ -1,6 +1,6 @@
 """菜单数据访问 — 菜单表 + 树形查询。"""
 
-from typing import Collection
+from collections.abc import Collection
 
 from sqlalchemy import select
 

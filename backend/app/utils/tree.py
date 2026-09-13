@@ -3,12 +3,10 @@
 由部门树（GET /departments/tree）使用；若以后菜单等也要树，直接复用。
 """
 
-from typing import Callable, TypeVar
-
-T = TypeVar("T")
+from collections.abc import Callable
 
 
-def nest_by_parent(
+def nest_by_parent[T](
     items: list[T],
     *,
     get_id: Callable[[T], int],
@@ -32,7 +30,7 @@ def nest_by_parent(
     return roots
 
 
-def collect_subtree_ids(
+def collect_subtree_ids[T](
     items: list[T],
     *,
     root_id: int,

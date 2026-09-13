@@ -499,11 +499,7 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item label="角色">
-          <el-select
-            v-model="form.role_ids"
-            multiple
-            placeholder="请选择角色"
-          >
+          <el-select v-model="form.role_ids" multiple placeholder="请选择角色">
             <el-option
               v-for="r in roleOptions"
               :key="r.id"
@@ -514,11 +510,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="岗位">
           <!-- 与角色维度正交（学若依 getInfo 的 posts/postIds） -->
-          <el-select
-            v-model="form.post_ids"
-            multiple
-            placeholder="请选择岗位"
-          >
+          <el-select v-model="form.post_ids" multiple placeholder="请选择岗位">
             <el-option
               v-for="p in postOptions"
               :key="p.id"

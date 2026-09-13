@@ -11,11 +11,9 @@ from typing import Annotated
 from pydantic import BaseModel, Field, field_validator
 from pydantic_core import PydanticCustomError
 
-from app.system.schemas.role import RoleBrief
 from app.system.schemas.department import DepartmentBrief
 from app.system.schemas.post import PostBrief
-
-
+from app.system.schemas.role import RoleBrief
 
 # 校验函数 — 只放 Field 表达不了的复杂规则
 

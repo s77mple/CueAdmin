@@ -1,6 +1,6 @@
 """部门数据访问 — 部门表 + 树形查询。"""
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from app.system.models import Department, User
 from app.system.repositories.base import BaseRepository

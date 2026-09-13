@@ -4,11 +4,11 @@
 is_system=True 的角色不允许删除和修改 code（种子创建的 admin），防止误删系统关键角色。
 """
 
-from sqlalchemy import String, Boolean, BigInteger
+from sqlalchemy import BigInteger, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin
-from app.system.models.associations import user_roles, role_permissions, role_menus
+from app.system.models.associations import role_menus, role_permissions, user_roles
 
 
 class Role(Base, TimestampMixin):

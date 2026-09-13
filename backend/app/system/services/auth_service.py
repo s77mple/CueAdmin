@@ -11,8 +11,8 @@ refresh token 采用「一次性轮换 + 复用检测」：
 import uuid
 from datetime import timedelta
 
+from jose import ExpiredSignatureError, JWTError
 from redis.asyncio import Redis, RedisError
-from jose import JWTError, ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -26,7 +26,6 @@ from app.core.security import (
 )
 from app.system.repositories import UserRepository
 from app.system.schemas.auth import LoginResponse, RefreshResponse
-
 
 # 假哈希 — 用户不存在时也跑一次 bcrypt，防止时间差枚举用户名
 # 这是已知明文 bcrypt("a") 的结果

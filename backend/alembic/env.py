@@ -8,17 +8,20 @@
 #   3. 选择执行模式（离线输出 SQL / 在线直接执行 DDL）
 # ============================================================================
 
-import sys, os
+import os
+import sys
 
 # 把 backend/ 加入 Python 搜索路径，确保 `app` 包可 import
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from logging.config import fileConfig                     # 解析 alembic.ini 中的日志配置
-from sqlalchemy import create_engine, pool                # 同步引擎 + 连接池策略（DDL 必须用同步驱动）
-from sqlalchemy.engine.url import make_url                 # URL 结构化解析 / 安全替换驱动名
-from alembic import context                                # Alembic 运行时上下文（全局注入的模块对象）
-from app.core.config import settings                       # 项目配置（读 .env）
-from app.core.storage import Base                         # ORM 基类，其 metadata 汇总所有模型表结构
+from logging.config import fileConfig  # 解析 alembic.ini 中的日志配置
+
+from sqlalchemy import create_engine, pool  # 同步引擎 + 连接池策略（DDL 必须用同步驱动）
+from sqlalchemy.engine.url import make_url  # URL 结构化解析 / 安全替换驱动名
+
+from alembic import context  # Alembic 运行时上下文（全局注入的模块对象）
+from app.core.config import settings  # 项目配置（读 .env）
+from app.core.storage import Base  # ORM 基类，其 metadata 汇总所有模型表结构
 from app.system.models import *  # noqa: F401, F403              # 触发所有模型类定义，自动注册到 Base.metadata
 
 # ---- 配置对象 ----

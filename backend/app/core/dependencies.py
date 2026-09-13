@@ -9,27 +9,28 @@ TTL 5 分钟，角色/权限变更时由 service 主动失效。
   仅需认证：user: CurrentUser  （/routes 等只需知道"是谁"的接口）
 """
 
-from typing import Annotated, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
-from redis.asyncio import Redis,RedisError
 from fastapi import Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, SecurityScopes
-from jose import JWTError, ExpiredSignatureError
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityScopes
+from jose import ExpiredSignatureError, JWTError
+from redis.asyncio import Redis, RedisError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.core.storage import AsyncSessionLocal
-from app.core.storage import redis as _redis_store
-from app.system.models import User, Role
-from app.core.security import decode_token
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
+from app.core.security import decode_token
+from app.core.storage import AsyncSessionLocal
+from app.core.storage import redis as _redis_store
+from app.system.models import Role, User
 
 
 # 数据库会话依赖 — 每个请求自动创建 + 自动关闭 Session
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession]:
     async with AsyncSessionLocal() as session:
         yield session
 

@@ -7,8 +7,7 @@ Redis 连接池状态 — 全局唯一，惰性初始化。
 
 import asyncio
 
-from redis.asyncio import Redis, RedisError
-
+from redis.asyncio import Redis
 
 # 全局 Redis 连接池（整个应用生命周期只有一个，所有请求共享）
 _redis_pool: Redis | None = None

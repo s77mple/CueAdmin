@@ -11,12 +11,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Security
 
-from app.core.dependencies import SessionDep, RedisDep, get_current_user
-from app.system.models import User
+from app.core.dependencies import RedisDep, SessionDep, get_current_user
 from app.core.response import ApiResponse, PageData
+from app.system.models import User
 from app.system.schemas.role import (
-    RoleCreate, RoleUpdate,
-    RoleItem, RoleBrief,
+    RoleBrief,
+    RoleCreate,
+    RoleItem,
+    RoleUpdate,
 )
 from app.system.services.role_service import RoleService
 

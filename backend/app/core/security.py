@@ -5,14 +5,13 @@ bcrypt 是纯 CPU 计算，若在异步线程里同步执行会阻塞事件循�
 """
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+import uuid
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
-import uuid
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 
 from app.core.config import settings
-
 
 # 密码哈希 — bcrypt 同步函数（在线程池中异步执行）
 
@@ -50,7 +49,7 @@ def _build_token(
     type 区分 access/refresh：refresh 不能当 access 用（dependencies 里断言 type=access）。
     session_id 把同一登录的 access+refresh 绑在一起，登出时按 session_id 撤销 refresh 会话。
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     jti = uuid.uuid4().hex
     payload = {
         "sub": str(user_id),

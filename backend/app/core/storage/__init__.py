@@ -8,7 +8,7 @@
 依赖注入统一在 core/dependencies.py。
 """
 
-from app.core.storage.db import Base, TimestampMixin, AsyncSessionLocal, async_engine
+from app.core.storage.db import AsyncSessionLocal, Base, TimestampMixin, async_engine
 from app.core.storage.redis import close_redis
 
 __all__ = [

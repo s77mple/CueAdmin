@@ -5,7 +5,13 @@ import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import type { PaginationProps } from "@pureadmin/table";
 import { PureTableBar } from "@/components/RePureTableBar";
-import { getPostList, getPost, createPost, updatePost, deletePost } from "@/api/system/posts";
+import {
+  getPostList,
+  getPost,
+  createPost,
+  updatePost,
+  deletePost
+} from "@/api/system/posts";
 import type { Post } from "@/api/system/types";
 import { ErrorCode } from "@/constants/error-code";
 

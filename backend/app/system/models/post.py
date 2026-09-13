@@ -5,7 +5,7 @@ RuoYi 模型：sys_user_role（用户↔角色）与 sys_user_post（用户↔�
 删除岗位 → user_posts 关联交给 DB CASCADE（用户保留，只是没了这个岗位）。
 """
 
-from sqlalchemy import String, BigInteger, Integer
+from sqlalchemy import BigInteger, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin

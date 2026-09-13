@@ -15,6 +15,7 @@
 """
 
 import os
+
 from pydantic_settings import BaseSettings
 from sqlalchemy.engine.url import make_url
 

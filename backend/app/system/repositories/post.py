@@ -1,8 +1,8 @@
 """岗位数据访问 — 岗位表查询。"""
 
-from typing import Collection
+from collections.abc import Collection
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from app.core.paginate import paginate
 from app.core.response import PageData

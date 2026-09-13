@@ -23,8 +23,8 @@
 """
 
 from sqlalchemy import BigInteger, Column, ForeignKey, Index, Table
-from app.core.storage import Base
 
+from app.core.storage import Base
 
 # user_roles — 用户 ↔ 角色
 # 一个用户可以有多个角色（admin、普通用户等）

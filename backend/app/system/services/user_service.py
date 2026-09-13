@@ -9,15 +9,19 @@ from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.system.models import User
-from app.core.security import hash_password
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.response import PageData
-from app.utils.tree import collect_subtree_ids
-from app.system.repositories import UserRepository, RoleRepository, DepartmentRepository, PostRepository
+from app.core.security import hash_password
+from app.system.models import User
+from app.system.repositories import DepartmentRepository, PostRepository, RoleRepository, UserRepository
 from app.system.schemas.user import (
-    UserCreate, UserUpdate, UserPatch, UserListItem, UserDetail,
+    UserCreate,
+    UserDetail,
+    UserListItem,
+    UserPatch,
+    UserUpdate,
 )
+from app.utils.tree import collect_subtree_ids
 
 
 class UserService:
@@ -60,7 +64,11 @@ class UserService:
                 get_parent_id=lambda d: d.parent_id,
             )
         return await self.users.list_users(
-            role_id=role_id, is_active=is_active, dept_ids=dept_ids, page=page, page_size=page_size,
+            role_id=role_id,
+            is_active=is_active,
+            dept_ids=dept_ids,
+            page=page,
+            page_size=page_size,
         )
 
     async def get_user_for_update(self, user_id: int) -> User:
@@ -120,8 +128,8 @@ class UserService:
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
 
         posts = await self.posts.get_by_ids(body.post_ids) if body.post_ids else []
-        if len(posts) != len(body.post_ids): # 找到的岗位ID不等于传入的岗位ID数量
-            found = {p.id for p in posts} # 找到的岗位ID集合 
+        if len(posts) != len(body.post_ids):  # 找到的岗位ID不等于传入的岗位ID数量
+            found = {p.id for p in posts}  # 找到的岗位ID集合
             invalid = [pid for pid in body.post_ids if pid not in found]
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"岗位 ID 不存在: {invalid}")
 
@@ -331,7 +339,7 @@ class UserService:
         """禁止操作超级管理员（admin 用户名）。"""
         if user.username == "admin":
             raise BusinessException(ErrorCode.USER_CANNOT_DISABLE_SUPERADMIN, "不允许操作超级管理员")
-    
+
     async def _clear_perm_cache(self, user_id: int) -> None:
         """清除用户权限缓存。"""
         if not self.redis:

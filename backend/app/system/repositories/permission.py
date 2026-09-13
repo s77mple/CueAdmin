@@ -1,11 +1,11 @@
 """权限数据访问 — 权限表 + 关联表查询。"""
 
-from typing import Collection
+from collections.abc import Collection
 
 from sqlalchemy import select
 
 from app.system.models import Permission
-from app.system.models.associations import user_roles, role_permissions
+from app.system.models.associations import role_permissions, user_roles
 from app.system.repositories.base import BaseRepository
 
 

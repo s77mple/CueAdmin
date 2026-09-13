@@ -10,9 +10,9 @@ from typing import Annotated
 from fastapi import APIRouter, Path, Query, Security
 
 from app.core.dependencies import SessionDep, get_current_user
-from app.system.models import User
 from app.core.response import ApiResponse, PageData
-from app.system.schemas.post import PostCreate, PostUpdate, PostItem, PostBrief
+from app.system.models import User
+from app.system.schemas.post import PostBrief, PostCreate, PostItem, PostUpdate
 from app.system.services.post_service import PostService
 
 router = APIRouter(prefix="/posts", tags=["岗位管理"])

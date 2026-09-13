@@ -7,9 +7,7 @@ export const getDepartmentList = (params?: object) =>
     params
   });
 export const getDepartmentTree = () =>
-  http.get<ApiResult<DepartmentTreeNode[]>>(
-    "/api/v1/system/departments/tree"
-  );
+  http.get<ApiResult<DepartmentTreeNode[]>>("/api/v1/system/departments/tree");
 export const getDepartment = (id: number) =>
   http.get<ApiResult<Department>>(`/api/v1/system/departments/${id}`);
 export const createDepartment = (data?: object) =>

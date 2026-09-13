@@ -23,7 +23,6 @@ from app.core.storage import Base
 from app.main import app
 from app.system.models import Role, User
 
-
 # SQLite 只对 INTEGER PRIMARY KEY 自动自增，而 models 主键用的是 BigInteger（生产 MySQL 的 BIGINT）。
 # import 时执行一次，把 BigInteger 列换成「SQLite 下用 Integer」的变体：
 # SQLite 建 INTEGER（能自增），MySQL 仍渲染 BIGINT，生产代码完全不受影响。

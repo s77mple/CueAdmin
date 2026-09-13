@@ -11,7 +11,6 @@
 
 from app.core.exceptions import ErrorCode
 
-
 # ============ 列表 ============
 
 async def test_list_departments_empty(client, admin_headers):

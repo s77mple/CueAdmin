@@ -3,11 +3,11 @@
 权限 code 格式 {resource}:{action}（如 user:list），前端 v-perms 判断按钮显隐，后端 Security scopes 鉴权。
 """
 
-from sqlalchemy import String, BigInteger
+from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.system.models.associations import role_permissions
 from app.core.storage import Base, TimestampMixin
+from app.system.models.associations import role_permissions
 
 
 class Permission(Base, TimestampMixin):

@@ -1,0 +1,18 @@
+# Ruff 配置 — 文档: https://docs.astral.sh/ruff/configuration/
+# Ruff 扩展（charliermarsh.ruff）会自动读取这个文件。
+
+# 目标 Python 版本（你的环境是 3.13）
+target-version = "py313"
+
+# 行长：默认 88 会把现有代码大改，这里放宽到 120
+line-length = 120
+
+[lint]
+# E: pycodestyle 错误  F: pyflakes（未使用/未定义变量）
+# I: import 排序  UP: pyupgrade（语法升级，如 Optional[X] -> X | None）
+select = ["E", "F", "I", "UP"]
+# 行长交给 ruff format 处理，lint 不再报 E501（长注释/长字符串会被 format 保留，误报）
+ignore = ["E501"]
+
+[format]
+# 默认风格即可，无需额外设置
