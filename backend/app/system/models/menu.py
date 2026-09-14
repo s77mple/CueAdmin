@@ -8,6 +8,7 @@ from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.storage import Base, TimestampMixin
+from app.system.models.associations import role_menus
 
 
 class Menu(Base, TimestampMixin):
@@ -41,5 +42,5 @@ class Menu(Base, TimestampMixin):
     )
 
     roles = relationship(
-        "Role", secondary="role_menus", back_populates="menus", passive_deletes=True
+        "Role", secondary=role_menus, back_populates="menus", passive_deletes=True
     )  # 删菜单 → role_menus 交给 DB CASCADE
