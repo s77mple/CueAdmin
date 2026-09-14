@@ -24,6 +24,7 @@ class PermissionCreate(BaseModel):
 
 class PermissionUpdate(BaseModel):
     """PUT 全量更新 — code 允许修改，所有字段必传。"""
+
     code: Annotated[str, Field(min_length=1, max_length=100, description="权限码")]
     name: Annotated[str, Field(min_length=1, max_length=100, description="权限名称")]
     resource: Annotated[str, Field(min_length=1, max_length=50, description="资源标识")]
@@ -33,8 +34,10 @@ class PermissionUpdate(BaseModel):
 
 # 响应 Schema
 
+
 class PermissionItem(BaseModel):
     """权限列表项。"""
+
     id: Annotated[int, Field(description="权限 ID")]
     code: Annotated[str, Field(description="权限码")]
     name: Annotated[str, Field(description="权限名称")]
@@ -47,6 +50,7 @@ class PermissionItem(BaseModel):
 
 class PermissionBrief(BaseModel):
     """权限简要信息 — 嵌套在角色响应中。"""
+
     id: Annotated[int, Field(description="权限 ID")]
     code: Annotated[str, Field(description="权限码")]
     name: Annotated[str, Field(description="权限名称")]
@@ -57,5 +61,6 @@ class PermissionBrief(BaseModel):
 
 class PermissionListResponse(BaseModel):
     """权限列表响应 — 扁平列表，前端按 resource 分组转树。"""
+
     items: Annotated[list[PermissionItem], Field(description="权限列表")]
     total: Annotated[int, Field(description="总条数")]

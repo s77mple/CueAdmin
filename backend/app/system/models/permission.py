@@ -20,4 +20,6 @@ class Permission(Base, TimestampMixin):
     action: Mapped[str] = mapped_column(String(50), comment="操作标识，如 list/create/update/delete")
     description: Mapped[str | None] = mapped_column(String(200), comment="权限描述")
 
-    roles = relationship("Role", secondary=role_permissions, back_populates="permissions", passive_deletes=True)  # 删权限 → role_permissions 交给 DB CASCADE
+    roles = relationship(
+        "Role", secondary=role_permissions, back_populates="permissions", passive_deletes=True
+    )  # 删权限 → role_permissions 交给 DB CASCADE

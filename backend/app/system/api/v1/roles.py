@@ -26,13 +26,14 @@ router = APIRouter(prefix="/roles", tags=["角色管理"])
 
 
 class RoleScope:
-    LIST   = "role:list"
+    LIST = "role:list"
     CREATE = "role:create"
     UPDATE = "role:update"
     DELETE = "role:delete"
 
 
 # GET /roles — 角色列表
+
 
 @router.get("", response_model=ApiResponse[PageData[RoleItem]], summary="角色列表")
 async def list_roles(
@@ -47,6 +48,7 @@ async def list_roles(
 
 # GET /roles/{role_id} — 角色详情（编辑回显）
 
+
 @router.get("/{role_id}", response_model=ApiResponse[RoleItem], summary="角色详情")
 async def get_role(
     role_id: Annotated[int, Path(description="角色 ID")],
@@ -59,6 +61,7 @@ async def get_role(
 
 # POST /roles — 创建角色
 
+
 @router.post("", response_model=ApiResponse[RoleBrief], status_code=201, summary="创建角色")
 async def create_role(
     body: RoleCreate,
@@ -70,6 +73,7 @@ async def create_role(
 
 
 # PUT /roles/{role_id} — 全量更新
+
 
 @router.put("/{role_id}", response_model=ApiResponse[RoleBrief], summary="全量更新角色")
 async def update_role(
@@ -84,6 +88,7 @@ async def update_role(
 
 
 # DELETE /roles/{role_id} — 删除角色
+
 
 @router.delete("/{role_id}", response_model=ApiResponse, summary="删除角色")
 async def delete_role(

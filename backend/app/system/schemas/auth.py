@@ -24,6 +24,7 @@ from app.system.schemas.user import UserRead
 
 class LoginRequest(BaseModel):
     """登录请求 — 前端登录表单提交的数据。"""
+
     username: Annotated[str, Field(min_length=1, max_length=50, description="用户名")]
     password: Annotated[str, Field(min_length=1, max_length=128, description="密码")]
     client: Annotated[str | None, Field(max_length=50, description="客户端标识（预留，暂时不用）")] = None
@@ -40,6 +41,7 @@ class LoginResponse(BaseModel):
 
     不含 menus：动态路由/菜单由 GET /api/v1/routes 提供，登录不再重复下发。
     """
+
     access_token: Annotated[str, Field(description="访问令牌")]
     refresh_token: Annotated[str, Field(description="刷新令牌")]
     user: Annotated[UserRead, Field(description="用户信息")]
@@ -51,10 +53,12 @@ class LoginResponse(BaseModel):
 
 class RefreshRequest(BaseModel):
     """刷新令牌请求 — access 过期后，拿 refresh token 换新。"""
+
     refresh_token: Annotated[str, Field(min_length=1, description="刷新令牌")]
 
 
 class RefreshResponse(BaseModel):
     """刷新令牌响应 — 返回新的 access + refresh（旧 refresh 已作废）。"""
+
     access_token: Annotated[str, Field(description="访问令牌")]
     refresh_token: Annotated[str, Field(description="刷新令牌")]

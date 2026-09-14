@@ -53,8 +53,10 @@ class PostService:
             raise BusinessException(ErrorCode.POST_CODE_EXISTS, "岗位编码已存在")
 
         post = Post(
-            code=body.code, name=body.name,
-            sort_order=body.sort_order, description=body.description,
+            code=body.code,
+            name=body.name,
+            sort_order=body.sort_order,
+            description=body.description,
         )
         self.posts.add(post)
         try:

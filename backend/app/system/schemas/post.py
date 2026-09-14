@@ -12,12 +12,17 @@ from pydantic import BaseModel, Field
 
 # PostCreate — POST 新建
 
+
 class PostCreate(BaseModel):
-    code: Annotated[str, Field(
-        min_length=1, max_length=50,
-        pattern=r"^[a-z][a-z0-9_]*$",
-        description="岗位编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
-    )]
+    code: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=50,
+            pattern=r"^[a-z][a-z0-9_]*$",
+            description="岗位编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
+        ),
+    ]
     name: Annotated[str, Field(min_length=1, max_length=50, description="岗位名称")]
     sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0
     description: Annotated[str | None, Field(max_length=200, description="描述")] = None
@@ -25,8 +30,10 @@ class PostCreate(BaseModel):
 
 # PostUpdate — PUT 全量覆盖
 
+
 class PostUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
+
     name: Annotated[str, Field(min_length=1, max_length=50, description="岗位名称")]
     sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")]
     description: Annotated[str | None, Field(max_length=200, description="描述")]
@@ -39,8 +46,10 @@ class PostUpdate(BaseModel):
 #
 # 纪律：response 字段一律不加 = None / default_factory → OpenAPI 里全部必返；可空用类型表达（str | None）
 
+
 class PostItem(BaseModel):
     """岗位行 — GET /posts 列表项 + GET /posts/{id} 回显共用。"""
+
     id: Annotated[int, Field(description="岗位 ID")]
     code: Annotated[str, Field(description="岗位编码")]
     name: Annotated[str, Field(description="岗位名称")]
@@ -52,6 +61,7 @@ class PostItem(BaseModel):
 
 class PostBrief(BaseModel):
     """岗位简要 — 嵌套在用户响应中（编辑弹窗的全量下拉选项）。"""
+
     id: Annotated[int, Field(description="岗位 ID")]
     code: Annotated[str, Field(description="岗位编码")]
     name: Annotated[str, Field(description="岗位名称")]

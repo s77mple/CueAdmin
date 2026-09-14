@@ -40,4 +40,6 @@ class Menu(Base, TimestampMixin):
         remote_side="Menu.id",
     )
 
-    roles = relationship("Role", secondary="role_menus", back_populates="menus", passive_deletes=True)  # 删菜单 → role_menus 交给 DB CASCADE
+    roles = relationship(
+        "Role", secondary="role_menus", back_populates="menus", passive_deletes=True
+    )  # 删菜单 → role_menus 交给 DB CASCADE

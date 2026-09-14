@@ -51,8 +51,10 @@ class PermissionService:
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
 
         perm = Permission(
-            code=body.code, name=body.name,
-            resource=body.resource, action=body.action,
+            code=body.code,
+            name=body.name,
+            resource=body.resource,
+            action=body.action,
             description=body.description,
         )
         self.permissions.add(perm)
@@ -99,7 +101,7 @@ class PermissionService:
         perm = await self.get_permission_for_update(perm_id)
 
         await self._clear_perm_cache(perm_id)  # 先清缓存
-        await self.permissions.delete(perm)          # 再删记录
+        await self.permissions.delete(perm)  # 再删记录
         await self.session.commit()
         return "删除成功"
 

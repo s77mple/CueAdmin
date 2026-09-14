@@ -23,18 +23,14 @@ class UserRepository(BaseRepository):
     async def count_active_admins(self) -> int:
         """统计启用状态的 admin 用户数（最后管理员保护用）。"""
         result = await self.session.execute(
-            select(User).join(User.roles).where(
-                Role.code == "admin", User.is_active
-            ).with_for_update()
+            select(User).join(User.roles).where(Role.code == "admin", User.is_active).with_for_update()
         )
         return len(result.scalars().all())
 
     async def get_with_roles_posts(self, user_id: int) -> User | None:
         """按 id 查询并预载角色+岗位（get_user_detail 现算 role_ids/post_ids 用；部门不回显，不预载）。"""
         result = await self.session.execute(
-            select(User)
-            .options(selectinload(User.roles), selectinload(User.posts))
-            .where(User.id == user_id)
+            select(User).options(selectinload(User.roles), selectinload(User.posts)).where(User.id == user_id)
         )
         return result.scalars().first()
 
@@ -60,9 +56,7 @@ class UserRepository(BaseRepository):
 
     async def get_active(self, user_id: int) -> User | None:
         """查询启用中的用户（refresh 令牌校验用）。"""
-        result = await self.session.execute(
-            select(User).where(User.id == user_id, User.is_active)
-        )
+        result = await self.session.execute(select(User).where(User.id == user_id, User.is_active))
         return result.scalars().first()
 
     async def list_users(

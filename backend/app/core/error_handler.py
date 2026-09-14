@@ -35,7 +35,9 @@ async def business_exception_handler(request: Request, exc: BusinessException):
         code=int(exc.code),
     ).warning(f"[{int(exc.code)}] {exc.message}")
     result = ApiResponse.fail(code=int(exc.code), message=exc.message)
-    return JSONResponse(status_code=200, content=result.model_dump()) # pydantic实例转 dict 用 model_dump()，而不是 dict(result)，否则会丢失字段描述信息
+    return JSONResponse(
+        status_code=200, content=result.model_dump()
+    )  # pydantic实例转 dict 用 model_dump()，而不是 dict(result)，否则会丢失字段描述信息
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):
@@ -44,9 +46,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     这种情况说明代码有 bug（比如 NoneType 调用了方法）。
     生产环境不暴露 traceback 给前端，避免泄漏内部信息。
     """
-    logger.error(
-        f"未捕获异常 [{request.method} {request.url.path}]: {exc}\n{traceback.format_exc()}"
-    )
+    logger.error(f"未捕获异常 [{request.method} {request.url.path}]: {exc}\n{traceback.format_exc()}")
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"},

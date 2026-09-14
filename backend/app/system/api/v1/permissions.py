@@ -22,13 +22,14 @@ router = APIRouter(prefix="/permissions", tags=["权限管理"])
 
 
 class PermissionScope:
-    LIST   = "permission:list"
+    LIST = "permission:list"
     CREATE = "permission:create"
     UPDATE = "permission:update"
     DELETE = "permission:delete"
 
 
 # GET /permissions — 权限列表
+
 
 @router.get("", response_model=ApiResponse[PermissionListResponse], summary="权限列表")
 async def list_permissions(
@@ -42,6 +43,7 @@ async def list_permissions(
 
 # GET /permissions/{perm_id} — 权限详情（编辑回显）
 
+
 @router.get("/{perm_id}", response_model=ApiResponse[PermissionItem], summary="权限详情")
 async def get_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
@@ -54,6 +56,7 @@ async def get_permission(
 
 # POST /permissions — 创建权限
 
+
 @router.post("", response_model=ApiResponse[PermissionBrief], status_code=201, summary="创建权限")
 async def create_permission(
     body: PermissionCreate,
@@ -65,6 +68,7 @@ async def create_permission(
 
 
 # PUT /permissions/{perm_id} — 全量更新
+
 
 @router.put("/{perm_id}", response_model=ApiResponse[PermissionBrief], summary="全量更新权限")
 async def update_permission(
@@ -79,6 +83,7 @@ async def update_permission(
 
 
 # DELETE /permissions/{perm_id} — 删除权限
+
 
 @router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(

@@ -41,30 +41,30 @@ SyncSession = sessionmaker(_sync_engine, autoflush=False)
 
 PERMISSIONS = [
     # (code, name, resource, action)
-    ("user:list",       "用户列表",    "user",       "list"),
-    ("user:create",     "创建用户",    "user",       "create"),
-    ("user:update",     "编辑用户",    "user",       "update"),
-    ("user:delete",     "删除用户",    "user",       "delete"),
-    ("role:list",       "角色列表",    "role",       "list"),
-    ("role:create",     "创建角色",    "role",       "create"),
-    ("role:update",     "编辑角色",    "role",       "update"),
-    ("role:delete",     "删除角色",    "role",       "delete"),
-    ("menu:list",       "菜单列表",    "menu",       "list"),
-    ("menu:create",     "创建菜单",    "menu",       "create"),
-    ("menu:update",     "编辑菜单",    "menu",       "update"),
-    ("menu:delete",     "删除菜单",    "menu",       "delete"),
-    ("permission:list", "查看权限",    "permission", "list"),
-    ("permission:create","创建权限",    "permission", "create"),
-    ("permission:update","更新权限",    "permission", "update"),
-    ("permission:delete","删除权限",    "permission", "delete"),
-    ("department:list", "查看部门",    "department", "list"),
-    ("department:create","创建部门",   "department", "create"),
-    ("department:update","更新部门",   "department", "update"),
-    ("department:delete","删除部门",   "department", "delete"),
-    ("post:list",       "岗位列表",    "post",       "list"),
-    ("post:create",     "创建岗位",    "post",       "create"),
-    ("post:update",     "编辑岗位",    "post",       "update"),
-    ("post:delete",     "删除岗位",    "post",       "delete"),
+    ("user:list", "用户列表", "user", "list"),
+    ("user:create", "创建用户", "user", "create"),
+    ("user:update", "编辑用户", "user", "update"),
+    ("user:delete", "删除用户", "user", "delete"),
+    ("role:list", "角色列表", "role", "list"),
+    ("role:create", "创建角色", "role", "create"),
+    ("role:update", "编辑角色", "role", "update"),
+    ("role:delete", "删除角色", "role", "delete"),
+    ("menu:list", "菜单列表", "menu", "list"),
+    ("menu:create", "创建菜单", "menu", "create"),
+    ("menu:update", "编辑菜单", "menu", "update"),
+    ("menu:delete", "删除菜单", "menu", "delete"),
+    ("permission:list", "查看权限", "permission", "list"),
+    ("permission:create", "创建权限", "permission", "create"),
+    ("permission:update", "更新权限", "permission", "update"),
+    ("permission:delete", "删除权限", "permission", "delete"),
+    ("department:list", "查看部门", "department", "list"),
+    ("department:create", "创建部门", "department", "create"),
+    ("department:update", "更新部门", "department", "update"),
+    ("department:delete", "删除部门", "department", "delete"),
+    ("post:list", "岗位列表", "post", "list"),
+    ("post:create", "创建岗位", "post", "create"),
+    ("post:update", "编辑岗位", "post", "update"),
+    ("post:delete", "删除岗位", "post", "delete"),
 ]
 
 # admin 角色拥有所有权限
@@ -82,41 +82,46 @@ ROLE_PERMS = {
 
 MENUS = [
     # 用户管理
-    ("users",        "用户管理", "fa-solid:users",      "/users",            None,                    None,    2),
-    ("users_index",  "用户列表", None,                  "/users/index",      "system/users/index",     "users", 1),
-
+    ("users", "用户管理", "fa-solid:users", "/users", None, None, 2),
+    ("users_index", "用户列表", None, "/users/index", "system/users/index", "users", 1),
     # 角色管理
-    ("roles",        "角色管理", "fa-solid:user-tag",   "/roles",            None,                    None,    3),
-    ("roles_index",  "角色列表", None,                  "/roles/index",      "system/roles/index",     "roles", 1),
-
+    ("roles", "角色管理", "fa-solid:user-tag", "/roles", None, None, 3),
+    ("roles_index", "角色列表", None, "/roles/index", "system/roles/index", "roles", 1),
     # 菜单管理
-    ("menus",        "菜单管理", "fa-solid:bars",       "/menus",            None,                    None,    4),
-    ("menus_index",  "菜单列表", None,                  "/menus/index",      "system/menus/index",     "menus", 1),
-
+    ("menus", "菜单管理", "fa-solid:bars", "/menus", None, None, 4),
+    ("menus_index", "菜单列表", None, "/menus/index", "system/menus/index", "menus", 1),
     # 权限管理
-    ("permissions",  "权限管理", "fa-solid:lock",       "/permissions",       None,                    None,    5),
-    ("permissions_index", "权限列表", None,             "/permissions/index", "system/permissions/index","permissions", 1),
-
+    ("permissions", "权限管理", "fa-solid:lock", "/permissions", None, None, 5),
+    ("permissions_index", "权限列表", None, "/permissions/index", "system/permissions/index", "permissions", 1),
     # 部门管理
-    ("departments",  "部门管理", "fa-solid:building",   "/departments",       None,                    None,    6),
-    ("departments_index", "部门列表", None,             "/departments/index", "system/departments/index","departments", 1),
-
+    ("departments", "部门管理", "fa-solid:building", "/departments", None, None, 6),
+    ("departments_index", "部门列表", None, "/departments/index", "system/departments/index", "departments", 1),
     # 岗位管理
-    ("posts",        "岗位管理", "fa-solid:briefcase", "/posts",             None,                    None,    7),
-    ("posts_index",  "岗位列表", None,                  "/posts/index",       "system/posts/index",     "posts", 1),
-
+    ("posts", "岗位管理", "fa-solid:briefcase", "/posts", None, None, 7),
+    ("posts_index", "岗位列表", None, "/posts/index", "system/posts/index", "posts", 1),
     # 错误码字典（开发工具 — 只读，给联调用）
-    ("error-codes",       "错误码字典", "fa-solid:book",     "/error-codes",            None,                         None,    8),
-    ("error-codes_index", "错误码列表", None,                "/error-codes/index",      "system/error-codes/index",  "error-codes", 1),
+    ("error-codes", "错误码字典", "fa-solid:book", "/error-codes", None, None, 8),
+    ("error-codes_index", "错误码列表", None, "/error-codes/index", "system/error-codes/index", "error-codes", 1),
 ]
 
 # admin 角色拥有所有菜单
 ROLE_MENUS = {
-    "admin": ["users", "users_index", "roles", "roles_index",
-              "menus", "menus_index", "permissions", "permissions_index",
-              "departments", "departments_index",
-              "posts", "posts_index",
-              "error-codes", "error-codes_index"],
+    "admin": [
+        "users",
+        "users_index",
+        "roles",
+        "roles_index",
+        "menus",
+        "menus_index",
+        "permissions",
+        "permissions_index",
+        "departments",
+        "departments_index",
+        "posts",
+        "posts_index",
+        "error-codes",
+        "error-codes_index",
+    ],
 }
 
 
@@ -126,10 +131,10 @@ ROLE_MENUS = {
 # (code, name, parent_code, sort_order, description)
 
 DEPARTMENTS = [
-    ("ceo",     "总经理室", None, 1, "公司最高决策部门"),
-    ("tech",    "技术部",   None, 2, "负责产品研发与技术支撑"),
-    ("market",  "市场部",   None, 3, "负责市场推广与销售"),
-    ("finance", "财务部",   None, 4, "负责财务管理与审计"),
+    ("ceo", "总经理室", None, 1, "公司最高决策部门"),
+    ("tech", "技术部", None, 2, "负责产品研发与技术支撑"),
+    ("market", "市场部", None, 3, "负责市场推广与销售"),
+    ("finance", "财务部", None, 4, "负责财务管理与审计"),
 ]
 
 
@@ -139,9 +144,9 @@ DEPARTMENTS = [
 # (code, name, sort_order, description)
 
 POSTS = [
-    ("ceo",  "董事长",   1, "公司战略决策与整体经营管理"),
-    ("se",   "项目经理", 2, "负责项目规划、进度与交付"),
-    ("hr",   "人力资源", 3, "负责招聘、培训与员工关系"),
+    ("ceo", "董事长", 1, "公司战略决策与整体经营管理"),
+    ("se", "项目经理", 2, "负责项目规划、进度与交付"),
+    ("hr", "人力资源", 3, "负责招聘、培训与员工关系"),
     ("user", "普通员工", 4, "普通员工岗位"),
 ]
 
@@ -149,6 +154,7 @@ POSTS = [
 # ============================================================
 # 5. 种子数据主函数
 # ============================================================
+
 
 def seed(session: Session):
     """#5 幂等初始化：已存在的记录跳过，不重复创建。"""
@@ -176,9 +182,13 @@ def seed(session: Session):
         menu = session.query(Menu).filter(Menu.code == code).first()
         if not menu:
             menu = Menu(
-                code=code, name=name, icon=icon,
-                path=path, component=component,
-                parent_id=None, sort_order=sort_order,
+                code=code,
+                name=name,
+                icon=icon,
+                path=path,
+                component=component,
+                parent_id=None,
+                sort_order=sort_order,
             )
             session.add(menu)
         else:
@@ -235,8 +245,11 @@ def seed(session: Session):
         dept = session.query(Department).filter(Department.code == code).first()
         if not dept:
             dept = Department(
-                code=code, name=name, parent_id=None,
-                sort_order=sort_order, description=desc,
+                code=code,
+                name=name,
+                parent_id=None,
+                sort_order=sort_order,
+                description=desc,
             )
             session.add(dept)
         dept_map[code] = dept

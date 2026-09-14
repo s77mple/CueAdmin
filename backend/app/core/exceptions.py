@@ -39,28 +39,28 @@ class ErrorCode(IntEnum):
 
     # ====== 认证 (AUTH)  11001-11099 ======
     AUTH_INVALID_CREDENTIALS = (11001, "用户名或密码错误")
-    AUTH_TOKEN_EXPIRED       = (11002, "令牌过期，请重新登录")
-    AUTH_TOKEN_REVOKED       = (11003, "令牌已作废（用户主动登出后）")
-    AUTH_NO_ROLES            = (11004, "账号未分配任何角色")
-    AUTH_TOKEN_INVALID       = (11005, "令牌格式错误或签名无效")
+    AUTH_TOKEN_EXPIRED = (11002, "令牌过期，请重新登录")
+    AUTH_TOKEN_REVOKED = (11003, "令牌已作废（用户主动登出后）")
+    AUTH_NO_ROLES = (11004, "账号未分配任何角色")
+    AUTH_TOKEN_INVALID = (11005, "令牌格式错误或签名无效")
     AUTH_SERVICE_UNAVAILABLE = (11006, "认证服务暂不可用（一般不会触发）")
 
     # ====== 用户 (USER)  12001-12099 ======
-    USER_NOT_FOUND                = (12001, "用户不存在")
-    USERNAME_ALREADY_EXISTS       = (12002, "用户名已被占用")
+    USER_NOT_FOUND = (12001, "用户不存在")
+    USERNAME_ALREADY_EXISTS = (12002, "用户名已被占用")
     USER_CANNOT_DISABLE_SUPERADMIN = (12003, "不允许对超级管理员（admin）执行此操作")
 
     # ====== 角色 (ROLE)  13001-13099 ======
-    ROLE_NOT_FOUND   = (13001, "角色不存在")
+    ROLE_NOT_FOUND = (13001, "角色不存在")
     ROLE_CODE_EXISTS = (13002, "角色编码已被占用")
-    ROLE_IS_SYSTEM   = (13003, "系统内置角色不允许删除/修改")
+    ROLE_IS_SYSTEM = (13003, "系统内置角色不允许删除/修改")
 
     # ====== 菜单 (MENU)  14001-14099 ======
-    MENU_NOT_FOUND   = (14001, "菜单不存在")
+    MENU_NOT_FOUND = (14001, "菜单不存在")
     MENU_CODE_EXISTS = (14002, "菜单编码已被占用")
 
     # ====== 权限 (PERM)  15001-15099 ======
-    PERM_NOT_FOUND   = (15001, "权限不存在")
+    PERM_NOT_FOUND = (15001, "权限不存在")
     PERM_CODE_EXISTS = (15002, "权限编码已被占用")
 
     # ====== 权限校验 (ACCESS)  16001-16099 ======
@@ -68,14 +68,14 @@ class ErrorCode(IntEnum):
 
     # ====== 通用业务  17001-17099 ======
     VALIDATION_ERROR = (17001, "参数校验失败（前端提交的数据不符合要求）")
-    CONFLICT         = (17002, "数据冲突（并发操作、唯一约束冲突等）")
+    CONFLICT = (17002, "数据冲突（并发操作、唯一约束冲突等）")
 
     # ====== 部门 (DEPT)  18001-18099 ======
-    DEPT_NOT_FOUND   = (18001, "部门不存在")
+    DEPT_NOT_FOUND = (18001, "部门不存在")
     DEPT_CODE_EXISTS = (18002, "部门编码已被占用")
 
     # ====== 岗位 (POST)  19001-19099 ======
-    POST_NOT_FOUND   = (19001, "岗位不存在")
+    POST_NOT_FOUND = (19001, "岗位不存在")
     POST_CODE_EXISTS = (19002, "岗位编码已被占用")
 
     def __new__(cls, value: int, description: str):
@@ -101,5 +101,5 @@ class BusinessException(Exception):
     """
 
     def __init__(self, code: ErrorCode, message: str):
-        self.code = code          # 数字错误码
-        self.message = message    # 人类可读的提示
+        self.code = code  # 数字错误码
+        self.message = message  # 人类可读的提示

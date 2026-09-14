@@ -13,11 +13,15 @@ from pydantic import BaseModel, Field
 
 
 class DepartmentCreate(BaseModel):
-    code: Annotated[str, Field(
-        min_length=1, max_length=50,
-        pattern=r"^[a-z][a-z0-9_]*$",
-        description="部门编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
-    )]
+    code: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=50,
+            pattern=r"^[a-z][a-z0-9_]*$",
+            description="部门编码，创建后不可修改，小写字母开头，仅含小写字母/数字/下划线",
+        ),
+    ]
     name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
     parent_id: Annotated[int | None, Field(description="父部门 ID")] = None  # null = 顶级部门
     sort_order: Annotated[int, Field(ge=0, description="排序号，越小越靠前")] = 0
@@ -26,6 +30,7 @@ class DepartmentCreate(BaseModel):
 
 class DepartmentUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
+
     name: Annotated[str, Field(min_length=1, max_length=50, description="部门名称")]
     parent_id: Annotated[int | None, Field(description="父部门 ID")]
     sort_order: Annotated[int, Field(ge=0, description="排序号")]
@@ -34,8 +39,10 @@ class DepartmentUpdate(BaseModel):
 
 # 响应 Schema
 
+
 class DepartmentItem(BaseModel):
     """部门列表项 — 扁平列表，前端转树。"""
+
     id: Annotated[int, Field(description="部门 ID")]
     code: Annotated[str, Field(description="部门编码")]
     name: Annotated[str, Field(description="部门名称")]
@@ -53,6 +60,7 @@ class DepartmentListResponse(BaseModel):
 
 class DepartmentBrief(BaseModel):
     """部门简要信息 — 嵌套在用户响应中。"""
+
     id: Annotated[int, Field(description="部门 ID")]
     code: Annotated[str, Field(description="部门编码")]
     name: Annotated[str, Field(description="部门名称")]

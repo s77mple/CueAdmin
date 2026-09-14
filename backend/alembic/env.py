@@ -32,10 +32,10 @@ config = context.config
 # 应用运行用 aiomysql，但 CREATE/ALTER TABLE 等底层是同步 API，
 # make_url() 结构化解析后只改 drivername，避免字符串替换误改密码。
 sync_url = (
-    make_url(settings.database_url)          # 例: mysql+aiomysql://root:pass@localhost/db
-    .set(drivername="mysql+pymysql")         #  →  mysql+pymysql://root:pass@localhost/db
-    .set(host="127.0.0.1")                   # Windows 上 localhost 可能不走 TCP
-    .render_as_string(hide_password=False)   # SQLAlchemy 2.0 的 str(url) 会隐去密码为 ***
+    make_url(settings.database_url)  # 例: mysql+aiomysql://root:pass@localhost/db
+    .set(drivername="mysql+pymysql")  #  →  mysql+pymysql://root:pass@localhost/db
+    .set(host="127.0.0.1")  # Windows 上 localhost 可能不走 TCP
+    .render_as_string(hide_password=False)  # SQLAlchemy 2.0 的 str(url) 会隐去密码为 ***
 )
 config.set_main_option("sqlalchemy.url", sync_url)  # 覆盖 alembic.ini 中的占位 URL
 
@@ -57,12 +57,12 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,                                          # 只传 URL 字符串，不创建连接
-        target_metadata=target_metadata,                  # 目标表结构
-        literal_binds=True,                               # 参数直接嵌入 SQL（:param → '值'）
+        url=url,  # 只传 URL 字符串，不创建连接
+        target_metadata=target_metadata,  # 目标表结构
+        literal_binds=True,  # 参数直接嵌入 SQL（:param → '值'）
     )
-    with context.begin_transaction():                     # 模拟事务（输出 BEGIN/COMMIT）
-        context.run_migrations()                          # 打印 SQL 到 stdout，不执行
+    with context.begin_transaction():  # 模拟事务（输出 BEGIN/COMMIT）
+        context.run_migrations()  # 打印 SQL 到 stdout，不执行
 
 
 def run_migrations_online():
@@ -74,15 +74,15 @@ def run_migrations_online():
     # 创建一次性同步引擎，迁移完立即断开（不需要连接池复用）
     connectable = create_engine(
         config.get_main_option("sqlalchemy.url"),
-        poolclass=pool.NullPool,                          # 不缓存连接，用完即关
+        poolclass=pool.NullPool,  # 不缓存连接，用完即关
     )
-    with connectable.connect() as connection:             # 建立真实数据库连接
+    with connectable.connect() as connection:  # 建立真实数据库连接
         context.configure(
-            connection=connection,                        # 用此连接执行 DDL
-            target_metadata=target_metadata,              # 目标表结构
+            connection=connection,  # 用此连接执行 DDL
+            target_metadata=target_metadata,  # 目标表结构
         )
-        with context.begin_transaction():                 # 真实事务包裹，出错自动回滚
-            context.run_migrations()                      # 发送并执行 SQL
+        with context.begin_transaction():  # 真实事务包裹，出错自动回滚
+            context.run_migrations()  # 发送并执行 SQL
 
 
 # ---- 入口 ----

@@ -19,6 +19,7 @@ router = APIRouter(prefix="/meta", tags=["数据字典"])
 
 class ErrorCodeItem(BaseModel):
     """单个错误码条目 — 数据字典的一行。"""
+
     code: int = Field(..., description="数字错误码")
     name: str = Field(..., description="枚举名（英文，代码里用的标识）")
     description: str = Field(..., description="中文含义（给人看的说明）")
@@ -31,8 +32,5 @@ async def list_error_codes() -> ApiResponse[list[ErrorCodeItem]]:
     枚举定义在 app/core/exceptions.py，描述和代码同源，
     改了错误码这里自动跟着变，不需要单独维护。
     """
-    items = [
-        ErrorCodeItem(code=int(member), name=member.name, description=member.description)
-        for member in ErrorCode
-    ]
+    items = [ErrorCodeItem(code=int(member), name=member.name, description=member.description) for member in ErrorCode]
     return ApiResponse.ok(data=items)

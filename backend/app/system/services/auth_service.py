@@ -83,9 +83,9 @@ class AuthService:
         return LoginResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            user=user,            # ORM User → 构造时自动转 UserRead（from_attributes）
+            user=user,  # ORM User → 构造时自动转 UserRead（from_attributes）
             permissions=permissions,
-            roles=user.roles,     # ORM Role 列表 → 自动转 list[RoleBrief]（from_attributes）
+            roles=user.roles,  # ORM Role 列表 → 自动转 list[RoleBrief]（from_attributes）
         )
 
     async def refresh(self, refresh_token: str) -> RefreshResponse:
@@ -146,9 +146,7 @@ class AuthService:
         new_access = create_access_token(user.id, username, session_id)
         new_refresh, new_jti = create_refresh_token(user.id, username, session_id)
         try:
-            await self.redis.setex(
-                key, timedelta(days=settings.jwt_refresh_expire_days), new_jti
-            )
+            await self.redis.setex(key, timedelta(days=settings.jwt_refresh_expire_days), new_jti)
         except RedisError:
             raise BusinessException(ErrorCode.AUTH_SERVICE_UNAVAILABLE, "刷新服务暂不可用")
 

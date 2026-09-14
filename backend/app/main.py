@@ -78,8 +78,8 @@ app = FastAPI(
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()
     detail = errors[0] if errors else {}
-    msg = detail.get('msg', '参数校验失败')  # 只给中文文案，不带 Pydantic 技术前缀
-    field = detail.get('loc', ['unknown'])[-1] if detail.get('loc') else 'unknown'
+    msg = detail.get("msg", "参数校验失败")  # 只给中文文案，不带 Pydantic 技术前缀
+    field = detail.get("loc", ["unknown"])[-1] if detail.get("loc") else "unknown"
     logger.bind(path=request.url.path).warning(f"参数校验失败: {field} — {msg}")
     return JSONResponse(
         status_code=200,
@@ -116,8 +116,10 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     elapsed = time.time() - start
     logger.bind(
-        method=request.method, path=request.url.path,
-        status=response.status_code, elapsed=f"{elapsed:.3f}s",
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        elapsed=f"{elapsed:.3f}s",
     ).info(f"{request.method} {request.url.path} → {response.status_code} ({elapsed:.3f}s)")
     return response
 

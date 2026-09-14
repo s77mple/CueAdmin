@@ -31,7 +31,7 @@ from app.core.config import settings
 #    echo=False：生产环境不打印 SQL，调试时改成 True
 #
 async_engine = create_async_engine(
-    settings.database_url,      # 例: mysql+aiomysql://root:123456@127.0.0.1:3306/cueadmin
+    settings.database_url,  # 例: mysql+aiomysql://root:123456@127.0.0.1:3306/cueadmin
     pool_size=10,
     max_overflow=20,
     pool_recycle=3600,
@@ -69,14 +69,12 @@ class Base(DeclarativeBase):
 class TimestampMixin:
     """时间戳混入类 — 不要单独实例化，只用于继承。"""
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), comment="创建时间"
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), comment="创建时间")
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        server_default=func.now(),    # 第一次插入时的默认值
-        server_onupdate=func.now(),   # DB 层 UPDATE 时自动更新
-        onupdate=func.now(),          # ORM 层 UPDATE 时自动更新
+        server_default=func.now(),  # 第一次插入时的默认值
+        server_onupdate=func.now(),  # DB 层 UPDATE 时自动更新
+        onupdate=func.now(),  # ORM 层 UPDATE 时自动更新
         comment="更新时间",
     )

@@ -38,4 +38,6 @@ class Department(Base, TimestampMixin):
         remote_side="Department.id",
     )
 
-    users = relationship("User", back_populates="department", passive_deletes=True)  # 删部门 → 用户 department_id 变 NULL
+    users = relationship(
+        "User", back_populates="department", passive_deletes=True
+    )  # 删部门 → 用户 department_id 变 NULL

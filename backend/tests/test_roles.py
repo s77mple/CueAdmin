@@ -23,6 +23,7 @@ async def _admin_role_id(client, headers):
 
 # ============ 列表 ============
 
+
 async def test_list_roles(client, admin_headers):
     resp = await client.get("/api/v1/system/roles", headers=admin_headers)
     body = resp.json()
@@ -34,6 +35,7 @@ async def test_list_roles(client, admin_headers):
 
 
 # ============ 创建 ============
+
 
 async def test_create_role(client, admin_headers):
     resp = await client.post(
@@ -82,6 +84,7 @@ async def test_create_role_invalid_menu(client, admin_headers):
 
 # ============ 更新 ============
 
+
 async def test_update_role(client, admin_headers):
     created = await client.post(
         "/api/v1/system/roles",
@@ -123,6 +126,7 @@ async def test_update_system_role_forbidden(client, admin_headers):
 
 # ============ 删除 ============
 
+
 async def test_delete_role(client, admin_headers):
     created = await client.post(
         "/api/v1/system/roles",
@@ -148,6 +152,7 @@ async def test_delete_nonexistent_role(client, admin_headers):
 
 
 # ============ 单查 ============
+
 
 async def test_get_role(client, admin_headers):
     created = await client.post(

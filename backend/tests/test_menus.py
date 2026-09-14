@@ -13,6 +13,7 @@ from app.core.exceptions import ErrorCode
 
 # ============ 列表 ============
 
+
 async def test_list_menus_empty(client, admin_headers):
     resp = await client.get("/api/v1/system/menus", headers=admin_headers)
     body = resp.json()
@@ -21,6 +22,7 @@ async def test_list_menus_empty(client, admin_headers):
 
 
 # ============ 创建 ============
+
 
 async def test_create_menu(client, admin_headers):
     resp = await client.post(
@@ -45,11 +47,13 @@ async def test_create_menu(client, admin_headers):
 
 async def test_create_menu_duplicate_code(client, admin_headers):
     await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "system", "name": "系统"},
     )
     resp = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "system", "name": "系统2"},
     )
     assert resp.json()["code"] == ErrorCode.MENU_CODE_EXISTS.value
@@ -57,7 +61,8 @@ async def test_create_menu_duplicate_code(client, admin_headers):
 
 async def test_create_menu_invalid_parent(client, admin_headers):
     resp = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "child", "name": "子菜单", "parent_id": 9999},
     )
     assert resp.json()["code"] == ErrorCode.MENU_NOT_FOUND.value
@@ -65,9 +70,11 @@ async def test_create_menu_invalid_parent(client, admin_headers):
 
 # ============ 更新 ============
 
+
 async def test_update_menu(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "system", "name": "系统"},
     )
     menu_id = created.json()["data"]["id"]
@@ -91,12 +98,14 @@ async def test_update_menu(client, admin_headers):
 async def test_update_menu_cycle_conflict(client, admin_headers):
     """把父菜单设为子菜单的子 → 循环引用冲突。"""
     parent = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "parent", "name": "父菜单"},
     )
     parent_id = parent.json()["data"]["id"]
     child = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "child", "name": "子菜单", "parent_id": parent_id},
     )
     child_id = child.json()["data"]["id"]
@@ -105,8 +114,12 @@ async def test_update_menu_cycle_conflict(client, admin_headers):
         f"/api/v1/system/menus/{parent_id}",
         headers=admin_headers,
         json={
-            "name": "父菜单", "icon": None, "path": None,
-            "component": None, "parent_id": child_id, "sort_order": 0,
+            "name": "父菜单",
+            "icon": None,
+            "path": None,
+            "component": None,
+            "parent_id": child_id,
+            "sort_order": 0,
         },
     )
     assert resp.json()["code"] == ErrorCode.CONFLICT.value
@@ -114,9 +127,11 @@ async def test_update_menu_cycle_conflict(client, admin_headers):
 
 # ============ 删除 ============
 
+
 async def test_delete_menu(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "tmp", "name": "临时菜单"},
     )
     menu_id = created.json()["data"]["id"]
@@ -128,12 +143,14 @@ async def test_delete_menu(client, admin_headers):
 async def test_delete_menu_with_child(client, admin_headers):
     """删除父菜单 → 子菜单变顶级。"""
     parent = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "parent", "name": "父菜单"},
     )
     parent_id = parent.json()["data"]["id"]
     await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "child", "name": "子菜单", "parent_id": parent_id},
     )
 
@@ -152,9 +169,11 @@ async def test_delete_nonexistent_menu(client, admin_headers):
 
 # ============ 单查 ============
 
+
 async def test_get_menu(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "system", "name": "系统管理"},
     )
     menu_id = created.json()["data"]["id"]

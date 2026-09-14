@@ -25,6 +25,7 @@ async def _admin_role_id(client, headers):
 
 # ============ 列表 ============
 
+
 async def test_list_users(client, admin_headers):
     resp = await client.get("/api/v1/system/users", headers=admin_headers)
     body = resp.json()
@@ -40,14 +41,10 @@ async def test_list_users(client, admin_headers):
 
 async def test_list_users_filter_active(client, admin_headers):
     # 默认 admin 是启用状态，所以禁用筛选查不到、启用筛选查得到
-    resp = await client.get(
-        "/api/v1/system/users", params={"is_active": "false"}, headers=admin_headers
-    )
+    resp = await client.get("/api/v1/system/users", params={"is_active": "false"}, headers=admin_headers)
     assert resp.json()["data"]["total"] == 0
 
-    resp = await client.get(
-        "/api/v1/system/users", params={"is_active": "true"}, headers=admin_headers
-    )
+    resp = await client.get("/api/v1/system/users", params={"is_active": "true"}, headers=admin_headers)
     assert resp.json()["data"]["total"] == 1
 
 
@@ -55,19 +52,22 @@ async def test_list_users_filter_department_subtree(client, admin_headers):
     """dept_id 匹配「该部门 + 全部子孙」（学 RuoYi find_in_set）— 左树点父部门能带出子部门用户。"""
     top = (
         await client.post(
-            "/api/v1/system/departments", headers=admin_headers,
+            "/api/v1/system/departments",
+            headers=admin_headers,
             json={"code": "fixta", "name": "总公司"},
         )
     ).json()["data"]["id"]
     child = (
         await client.post(
-            "/api/v1/system/departments", headers=admin_headers,
+            "/api/v1/system/departments",
+            headers=admin_headers,
             json={"code": "fixta1", "name": "研发部", "parent_id": top},
         )
     ).json()["data"]["id"]
     other = (
         await client.post(
-            "/api/v1/system/departments", headers=admin_headers,
+            "/api/v1/system/departments",
+            headers=admin_headers,
             json={"code": "fixtb", "name": "分公司"},
         )
     ).json()["data"]["id"]
@@ -75,16 +75,14 @@ async def test_list_users_filter_department_subtree(client, admin_headers):
     # alice 直属顶级，bob 挂在子孙部门，carol 在另一个顶级，dave 无部门
     for username, dept in [("alice", top), ("bob", child), ("carol", other), ("dave", None)]:
         resp = await client.post(
-            "/api/v1/system/users", headers=admin_headers,
-            json={"username": username, "password": "test1234",
-                  "display_name": username, "department_id": dept},
+            "/api/v1/system/users",
+            headers=admin_headers,
+            json={"username": username, "password": "test1234", "display_name": username, "department_id": dept},
         )
         assert resp.json()["code"] == 0
 
     # 点顶级 → 直属 alice + 子孙部门的 bob 都出；他部门/无部门的不出
-    resp = await client.get(
-        "/api/v1/system/users", params={"dept_id": top}, headers=admin_headers
-    )
+    resp = await client.get("/api/v1/system/users", params={"dept_id": top}, headers=admin_headers)
     body = resp.json()
     assert body["code"] == 0
     names = [u["username"] for u in body["data"]["items"]]
@@ -92,16 +90,12 @@ async def test_list_users_filter_department_subtree(client, admin_headers):
     assert "carol" not in names and "dave" not in names and "admin" not in names
 
     # 点叶子部门 → 只回直属的 bob
-    resp = await client.get(
-        "/api/v1/system/users", params={"dept_id": child}, headers=admin_headers
-    )
+    resp = await client.get("/api/v1/system/users", params={"dept_id": child}, headers=admin_headers)
     names = [u["username"] for u in resp.json()["data"]["items"]]
     assert "bob" in names and "alice" not in names
 
     # 未知部门 id → 收不到任何行（空页，与若依行为一致）
-    resp = await client.get(
-        "/api/v1/system/users", params={"dept_id": 99999}, headers=admin_headers
-    )
+    resp = await client.get("/api/v1/system/users", params={"dept_id": 99999}, headers=admin_headers)
     assert resp.json()["data"]["total"] == 0
 
 
@@ -113,24 +107,28 @@ async def test_list_items_are_slim_rows(client, admin_headers):
     role_id = await _admin_role_id(client, admin_headers)
     dept_id = (
         await client.post(
-            "/api/v1/system/departments", headers=admin_headers,
+            "/api/v1/system/departments",
+            headers=admin_headers,
             json={"code": "slimdpt", "name": "瘦身部"},
         )
     ).json()["data"]["id"]
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
-        json={"username": "slim_user", "password": "slim1234",
-              "display_name": "瘦身用户", "department_id": dept_id,
-              "role_ids": [role_id]},
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={
+            "username": "slim_user",
+            "password": "slim1234",
+            "display_name": "瘦身用户",
+            "department_id": dept_id,
+            "role_ids": [role_id],
+        },
     )
     assert created.json()["code"] == 0
     # 创建接口（UserRead）是纯列镜像 —— role_ids 不再回显（只有详情接口顶层带）
     assert "role_ids" not in created.json()["data"]
 
     listed = await client.get("/api/v1/system/users", headers=admin_headers)
-    target = next(
-        u for u in listed.json()["data"]["items"] if u["username"] == "slim_user"
-    )
+    target = next(u for u in listed.json()["data"]["items"] if u["username"] == "slim_user")
     assert "role_ids" not in target
     # 学 RuoYi：列表行不下发角色对象，角色只在详情（UserDetail）里回显
     assert "roles" not in target
@@ -142,13 +140,20 @@ async def test_list_items_are_slim_rows(client, admin_headers):
 
 # ============ 详情 ============
 
+
 async def test_user_detail_echoes_assigned_role_ids(client, admin_headers):
     """详情 = getInfo 同款：user 纯列镜像（无 role_ids）+ 全量角色下拉 + 顶层 role_ids 回显已分配。"""
     role_id = await _admin_role_id(client, admin_headers)
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
-        json={"username": "detail_echo", "password": "detail123",
-              "display_name": "回显用户", "role_ids": [role_id], "department_id": None},
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={
+            "username": "detail_echo",
+            "password": "detail123",
+            "display_name": "回显用户",
+            "role_ids": [role_id],
+            "department_id": None,
+        },
     )
     assert created.json()["code"] == 0
     uid = created.json()["data"]["id"]
@@ -167,6 +172,7 @@ async def test_user_detail_echoes_assigned_role_ids(client, admin_headers):
 
 
 # ============ 创建 ============
+
 
 async def test_create_user(client, admin_headers):
     role_id = await _admin_role_id(client, admin_headers)
@@ -241,6 +247,7 @@ async def test_create_user_username_whitespace(client, admin_headers):
 
 # ============ 更新 ============
 
+
 async def test_update_user(client, admin_headers):
     created = await client.post(
         "/api/v1/system/users",
@@ -269,11 +276,13 @@ async def test_update_user(client, admin_headers):
 
 async def test_update_user_duplicate_username(client, admin_headers):
     await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "frank", "password": "frank123", "display_name": "弗兰克"},
     )
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "grace", "password": "grace123", "display_name": "格蕾丝"},
     )
     grace_id = created.json()["data"]["id"]
@@ -297,7 +306,8 @@ async def test_update_user_duplicate_username(client, admin_headers):
 
 async def test_patch_user(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "henry", "password": "henry123", "display_name": "亨利"},
     )
     user_id = created.json()["data"]["id"]
@@ -316,9 +326,11 @@ async def test_patch_user(client, admin_headers):
 
 # ============ 删除 ============
 
+
 async def test_delete_user_soft(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "ivy", "password": "ivy12345", "display_name": "艾维"},
     )
     user_id = created.json()["data"]["id"]
@@ -335,16 +347,15 @@ async def test_delete_user_soft(client, admin_headers):
 
 async def test_delete_user_hard(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "jack", "password": "jack1234", "display_name": "杰克"},
     )
     user_id = created.json()["data"]["id"]
 
     # 先软禁用，再硬删除
     await client.delete(f"/api/v1/system/users/{user_id}", headers=admin_headers)
-    resp = await client.delete(
-        f"/api/v1/system/users/{user_id}", params={"hard": "true"}, headers=admin_headers
-    )
+    resp = await client.delete(f"/api/v1/system/users/{user_id}", params={"hard": "true"}, headers=admin_headers)
     assert resp.json()["code"] == 0
 
     # 彻底删除后列表里没有了
@@ -356,23 +367,20 @@ async def test_delete_user_hard(client, admin_headers):
 async def test_delete_user_hard_active_conflict(client, admin_headers):
     """硬删除启用中的用户 → 冲突（必须先禁用）。"""
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "kate", "password": "kate1234", "display_name": "凯特"},
     )
     user_id = created.json()["data"]["id"]
 
-    resp = await client.delete(
-        f"/api/v1/system/users/{user_id}", params={"hard": "true"}, headers=admin_headers
-    )
+    resp = await client.delete(f"/api/v1/system/users/{user_id}", params={"hard": "true"}, headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.CONFLICT.value
 
 
 async def test_delete_self_conflict(client, admin_headers):
     """不能操作自己的账号。"""
     resp = await client.get("/api/v1/system/users", headers=admin_headers)
-    admin_id = next(
-        u["id"] for u in resp.json()["data"]["items"] if u["username"] == "admin"
-    )
+    admin_id = next(u["id"] for u in resp.json()["data"]["items"] if u["username"] == "admin")
 
     resp = await client.delete(f"/api/v1/system/users/{admin_id}", headers=admin_headers)
     assert resp.json()["code"] == ErrorCode.CONFLICT.value
@@ -385,10 +393,12 @@ async def test_delete_nonexistent_user(client, admin_headers):
 
 # ============ 岗位关联（岗位与角色是正交的两条 M2M）============
 
+
 async def _create_post(client, headers, code: str, name: str) -> dict:
     """岗位模块造数小助手。"""
     resp = await client.post(
-        "/api/v1/system/posts", headers=headers,
+        "/api/v1/system/posts",
+        headers=headers,
         json={"code": code, "name": name},
     )
     assert resp.json()["code"] == 0
@@ -399,9 +409,14 @@ async def test_user_detail_echoes_assigned_posts(client, admin_headers):
     """详情 getInfo 同款第二维：user 纯列（无 post_ids）+ 全量岗位下拉 posts + 顶层 post_ids 回显。"""
     post = await _create_post(client, admin_headers, "pm", "项目经理")
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
-        json={"username": "post_echo", "password": "post1234",
-              "display_name": "岗位回显用户", "post_ids": [post["id"]]},
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={
+            "username": "post_echo",
+            "password": "post1234",
+            "display_name": "岗位回显用户",
+            "post_ids": [post["id"]],
+        },
     )
     assert created.json()["code"] == 0
     # UserRead 纯列镜像：岗位回显走详情，写返回不背 post_ids
@@ -421,9 +436,9 @@ async def test_user_detail_echoes_assigned_posts(client, admin_headers):
 
 async def test_create_user_invalid_post(client, admin_headers):
     resp = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
-        json={"username": "badpost", "password": "bad12345",
-              "display_name": "坏岗位用户", "post_ids": [9999]},
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={"username": "badpost", "password": "bad12345", "display_name": "坏岗位用户", "post_ids": [9999]},
     )
     assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
 
@@ -434,7 +449,8 @@ async def test_update_user_assign_posts(client, admin_headers):
     post_b = await _create_post(client, admin_headers, "pb", "岗位乙")
 
     created = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
+        "/api/v1/system/users",
+        headers=admin_headers,
         json={"username": "mgr", "password": "mgr12345", "display_name": "经理"},
     )
     uid = created.json()["data"]["id"]
@@ -444,8 +460,12 @@ async def test_update_user_assign_posts(client, admin_headers):
         f"/api/v1/system/users/{uid}",
         headers=admin_headers,
         json={
-            "username": "mgr", "display_name": "经理", "phone": None,
-            "is_active": True, "role_ids": [], "post_ids": [post_a["id"], post_b["id"]],
+            "username": "mgr",
+            "display_name": "经理",
+            "phone": None,
+            "is_active": True,
+            "role_ids": [],
+            "post_ids": [post_a["id"], post_b["id"]],
             "department_id": None,
         },
     )
@@ -455,7 +475,8 @@ async def test_update_user_assign_posts(client, admin_headers):
 
     # PATCH 换成只留一个 → 岗位维度独立变更，不影响角色
     resp = await client.patch(
-        f"/api/v1/system/users/{uid}", headers=admin_headers,
+        f"/api/v1/system/users/{uid}",
+        headers=admin_headers,
         json={"post_ids": [post_a["id"]]},
     )
     assert resp.json()["code"] == 0

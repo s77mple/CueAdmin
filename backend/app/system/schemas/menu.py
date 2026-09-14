@@ -26,6 +26,7 @@ class MenuCreate(BaseModel):
 
 class MenuUpdate(BaseModel):
     """PUT 全量更新 — code 不可修改，其余所有字段必传。"""
+
     name: Annotated[str, Field(min_length=1, max_length=50, description="菜单名称")]
     icon: Annotated[str | None, Field(max_length=50, description="图标")]
     path: Annotated[str | None, Field(max_length=100, description="路由路径")]
@@ -36,8 +37,10 @@ class MenuUpdate(BaseModel):
 
 # 响应 Schema
 
+
 class MenuItem(BaseModel):
     """菜单列表项 — 扁平列表，前端转树。"""
+
     id: Annotated[int, Field(description="菜单 ID")]
     code: Annotated[str, Field(description="菜单编码")]
     name: Annotated[str, Field(description="菜单名称")]
@@ -57,6 +60,7 @@ class MenuListResponse(BaseModel):
 
 class MenuBrief(BaseModel):
     """菜单简要信息 — 嵌套在角色响应中。"""
+
     id: Annotated[int, Field(description="菜单 ID")]
     code: Annotated[str, Field(description="菜单编码")]
     name: Annotated[str, Field(description="菜单名称")]

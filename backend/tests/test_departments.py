@@ -13,6 +13,7 @@ from app.core.exceptions import ErrorCode
 
 # ============ 列表 ============
 
+
 async def test_list_departments_empty(client, admin_headers):
     resp = await client.get("/api/v1/system/departments", headers=admin_headers)
     body = resp.json()
@@ -22,6 +23,7 @@ async def test_list_departments_empty(client, admin_headers):
 
 
 # ============ 创建 ============
+
 
 async def test_create_department(client, admin_headers):
     resp = await client.post(
@@ -38,11 +40,13 @@ async def test_create_department(client, admin_headers):
 
 async def test_create_department_duplicate_code(client, admin_headers):
     await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "tech", "name": "技术部"},
     )
     resp = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "tech", "name": "技术部2"},
     )
     assert resp.json()["code"] == ErrorCode.DEPT_CODE_EXISTS.value
@@ -50,7 +54,8 @@ async def test_create_department_duplicate_code(client, admin_headers):
 
 async def test_create_department_invalid_parent(client, admin_headers):
     resp = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "child", "name": "子部门", "parent_id": 9999},
     )
     assert resp.json()["code"] == ErrorCode.DEPT_NOT_FOUND.value
@@ -58,9 +63,11 @@ async def test_create_department_invalid_parent(client, admin_headers):
 
 # ============ 更新 ============
 
+
 async def test_update_department(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "tech", "name": "技术部"},
     )
     dept_id = created.json()["data"]["id"]
@@ -77,7 +84,8 @@ async def test_update_department(client, admin_headers):
 async def test_update_department_self_parent_conflict(client, admin_headers):
     """把自己设为父部门 → 冲突。"""
     created = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "tech", "name": "技术部"},
     )
     dept_id = created.json()["data"]["id"]
@@ -93,12 +101,14 @@ async def test_update_department_self_parent_conflict(client, admin_headers):
 async def test_update_department_cycle_conflict(client, admin_headers):
     """把父部门设为子部门的子 → 循环引用冲突。"""
     parent = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "parent", "name": "父部门"},
     )
     parent_id = parent.json()["data"]["id"]
     child = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "child", "name": "子部门", "parent_id": parent_id},
     )
     child_id = child.json()["data"]["id"]
@@ -113,9 +123,11 @@ async def test_update_department_cycle_conflict(client, admin_headers):
 
 # ============ 删除 ============
 
+
 async def test_delete_department(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "tmp", "name": "临时部门"},
     )
     dept_id = created.json()["data"]["id"]
@@ -127,18 +139,18 @@ async def test_delete_department(client, admin_headers):
 async def test_delete_department_with_child(client, admin_headers):
     """删除父部门 → 子部门变顶级。"""
     parent = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "parent", "name": "父部门"},
     )
     parent_id = parent.json()["data"]["id"]
     await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "child", "name": "子部门", "parent_id": parent_id},
     )
 
-    resp = await client.delete(
-        f"/api/v1/system/departments/{parent_id}", headers=admin_headers
-    )
+    resp = await client.delete(f"/api/v1/system/departments/{parent_id}", headers=admin_headers)
     assert resp.json()["code"] == 0
 
     # 子部门还在，且变顶级（parent_id=None）
@@ -154,9 +166,11 @@ async def test_delete_nonexistent_department(client, admin_headers):
 
 # ============ 单查 ============
 
+
 async def test_get_department(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "tech", "name": "技术部"},
     )
     dept_id = created.json()["data"]["id"]
@@ -175,20 +189,24 @@ async def test_get_department_nonexistent(client, admin_headers):
 
 # ============ 部门树 ============
 
+
 async def test_get_department_tree_nested(client, admin_headers):
     """GET /departments/tree：嵌套成树，顶层/子级均按 sort_order 排序，叶子空数组。"""
     root_a = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "root_a", "name": "总公司", "sort_order": 10},
     )
     root_a_id = root_a.json()["data"]["id"]
     root_b = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "root_b", "name": "分公司", "sort_order": 1},
     )
     root_b_id = root_b.json()["data"]["id"]
     child = await client.post(
-        "/api/v1/system/departments", headers=admin_headers,
+        "/api/v1/system/departments",
+        headers=admin_headers,
         json={"code": "dev_dept", "name": "研发部", "parent_id": root_a_id, "sort_order": 2},
     )
     child_id = child.json()["data"]["id"]

@@ -30,18 +30,19 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 
 # 登录频率限制 — 5 次失败 / 5 分钟 → 锁定 15 分钟
 
-_LOGIN_MAX_FAILURES = 5     # 最大失败次数
-_LOGIN_FAIL_WINDOW = 300    # 失败计数窗口（5 分钟）
-_LOGIN_LOCK_TTL = 900       # 锁定时间（15 分钟）
+_LOGIN_MAX_FAILURES = 5  # 最大失败次数
+_LOGIN_FAIL_WINDOW = 300  # 失败计数窗口（5 分钟）
+_LOGIN_LOCK_TTL = 900  # 锁定时间（15 分钟）
 
 
 # POST /auth/login — 登录
 
+
 @router.post("/login", response_model=ApiResponse[LoginResponse])
 async def login(
-    body: LoginRequest,                                    # 前端传来的 { username, password }
-    session: SessionDep,                                         # 数据库会话（自动注入）
-    redis_client: RedisDep,     # Redis（自动注入）
+    body: LoginRequest,  # 前端传来的 { username, password }
+    session: SessionDep,  # 数据库会话（自动注入）
+    redis_client: RedisDep,  # Redis（自动注入）
 ) -> ApiResponse[LoginResponse]:
     """登录接口。流程：检查锁定 → 调用 AuthService.login() 认证 →
     成功清计数+旧缓存并返回 token，失败则 INCR 失败计数、达阈值锁定 15 分钟。"""
@@ -70,7 +71,7 @@ async def login(
                 if new_count == 1:
                     await redis_client.expire(fail_key, _LOGIN_FAIL_WINDOW)  # 首次失败设 5 分钟窗口
                 if new_count >= _LOGIN_MAX_FAILURES:
-                    await redis_client.expire(fail_key, _LOGIN_LOCK_TTL)     # 达阈值 → 延长到 15 分钟
+                    await redis_client.expire(fail_key, _LOGIN_LOCK_TTL)  # 达阈值 → 延长到 15 分钟
                     logger.bind(username=body.username).warning(
                         f"登录失败 {new_count} 次，锁定 {_LOGIN_LOCK_TTL // 60} 分钟"
                     )
@@ -80,8 +81,8 @@ async def login(
 
     # ---- 登录成功 → 清除失败计数 + 旧权限缓存 ----
     try:
-        await redis_client.delete(fail_key)                 # 清除失败计数
-        await redis_client.delete(f"perm:{result.user.id}") # 清除旧权限缓存（确保登录后权限是最新的）
+        await redis_client.delete(fail_key)  # 清除失败计数
+        await redis_client.delete(f"perm:{result.user.id}")  # 清除旧权限缓存（确保登录后权限是最新的）
     except RedisError:
         logger.warning("登录时清除缓存失败，跳过")
     logger.bind(username=body.username).info("用户登录成功")
@@ -90,9 +91,10 @@ async def login(
 
 # POST /auth/logout — 登出
 
+
 @router.post("/logout", response_model=ApiResponse)
 async def logout(
-    credentials: BearerTokenDep,                           # 从请求头取 Bearer token
+    credentials: BearerTokenDep,  # 从请求头取 Bearer token
     redis_client: RedisDep,
 ) -> ApiResponse:
     """登出接口。
@@ -109,7 +111,7 @@ async def logout(
         # Token 已无效（过期或损坏），无需加入黑名单
         return ApiResponse.ok(message="已登出")
 
-    jti = payload.get("jti")              # access token 唯一 ID
+    jti = payload.get("jti")  # access token 唯一 ID
     user_id = payload.get("sub")
     session_id = payload.get("session_id")  # 本次登录的会话 ID
     exp = payload.get("exp")
@@ -117,11 +119,11 @@ async def logout(
     ttl = max(int(exp - time.time()), 1) if exp else 86400
     try:
         if jti:
-            await redis_client.setex(f"blacklist:{jti}", ttl, "1")   # access 加入黑名单
+            await redis_client.setex(f"blacklist:{jti}", ttl, "1")  # access 加入黑名单
         if user_id:
-            await redis_client.delete(f"perm:{user_id}")             # 清除权限缓存
+            await redis_client.delete(f"perm:{user_id}")  # 清除权限缓存
         if session_id:
-            await redis_client.delete(f"session:{session_id}")       # 撤销 refresh 会话
+            await redis_client.delete(f"session:{session_id}")  # 撤销 refresh 会话
     except RedisError:
         logger.warning("登出时 Redis 操作失败，跳过")
     return ApiResponse.ok(message="已登出")
@@ -129,9 +131,10 @@ async def logout(
 
 # POST /auth/refresh — 刷新令牌
 
+
 @router.post("/refresh", response_model=ApiResponse[RefreshResponse])
 async def refresh(
-    body: RefreshRequest,                                    # 前端传来的 { refresh_token }
+    body: RefreshRequest,  # 前端传来的 { refresh_token }
     session: SessionDep,
     redis_client: RedisDep,
 ) -> ApiResponse[RefreshResponse]:

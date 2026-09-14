@@ -21,4 +21,6 @@ class Post(Base, TimestampMixin):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, comment="同级排序，越小越靠前（RuoYi post_sort）")
     description: Mapped[str | None] = mapped_column(String(200), comment="岗位描述（RuoYi remark）")
 
-    users = relationship("User", secondary=user_posts, back_populates="posts", passive_deletes=True)  # 删岗位 → user_posts 交给 DB CASCADE
+    users = relationship(
+        "User", secondary=user_posts, back_populates="posts", passive_deletes=True
+    )  # 删岗位 → user_posts 交给 DB CASCADE

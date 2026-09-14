@@ -30,13 +30,14 @@ async def test_routes_admin_empty(client, admin_headers):
 async def test_routes_admin_gets_all_menus(client, admin_headers):
     """admin 拥有全部菜单（不按角色过滤）。"""
     await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "system", "name": "系统管理", "path": "/system"},
     )
     await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
-        json={"code": "users", "name": "用户管理", "path": "/users",
-              "component": "system/users/index"},
+        "/api/v1/system/menus",
+        headers=admin_headers,
+        json={"code": "users", "name": "用户管理", "path": "/users", "component": "system/users/index"},
     )
 
     resp = await client.get("/api/v1/routes", headers=admin_headers)
@@ -50,38 +51,42 @@ async def test_routes_normal_user_gets_role_menus(client, admin_headers):
     """普通用户只拿到角色绑定的菜单，父级自动补全。"""
     # 1. 建父菜单（目录）+ 子菜单（页面）
     parent = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={"code": "system", "name": "系统管理", "path": "/system"},
     )
     parent_id = parent.json()["data"]["id"]
     child = await client.post(
-        "/api/v1/system/menus", headers=admin_headers,
+        "/api/v1/system/menus",
+        headers=admin_headers,
         json={
-            "code": "system-users", "name": "用户管理", "path": "/users",
-            "component": "system/users/index", "parent_id": parent_id,
+            "code": "system-users",
+            "name": "用户管理",
+            "path": "/users",
+            "component": "system/users/index",
+            "parent_id": parent_id,
         },
     )
     child_id = child.json()["data"]["id"]
 
     # 2. 建角色只绑定子菜单（不绑定父菜单）
     role = await client.post(
-        "/api/v1/system/roles", headers=admin_headers,
+        "/api/v1/system/roles",
+        headers=admin_headers,
         json={"code": "viewer", "name": "访客", "menu_ids": [child_id]},
     )
     role_id = role.json()["data"]["id"]
 
     # 3. 建用户绑定该角色
     user = await client.post(
-        "/api/v1/system/users", headers=admin_headers,
-        json={"username": "alice", "password": "alice123", "display_name": "爱丽丝",
-              "role_ids": [role_id]},
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={"username": "alice", "password": "alice123", "display_name": "爱丽丝", "role_ids": [role_id]},
     )
     assert user.json()["code"] == 0
 
     # 4. 用 alice 登录
-    login = await client.post(
-        "/api/v1/auth/login", json={"username": "alice", "password": "alice123"}
-    )
+    login = await client.post("/api/v1/auth/login", json={"username": "alice", "password": "alice123"})
     assert login.json()["code"] == 0
     token = login.json()["data"]["access_token"]
 

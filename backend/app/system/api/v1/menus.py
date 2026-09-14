@@ -25,13 +25,14 @@ router = APIRouter(prefix="/menus", tags=["菜单管理"])
 
 
 class MenuScope:
-    LIST   = "menu:list"
+    LIST = "menu:list"
     CREATE = "menu:create"
     UPDATE = "menu:update"
     DELETE = "menu:delete"
 
 
 # GET /menus — 菜单列表
+
 
 @router.get("", response_model=ApiResponse[MenuListResponse], summary="菜单列表")
 async def list_menus(
@@ -45,6 +46,7 @@ async def list_menus(
 
 # GET /menus/{menu_id} — 菜单详情（编辑回显）
 
+
 @router.get("/{menu_id}", response_model=ApiResponse[MenuItem], summary="菜单详情")
 async def get_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
@@ -56,6 +58,7 @@ async def get_menu(
 
 
 # POST /menus — 创建菜单
+
 
 @router.post("", response_model=ApiResponse[MenuBrief], status_code=201, summary="创建菜单")
 async def create_menu(
@@ -69,6 +72,7 @@ async def create_menu(
 
 # PUT /menus/{menu_id} — 全量更新
 
+
 @router.put("/{menu_id}", response_model=ApiResponse[MenuBrief], summary="全量更新菜单")
 async def update_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
@@ -79,7 +83,9 @@ async def update_menu(
     menu = await MenuService(session).update_menu(menu_id, body)
     return ApiResponse.ok(data=menu, message="更新成功")
 
+
 # DELETE /menus/{menu_id} — 删除菜单
+
 
 @router.delete("/{menu_id}", response_model=ApiResponse, summary="删除菜单")
 async def delete_menu(

@@ -20,23 +20,17 @@ class BaseRepository:
 
     async def get(self, id: int):
         """按主键 id 查询，查不到返回 None。"""
-        result = await self.session.execute(
-            select(self.model).where(self.model.id == id)
-        )
+        result = await self.session.execute(select(self.model).where(self.model.id == id))
         return result.scalars().first()
 
     async def get_for_update(self, id: int):
         """按主键 id 查询并加行级锁（SELECT ... FOR UPDATE）。"""
-        result = await self.session.execute(
-            select(self.model).where(self.model.id == id).with_for_update()
-        )
+        result = await self.session.execute(select(self.model).where(self.model.id == id).with_for_update())
         return result.scalars().first()
 
     async def get_by_code(self, code: str):
         """按唯一编码 code 查询（有 code 字段的实体使用）。"""
-        result = await self.session.execute(
-            select(self.model).where(self.model.code == code)
-        )
+        result = await self.session.execute(select(self.model).where(self.model.code == code))
         return result.scalars().first()
 
     def add(self, obj) -> None:

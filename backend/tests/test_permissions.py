@@ -13,6 +13,7 @@ from app.core.exceptions import ErrorCode
 
 # ============ 列表 ============
 
+
 async def test_list_permissions_empty(client, admin_headers):
     resp = await client.get("/api/v1/system/permissions", headers=admin_headers)
     body = resp.json()
@@ -21,6 +22,7 @@ async def test_list_permissions_empty(client, admin_headers):
 
 
 # ============ 创建 ============
+
 
 async def test_create_permission(client, admin_headers):
     resp = await client.post(
@@ -41,11 +43,13 @@ async def test_create_permission(client, admin_headers):
 
 async def test_create_permission_duplicate_code(client, admin_headers):
     await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "user:list", "name": "用户列表", "resource": "user", "action": "list"},
     )
     resp = await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "user:list", "name": "重复", "resource": "user", "action": "list"},
     )
     assert resp.json()["code"] == ErrorCode.PERM_CODE_EXISTS.value
@@ -53,9 +57,11 @@ async def test_create_permission_duplicate_code(client, admin_headers):
 
 # ============ 更新 ============
 
+
 async def test_update_permission(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "user:list", "name": "用户列表", "resource": "user", "action": "list"},
     )
     perm_id = created.json()["data"]["id"]
@@ -77,11 +83,13 @@ async def test_update_permission(client, admin_headers):
 
 async def test_update_permission_duplicate_code(client, admin_headers):
     await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "user:list", "name": "用户列表", "resource": "user", "action": "list"},
     )
     created = await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "user:create", "name": "创建用户", "resource": "user", "action": "create"},
     )
     perm_id = created.json()["data"]["id"]
@@ -103,16 +111,16 @@ async def test_update_permission_duplicate_code(client, admin_headers):
 
 # ============ 删除 ============
 
+
 async def test_delete_permission(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "tmp:act", "name": "临时", "resource": "tmp", "action": "act"},
     )
     perm_id = created.json()["data"]["id"]
 
-    resp = await client.delete(
-        f"/api/v1/system/permissions/{perm_id}", headers=admin_headers
-    )
+    resp = await client.delete(f"/api/v1/system/permissions/{perm_id}", headers=admin_headers)
     assert resp.json()["code"] == 0
 
 
@@ -123,9 +131,11 @@ async def test_delete_nonexistent_permission(client, admin_headers):
 
 # ============ 单查 ============
 
+
 async def test_get_permission(client, admin_headers):
     created = await client.post(
-        "/api/v1/system/permissions", headers=admin_headers,
+        "/api/v1/system/permissions",
+        headers=admin_headers,
         json={"code": "user:list", "name": "用户列表", "resource": "user", "action": "list"},
     )
     perm_id = created.json()["data"]["id"]

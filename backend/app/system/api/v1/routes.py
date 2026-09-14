@@ -48,6 +48,6 @@ async def get_routes(
         data=RoutesResponse(
             routes=routes,
             permissions=permissions,
-            roles=user.roles,   # ORM Role 列表 → 自动转 list[RoleBrief]（from_attributes）
+            roles=user.roles,  # ORM Role 列表 → 自动转 list[RoleBrief]（from_attributes）
         )
     )

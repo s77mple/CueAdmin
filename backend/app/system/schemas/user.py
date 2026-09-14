@@ -17,6 +17,7 @@ from app.system.schemas.role import RoleBrief
 
 # 校验函数 — 只放 Field 表达不了的复杂规则
 
+
 def _validate_username(v: str) -> str:
     """用户名 — 不允许首尾空格（长度 3~50 已由 Field 覆盖）。"""
     if v != v.strip():
@@ -27,6 +28,7 @@ def _validate_username(v: str) -> str:
 # ===== 请求体（入参）=====
 
 # UserCreate — POST 新建
+
 
 class UserCreate(BaseModel):
     username: Annotated[str, Field(min_length=3, max_length=50, description="用户名")]
@@ -45,8 +47,10 @@ class UserCreate(BaseModel):
 
 # UserUpdate — PUT 全量覆盖
 
+
 class UserUpdate(BaseModel):
     """PUT 全量更新 — 所有字段覆盖写入。"""
+
     username: Annotated[str, Field(min_length=3, max_length=50, description="用户名")]
     display_name: Annotated[str, Field(min_length=1, max_length=50, description="显示名")]
     phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号")]
@@ -63,6 +67,7 @@ class UserUpdate(BaseModel):
 
 # UserPatch — PATCH 部分更新
 
+
 class UserPatch(BaseModel):
     """PATCH 部分更新 — 所有字段都 Optional。
 
@@ -71,6 +76,7 @@ class UserPatch(BaseModel):
       → data = {"is_active": False}
       → API 层只改 is_active，其他字段不动
     """
+
     username: Annotated[str | None, Field(min_length=3, max_length=50, description="用户名")] = None
     display_name: Annotated[str | None, Field(min_length=1, max_length=50, description="显示名")] = None
     phone: Annotated[str | None, Field(pattern=r"^1[3-9]\d{9}$", description="手机号")] = None
@@ -96,8 +102,10 @@ class UserPatch(BaseModel):
 #
 # 纪律：response 字段一律不加 = None / default_factory → OpenAPI 里全部必返；可空用类型表达（str | None、list[T]）
 
+
 class UserRead(BaseModel):
     """用户信息 — 回显（详情.user / 写返回 / 登录 user 共用），纯列镜像无 role_ids。"""
+
     id: Annotated[int, Field(description="用户 ID")]
     username: Annotated[str, Field(description="用户名")]
     display_name: Annotated[str, Field(description="显示名")]
@@ -112,6 +120,7 @@ class UserRead(BaseModel):
 
 class UserListItem(BaseModel):
     """用户列表行 — 学 RuoYi 列表行不带角色：department 名字对象 + 行内 department_id，不含 role_ids/roles（回显走详情）。"""
+
     id: Annotated[int, Field(description="用户 ID")]
     username: Annotated[str, Field(description="用户名")]
     display_name: Annotated[str, Field(description="显示名")]
@@ -131,6 +140,7 @@ class UserDetail(BaseModel):
     roles/posts = 全部可选角色/岗位（下拉选项），role_ids/post_ids = 当前已分配（勾选回显）。
     角色管权限、岗位只做标签，两条 M2M 同构；部门树走列表页 /departments/tree。
     """
+
     user: Annotated[UserRead, Field(description="用户信息")]
     roles: Annotated[list[RoleBrief], Field(description="全部角色")]
     role_ids: Annotated[list[int], Field(description="已分配角色 ID")]

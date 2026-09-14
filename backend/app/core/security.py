@@ -15,6 +15,7 @@ from app.core.config import settings
 
 # 密码哈希 — bcrypt 同步函数（在线程池中异步执行）
 
+
 def _hash_password_sync(password: str) -> str:
     """同步版 — bcrypt 内置随机盐，每次同密码结果都不同。"""
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -22,9 +23,7 @@ def _hash_password_sync(password: str) -> str:
 
 def _verify_password_sync(plain_password: str, hashed_password: str) -> bool:
     """同步版 — 用哈希值里的 salt 重新哈希明文再比对。"""
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
-    )
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
 async def hash_password(password: str) -> str:
@@ -36,6 +35,7 @@ async def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # JWT — 签发与验证
+
 
 def _build_token(
     user_id: int,
@@ -66,7 +66,10 @@ def _build_token(
 def create_access_token(user_id: int, username: str, session_id: str) -> str:
     """签发短命 access token（type=access）。"""
     token, _ = _build_token(
-        user_id, username, "access", session_id,
+        user_id,
+        username,
+        "access",
+        session_id,
         timedelta(minutes=settings.jwt_access_expire_minutes),
     )
     return token
@@ -75,7 +78,10 @@ def create_access_token(user_id: int, username: str, session_id: str) -> str:
 def create_refresh_token(user_id: int, username: str, session_id: str) -> tuple[str, str]:
     """签发长命 refresh token（type=refresh，一次性轮换），返回 (token, jti)。"""
     return _build_token(
-        user_id, username, "refresh", session_id,
+        user_id,
+        username,
+        "refresh",
+        session_id,
         timedelta(days=settings.jwt_refresh_expire_days),
     )
 

@@ -31,6 +31,6 @@ system_router.include_router(meta.router)
 
 # 总路由 — 版本前缀 /api/v1 由 main.py 设置
 v1_router = APIRouter()
-v1_router.include_router(system_router)   # /system/users、/system/roles ...
-v1_router.include_router(auth.router)     # /auth/login、/auth/logout（登录/登出，顶层）
-v1_router.include_router(routes.router)   # /routes（当前用户动态路由，顶层）
+v1_router.include_router(system_router)  # /system/users、/system/roles ...
+v1_router.include_router(auth.router)  # /auth/login、/auth/logout（登录/登出，顶层）
+v1_router.include_router(routes.router)  # /routes（当前用户动态路由，顶层）

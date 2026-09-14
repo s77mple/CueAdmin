@@ -21,16 +21,12 @@ class PostRepository(BaseRepository):
 
     async def list_all(self) -> list[Post]:
         """返回全部岗位（编辑用户的弹窗下拉选项，get_user_detail 用）。"""
-        result = await self.session.execute(
-            select(Post).order_by(Post.sort_order, Post.id)
-        )
+        result = await self.session.execute(select(Post).order_by(Post.sort_order, Post.id))
         return result.scalars().all()
 
     async def get_by_ids(self, post_ids: Collection[int]) -> list[Post]:
         """按 ID 列表查询（用户关联岗位时校验用）。"""
-        result = await self.session.execute(
-            select(Post).where(Post.id.in_(post_ids))
-        )
+        result = await self.session.execute(select(Post).where(Post.id.in_(post_ids)))
         return result.scalars().all()
 
     async def count_users(self, post_id: int) -> int:

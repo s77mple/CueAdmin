@@ -31,8 +31,12 @@ class User(Base, TimestampMixin):
         comment="所属部门 ID（删除部门时置 NULL）",
     )
 
-    roles = relationship("Role", secondary=user_roles, back_populates="users", passive_deletes=True)  # 删用户 → user_roles 交给 DB CASCADE
-    posts = relationship("Post", secondary=user_posts, back_populates="users", passive_deletes=True)  # 删用户 → user_posts 交给 DB CASCADE
+    roles = relationship(
+        "Role", secondary=user_roles, back_populates="users", passive_deletes=True
+    )  # 删用户 → user_roles 交给 DB CASCADE
+    posts = relationship(
+        "Post", secondary=user_posts, back_populates="users", passive_deletes=True
+    )  # 删用户 → user_posts 交给 DB CASCADE
     department = relationship("Department", back_populates="users")
 
     # role_ids / post_ids 非表列：回显在 UserDetail.role_ids / .post_ids（getInfo 同款），由 get_user_detail 现算传构造器，不进模型

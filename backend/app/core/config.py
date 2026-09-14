@@ -28,13 +28,13 @@ class Settings(BaseSettings):
 
     # ---- 数据库 ----
     # 格式: mysql+aiomysql://user:pass@host:port/dbname
-    database_url: str = ""   # 空字符串 = 未配置，启动时 validate_secrets 会报错
+    database_url: str = ""  # 空字符串 = 未配置，启动时 validate_secrets 会报错
 
     # ---- JWT ----
-    jwt_secret: str = ""     # 签名密钥，生产环境必须改，且不要硬编码
+    jwt_secret: str = ""  # 签名密钥，生产环境必须改，且不要硬编码
     jwt_algorithm: str = "HS256"
-    jwt_access_expire_minutes: int = 15   # access token 15 分钟后过期（短命，丢了损失小）
-    jwt_refresh_expire_days: int = 7      # refresh token 7 天后过期（长命，用于换新 access）
+    jwt_access_expire_minutes: int = 15  # access token 15 分钟后过期（短命，丢了损失小）
+    jwt_refresh_expire_days: int = 7  # refresh token 7 天后过期（长命，用于换新 access）
 
     # ---- Redis ----
     redis_url: str = "redis://localhost:6379/0"
@@ -45,9 +45,9 @@ class Settings(BaseSettings):
     debug: bool = True
 
     model_config = {
-        "env_file": _ENV_FILE,          # .env 文件路径
+        "env_file": _ENV_FILE,  # .env 文件路径
         "env_file_encoding": "utf-8",
-        "extra": "ignore",              # .env 里多了不认识的环境变量不报错
+        "extra": "ignore",  # .env 里多了不认识的环境变量不报错
     }
 
     def validate_secrets(self):
@@ -60,15 +60,11 @@ class Settings(BaseSettings):
             try:
                 make_url(self.database_url)
             except Exception:
-                raise RuntimeError(
-                    f"DATABASE_URL 格式无效: {self.database_url[:50]}..."
-                ) from None
+                raise RuntimeError(f"DATABASE_URL 格式无效: {self.database_url[:50]}...") from None
         if not self.jwt_secret or self.jwt_secret == "change-me-to-a-random-secret-string":
             missing.append("JWT_SECRET")
         if missing:
-            raise RuntimeError(
-                f"以下配置未设置，请在 backend/.env 中配置: {', '.join(missing)}"
-            )
+            raise RuntimeError(f"以下配置未设置，请在 backend/.env 中配置: {', '.join(missing)}")
 
 
 # 全局单例 — 模块加载时自动读取 .env

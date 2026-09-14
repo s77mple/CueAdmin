@@ -14,16 +14,12 @@ class PermissionRepository(BaseRepository):
 
     async def list_permissions(self) -> list[Permission]:
         """返回全部权限（按 resource + action 排序，前端分组展示）。"""
-        result = await self.session.execute(
-            select(Permission).order_by(Permission.resource, Permission.action)
-        )
+        result = await self.session.execute(select(Permission).order_by(Permission.resource, Permission.action))
         return result.scalars().all()
 
     async def get_by_codes(self, codes: Collection[str]) -> list[Permission]:
         """按权限 code 列表查询（角色关联校验用）。"""
-        result = await self.session.execute(
-            select(Permission).where(Permission.code.in_(codes))
-        )
+        result = await self.session.execute(select(Permission).where(Permission.code.in_(codes)))
         return result.scalars().all()
 
     async def get_user_ids(self, perm_id: int) -> list[int]:

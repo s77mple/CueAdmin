@@ -36,8 +36,8 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
         all_menus = await repo.list_menus()
         menus = [_menu_to_dict(m) for m in all_menus]
     else:
-        seen: set[str] = set()       # 用 code 去重
-        seen_ids: set[int] = set()   # 用 id 追踪（供父级补全用）
+        seen: set[str] = set()  # 用 code 去重
+        seen_ids: set[int] = set()  # 用 id 追踪（供父级补全用）
         menus: list[dict] = []
 
         # 收集角色直接绑定的菜单
@@ -52,11 +52,7 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
         # 场景：角色分配了 /users/index 但没分配父菜单 /users
         # 前端树形菜单需要完整的父子链才能正确渲染
         while True:
-            missing = {
-                m["parent_id"]
-                for m in menus
-                if m["parent_id"] is not None and m["parent_id"] not in seen_ids
-            }
+            missing = {m["parent_id"] for m in menus if m["parent_id"] is not None and m["parent_id"] not in seen_ids}
             if not missing:
                 break
 
@@ -68,9 +64,7 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
                 if p.id not in seen_ids:
                     seen_ids.add(p.id)
                     menus.append(_menu_to_dict(p))
-                    logger.debug(
-                        "自动补全父级菜单: id=%d code=%s name=%s", p.id, p.code, p.name
-                    )
+                    logger.debug("自动补全父级菜单: id=%d code=%s name=%s", p.id, p.code, p.name)
 
     menus.sort(key=lambda m: m["sort_order"])
     return menus
@@ -91,6 +85,7 @@ def _menu_to_dict(m: Menu) -> dict:
 
 
 # 路由树构建 — 扁平菜单 → Pure Admin 嵌套路由 JSON
+
 
 def build_routes(menus: list[dict]) -> list[dict]:
     """将扁平菜单列表转成 Pure Admin 格式的嵌套路由树。
@@ -152,7 +147,9 @@ def build_routes(menus: list[dict]) -> list[dict]:
         if node_id in seen:
             logger.warning(
                 "菜单 parent_id 存在循环引用，已跳过该节点: id=%d code=%s name=%s",
-                node_id, node.get("code"), node.get("name")
+                node_id,
+                node.get("code"),
+                node.get("name"),
             )
             return None  # graceful degradation：跳过而非崩溃
 
@@ -187,10 +184,7 @@ def build_routes(menus: list[dict]) -> list[dict]:
             if node.get("component"):
                 route["component"] = node["component"]
             else:
-                logger.warning(
-                    "菜单 [%s] 为叶子节点但缺少 component，前端可能无法渲染",
-                    node.get("code")
-                )
+                logger.warning("菜单 [%s] 为叶子节点但缺少 component，前端可能无法渲染", node.get("code"))
 
         return route
 
@@ -251,9 +245,13 @@ class MenuService:
                 raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
 
         menu = Menu(
-            code=body.code, name=body.name, icon=body.icon,
-            path=body.path, component=body.component,
-            parent_id=body.parent_id, sort_order=body.sort_order,
+            code=body.code,
+            name=body.name,
+            icon=body.icon,
+            path=body.path,
+            component=body.component,
+            parent_id=body.parent_id,
+            sort_order=body.sort_order,
         )
         self.menus.add(menu)
         try:

@@ -14,6 +14,7 @@ from app.system.models import Role, User
 
 # ============ 登录 ============
 
+
 async def test_login_success(client):
     resp = await client.post(
         "/api/v1/auth/login",
@@ -92,6 +93,7 @@ async def test_login_user_without_roles(client, db_session_factory):
 
 # ============ 刷新令牌 ============
 
+
 async def test_refresh_rotates_token(client):
     """refresh 正常轮换：返回新 access + 新 refresh，旧 refresh 作废。"""
     login = await client.post(
@@ -158,6 +160,7 @@ async def test_refresh_rejects_access_token(client):
 
 
 # ============ 登出黑名单 ============
+
 
 async def test_logout_blacklists_access_token(client):
     """登出后 access token 进黑名单，不能再访问受保护接口。"""

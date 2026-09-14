@@ -35,8 +35,12 @@ class DepartmentService:
         departments = await self.departments.list_departments()
         nodes = [
             DepartmentTreeNode(
-                id=d.id, code=d.code, name=d.name, parent_id=d.parent_id,
-                sort_order=d.sort_order, description=d.description,
+                id=d.id,
+                code=d.code,
+                name=d.name,
+                parent_id=d.parent_id,
+                sort_order=d.sort_order,
+                description=d.description,
                 children=[],  # 空列表起点，nest_by_parent 会往里追加
             )
             for d in departments
@@ -74,8 +78,11 @@ class DepartmentService:
                 raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
 
         dept = Department(
-            code=body.code, name=body.name, parent_id=body.parent_id,
-            sort_order=body.sort_order, description=body.description,
+            code=body.code,
+            name=body.name,
+            parent_id=body.parent_id,
+            sort_order=body.sort_order,
+            description=body.description,
         )
         self.departments.add(dept)
         try:
