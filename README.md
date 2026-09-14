@@ -103,19 +103,7 @@ python seed.py
 uvicorn app.main:app --reload
 ```
 
-### 3. 安装提交钩子
-
-提交前自动跑 ruff 检查和排版，不合格直接拒绝提交。**在仓库根目录执行**：
-
-```bash
-pip install -r backend/requirements-dev.txt
-pre-commit install
-```
-
-> `.git/hooks/` 不随 `git clone` 分发，每个克隆都要装一次，否则你这台机器上没有钩子。
-> 配置见 `.pre-commit-config.yaml`，手动全量跑用 `pre-commit run --all-files`。
-
-### 4. 启动前端
+### 3. 启动前端
 
 ```bash
 cd frontend
@@ -126,6 +114,24 @@ pnpm install
 # 启动开发服务器 (默认 http://localhost:8848)
 pnpm dev
 ```
+
+### 4. 安装提交钩子
+
+提交前自动检查代码，不合格直接拒绝提交。**在仓库根目录执行**：
+
+```bash
+pip install -r backend/requirements-dev.txt
+pre-commit install
+```
+
+| 检查项 | 工具 | 范围 |
+|--------|------|------|
+| 后端 lint + 排版 | ruff | `backend/`，规则见 `backend/ruff.toml` |
+| 前端 lint + 排版 | lint-staged | `frontend/`，规则见 `frontend/.lintstagedrc` |
+
+> - `.git/hooks/` 不随 `git clone` 分发，每个克隆都要装一次，否则你这台机器上没有钩子。
+> - 前端那条要用 `node_modules` 里的工具，所以得排在第 3 步之后。
+> - 手动全量跑 `pre-commit run --all-files`；应急绕过 `git commit --no-verify`。
 
 ### 5. 登录
 

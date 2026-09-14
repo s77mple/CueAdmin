@@ -22,3 +22,17 @@ repos:
       # docs/*.md 里手写的 python 示例会被它重排，文档每次提交都变一遍。
       - id: ruff-format
         files: ^backend/
+
+  # 前端走 lint-staged —— 规则都写在 frontend/.lintstagedrc 里
+  # （prettier / eslint --fix / stylelint --fix 按文件类型分发）。
+  # 不在这里重抄一遍，否则 .lintstagedrc 一改这里就过期了。
+  - repo: local
+    hooks:
+      - id: lint-staged
+        name: lint-staged (前端)
+        entry: pnpm --dir frontend exec lint-staged
+        language: system
+        files: ^frontend/
+        # lint-staged 自己去 git 暂存区取文件，别让 pre-commit 再传一遍文件名
+        pass_filenames: false
+        require_serial: true
