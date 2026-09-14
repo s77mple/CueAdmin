@@ -103,7 +103,19 @@ python seed.py
 uvicorn app.main:app --reload
 ```
 
-### 3. 启动前端
+### 3. 安装提交钩子
+
+提交前自动跑 ruff 检查和排版，不合格直接拒绝提交。**在仓库根目录执行**：
+
+```bash
+pip install -r backend/requirements-dev.txt
+pre-commit install
+```
+
+> `.git/hooks/` 不随 `git clone` 分发，每个克隆都要装一次，否则你这台机器上没有钩子。
+> 配置见 `.pre-commit-config.yaml`，手动全量跑用 `pre-commit run --all-files`。
+
+### 4. 启动前端
 
 ```bash
 cd frontend
@@ -115,7 +127,7 @@ pnpm install
 pnpm dev
 ```
 
-### 4. 登录
+### 5. 登录
 
 | 账号 | 密码 |
 |------|------|

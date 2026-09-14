@@ -5,3 +5,5 @@ pytest-asyncio>=0.24
 httpx>=0.27
 aiosqlite>=0.20
 fakeredis>=2.23
+# git 提交钩子（ruff 检查 + 排版），装完跑 pre-commit install
+pre-commit>=4.0

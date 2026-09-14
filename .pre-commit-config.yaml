@@ -1,0 +1,24 @@
+# pre-commit 钩子 — git commit 前自动跑，跑不过就拒绝提交。
+# 文档: https://pre-commit.com
+#
+# 首次使用（每个克隆都要跑一次，.git/hooks/ 不进版本控制）：
+#   pip install -r backend/requirements-dev.txt
+#   pre-commit install
+#
+# 想手动全量跑：pre-commit run --all-files
+# 应急绕过：git commit --no-verify
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # 与本机 VS Code 扩展自带的 ruff 保持同一版本
+    rev: v0.16.7
+    hooks:
+      # lint：import 排序、pyflakes、pyupgrade，能自动修的当场修掉
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      # 排版：规则见 backend/ruff.toml
+      # files 限定后端：ruff-format 的 types_or 里含 markdown，不限定的话
+      # docs/*.md 里手写的 python 示例会被它重排，文档每次提交都变一遍。
+      - id: ruff-format
+        files: ^backend/
