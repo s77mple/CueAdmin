@@ -7,6 +7,10 @@ target-version = "py312"
 # 行长：默认 88 会把现有代码大改，这里放宽到 120
 line-length = 120
 
+# 迁移脚本由 alembic/script.py.mako 生成（${repr()} → 单引号）。
+# 格式化它们只会制造永久摩擦：每次 alembic revision 生成的新文件都是"未格式化"的。
+exclude = ["alembic/versions"]
+
 [lint]
 # E: pycodestyle 错误  F: pyflakes（未使用/未定义变量）
 # I: import 排序  UP: pyupgrade（语法升级，如 Optional[X] -> X | None）
