@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
-from app.core.dependencies import get_redis
+from app.core.dependencies import RedisDep
 from app.core.error_handler import (
     business_exception_handler,
     db_operational_error_handler,
@@ -27,7 +27,7 @@ from app.core.error_handler import (
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
 from app.core.response import ApiResponse
-from app.core.storage import async_engine, close_redis
+from app.core.storage import async_engine, create_redis
 from app.system.api.v1.router import v1_router
 
 
@@ -51,6 +51,8 @@ def _docs_base_url() -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings.validate_secrets()
+    # Redis 客户端（此时未连网，第一次发命令才建 TCP 连接）
+    app.state.redis = create_redis()
     base = _docs_base_url()
     logger.info("应用启动完成")
     logger.info(f"Swagger 文档: {base}/docs")
@@ -59,7 +61,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"错误码字典:   {base}/api/v1/system/meta/error-codes")
     yield
     logger.info("正在关闭 Redis 连接池...")
-    await close_redis()
+    await app.state.redis.aclose()
     logger.info("正在关闭数据库连接池...")
     await async_engine.dispose()
     logger.info("应用已关闭")
@@ -126,7 +128,7 @@ async def log_requests(request: Request, call_next):
 
 # 健康检查 — 供负载均衡 / K8s 探针使用
 @app.get("/health", tags=["系统"])
-async def health_check():
+async def health_check(redis_client: RedisDep):
     """检查数据库和 Redis 是否连通。全 OK 返 200，否则 503。"""
     db_ok = False
     redis_ok = False
@@ -139,8 +141,7 @@ async def health_check():
         logger.warning(f"健康检查：数据库不可用 — {e}")
 
     try:
-        r = await get_redis()
-        await r.ping()
+        await redis_client.ping()
         redis_ok = True
     except Exception as e:
         logger.warning(f"健康检查：Redis 不可用 — {e}")
