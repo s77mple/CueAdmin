@@ -38,14 +38,14 @@ class AuthService:
     def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
-        self.users = UserRepository(session)
+        self.user_repo = UserRepository(session)
 
     async def login(self, username: str, password: str, client: str | None = None) -> LoginResponse:
 
         # ---- 一次查询预加载所有关联数据 ----
         # get_for_login 里用 selectinload 一次带出 roles + permissions，避免 N+1
         # 菜单不在这里加载：登录响应不含 menus，动态路由统一走 /routes
-        user = await self.users.get_for_login(username)
+        user = await self.user_repo.get_for_login(username)
 
         # ---- 防用户名枚举 ----
         # 用户不存在也跑一次 bcrypt（约 100ms），让攻击者无法靠响应时间判断用户名是否存在
@@ -133,7 +133,7 @@ class AuthService:
         except (ValueError, TypeError):
             raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "刷新令牌无效")
 
-        user = await self.users.get_active(user_id)
+        user = await self.user_repo.get_active(user_id)
         if user is None:
             try:
                 await self.redis.delete(key)

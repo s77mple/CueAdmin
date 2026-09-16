@@ -36,10 +36,10 @@ class UserService:
     def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
-        self.users = UserRepository(session)
-        self.roles = RoleRepository(session)
-        self.departments = DepartmentRepository(session)
-        self.posts = PostRepository(session)
+        self.user_repo = UserRepository(session)
+        self.role_repo = RoleRepository(session)
+        self.department_repo = DepartmentRepository(session)
+        self.post_repo = PostRepository(session)
 
     # 查询
 
@@ -56,14 +56,14 @@ class UserService:
         if dept_id is not None:
             # 学 RuoYi：deptId 匹配「该部门 + 全部子孙部门」（若依靠 ancestors + find_in_set）。
             # 部门量小，全量拉平后用 collect_subtree_ids 收子树 id 集合，不必加 ancestors 列
-            departments = await self.departments.list_departments()
+            departments = await self.department_repo.list_departments()
             dept_ids = collect_subtree_ids(
                 departments,
                 root_id=dept_id,
                 get_id=lambda d: d.id,
                 get_parent_id=lambda d: d.parent_id,
             )
-        return await self.users.list_users(
+        return await self.user_repo.list_users(
             role_id=role_id,
             is_active=is_active,
             dept_ids=dept_ids,
@@ -73,7 +73,7 @@ class UserService:
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""
-        user = await self.users.get_for_update_with_roles_posts(user_id)
+        user = await self.user_repo.get_for_update_with_roles_posts(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
         return user
@@ -85,16 +85,16 @@ class UserService:
         部门树由列表页 /departments/tree 提供，不进详情。
         role_ids/post_ids 装配只此一处：其余接口返回纯列 UserRead，无需预载 roles/posts。
         """
-        user = await self.users.get_with_roles_posts(user_id)
+        user = await self.user_repo.get_with_roles_posts(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
-        roles = await self.roles.list_all()  # 全部角色（下拉选项）
-        posts = await self.posts.list_all()  # 全部岗位（下拉选项）
+        all_roles = await self.role_repo.list_all()  # 全部角色（下拉选项）
+        all_posts = await self.post_repo.list_all()  # 全部岗位（下拉选项）
         return UserDetail(
             user=user,
-            roles=roles,
+            roles=all_roles,
             role_ids=[role.id for role in user.roles],  # 该用户已分配（编辑回显勾选）
-            posts=posts,
+            posts=all_posts,
             post_ids=[post.id for post in user.posts],  # 该用户已分配岗位（编辑回显勾选）
         )
 
@@ -103,7 +103,7 @@ class UserService:
     async def create_user(self, body: UserCreate) -> User:
         """创建用户 — 双重唯一性校验 + 外键验证。"""
         # 应用层唯一性检查
-        if await self.users.get_by_username(body.username):
+        if await self.user_repo.get_by_username(body.username):
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
         # 验证部门存在
@@ -121,19 +121,19 @@ class UserService:
         #   · 校验时 session 还没挂任何脏对象 → autoflush 无物可刷，等价于原 no_autoflush 的效果；
         #   · add 之后不再发查询 → 唯一一次 flush 发生在 commit，并发撞唯一约束仍被
         #     commit 的 try/except IntegrityError 接住，不会在途中提前炸。
-        roles = await self.roles.get_by_ids(body.role_ids) if body.role_ids else []
+        roles = await self.role_repo.get_by_ids(body.role_ids) if body.role_ids else []
         if len(roles) != len(body.role_ids):
             found = {r.id for r in roles}
             invalid = [rid for rid in body.role_ids if rid not in found]
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
 
-        posts = await self.posts.get_by_ids(body.post_ids) if body.post_ids else []
+        posts = await self.post_repo.get_by_ids(body.post_ids) if body.post_ids else []
         if len(posts) != len(body.post_ids):  # 找到的岗位ID不等于传入的岗位ID数量
             found = {p.id for p in posts}  # 找到的岗位ID集合
             invalid = [pid for pid in body.post_ids if pid not in found]
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"岗位 ID 不存在: {invalid}")
 
-        self.users.add(new_user)
+        self.user_repo.add(new_user)
         if body.role_ids:
             new_user.roles = roles
         if body.post_ids:
@@ -250,7 +250,7 @@ class UserService:
 
     async def delete_user(self, user_id: int, operator_id: int, hard: bool = False) -> str:
         """软禁用（默认）或硬删除（?hard=true，仅已禁用用户）。"""
-        user = await self.users.get_for_update_with_roles_posts(user_id)
+        user = await self.user_repo.get_for_update_with_roles_posts(user_id)
         if not user:
             raise BusinessException(ErrorCode.USER_NOT_FOUND, f"用户不存在: {user_id}")
 
@@ -262,11 +262,11 @@ class UserService:
             if user.is_active:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许彻底删除启用状态的用户，请先禁用")
             if any(r.code == "admin" for r in user.roles):
-                if await self.users.count_active_admins() < 1:
+                if await self.user_repo.count_active_admins() < 1:
                     raise BusinessException(ErrorCode.CONFLICT, "不允许删除最后一个拥有管理员角色的用户")
 
             await self._clear_perm_cache(user_id)
-            await self.users.delete(user)
+            await self.user_repo.delete(user)
             try:
                 await self.session.commit()
             except IntegrityError:
@@ -287,33 +287,33 @@ class UserService:
 
     async def _validate_username_unique(self, username: str, exclude_user_id: int | None = None) -> None:
         """检查用户名唯一（编辑时排除自己）。"""
-        if await self.users.get_by_username(username, exclude_user_id):
+        if await self.user_repo.get_by_username(username, exclude_user_id):
             raise BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS, "用户名已存在")
 
     async def _validate_department(self, department_id: int | None) -> None:
         """校验部门存在。"""
         if department_id is not None:
-            if not await self.departments.get(department_id):
+            if not await self.department_repo.get(department_id):
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"部门不存在: {department_id}")
 
     async def _resolve_roles(self, user: User, role_ids: list[int] | None) -> None:
         """验证角色 ID 存在并赋值，包含最后管理员保护。"""
         role_ids = role_ids or []  # None（未传）与空列表均视为清空角色
-        roles = await self.roles.get_by_ids(role_ids)
-        if len(roles) != len(role_ids):
-            found = {r.id for r in roles}
+        new_roles = await self.role_repo.get_by_ids(role_ids)
+        if len(new_roles) != len(role_ids):
+            found = {r.id for r in new_roles}
             invalid = [rid for rid in role_ids if rid not in found]
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"角色 ID 不存在: {invalid}")
 
-        admin_role = next((r for r in roles if r.code == "admin"), None)
-        had_admin = any(r.code == "admin" for r in user.roles)
+        admin_role = next((r for r in new_roles if r.code == "admin"), None)
+        had_admin = any(r.code == "admin" for r in user.roles)  # user.roles = 赋值前的旧角色
         will_lose_admin = had_admin and admin_role is None
 
         if will_lose_admin:
-            if await self.users.count_active_admins() <= 1:
+            if await self.user_repo.count_active_admins() <= 1:
                 raise BusinessException(ErrorCode.CONFLICT, "不允许移除最后一个管理员的 admin 角色")
 
-        user.roles = roles
+        user.roles = new_roles
 
     async def _resolve_posts(self, user: User, post_ids: list[int] | None) -> None:
         """验证岗位 ID 存在并赋值（与 _resolve_roles 同构）。
@@ -321,17 +321,17 @@ class UserService:
         岗位不参与权限判断，改岗位无需清 perm 缓存；None 与空列表都视为清空岗位。
         """
         post_ids = post_ids or []
-        posts = await self.posts.get_by_ids(post_ids)
-        if len(posts) != len(post_ids):
-            found = {p.id for p in posts}
+        new_posts = await self.post_repo.get_by_ids(post_ids)
+        if len(new_posts) != len(post_ids):
+            found = {p.id for p in new_posts}
             invalid = [pid for pid in post_ids if pid not in found]
             raise BusinessException(ErrorCode.VALIDATION_ERROR, f"岗位 ID 不存在: {invalid}")
 
-        user.posts = posts
+        user.posts = new_posts
 
     async def _guard_last_admin(self) -> None:
         """确保不禁用/删除最后一个管理员。"""
-        if await self.users.count_active_admins() <= 1:
+        if await self.user_repo.count_active_admins() <= 1:
             raise BusinessException(ErrorCode.CONFLICT, "不允许禁用最后一个管理员")
 
     @staticmethod

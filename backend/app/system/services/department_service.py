@@ -19,20 +19,20 @@ class DepartmentService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.departments = DepartmentRepository(session)
+        self.department_repo = DepartmentRepository(session)
 
     # 查询
 
     async def list_departments(self) -> list[Department]:
         """返回全部部门（扁平列表，前端用 parent_id 转树）。"""
-        return await self.departments.list_departments()
+        return await self.department_repo.list_departments()
 
     async def get_department_tree(self) -> list[DepartmentTreeNode]:
         """全部部门 → 嵌套组织架构树（顶层与各级均按 sort_order 排序）。
 
         repo 已按 (sort_order, id) 全局排序，nest 后天然保持同级有序，无需二次排序。
         """
-        departments = await self.departments.list_departments()
+        departments = await self.department_repo.list_departments()
         nodes = [
             DepartmentTreeNode(
                 id=d.id,
@@ -54,14 +54,14 @@ class DepartmentService:
 
     async def get_department_for_update(self, dept_id: int) -> Department:
         """带行级锁获取部门。"""
-        dept = await self.departments.get_for_update(dept_id)
+        dept = await self.department_repo.get_for_update(dept_id)
         if not dept:
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
         return dept
 
     async def get_department(self, dept_id: int) -> Department:
         """查询单个部门（编辑回显用）。"""
-        dept = await self.departments.get(dept_id)
+        dept = await self.department_repo.get(dept_id)
         if not dept:
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"部门不存在: {dept_id}")
         return dept
@@ -70,11 +70,11 @@ class DepartmentService:
 
     async def create_department(self, body: DepartmentCreate) -> Department:
         """创建部门 — 验证父部门 + 双重唯一性保护。"""
-        if await self.departments.get_by_code(body.code):
+        if await self.department_repo.get_by_code(body.code):
             raise BusinessException(ErrorCode.DEPT_CODE_EXISTS, "部门编码已存在")
 
         if body.parent_id is not None:
-            if not await self.departments.get(body.parent_id):
+            if not await self.department_repo.get(body.parent_id):
                 raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {body.parent_id}")
 
         dept = Department(
@@ -84,7 +84,7 @@ class DepartmentService:
             sort_order=body.sort_order,
             description=body.description,
         )
-        self.departments.add(dept)
+        self.department_repo.add(dept)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -117,7 +117,7 @@ class DepartmentService:
         dept = await self.get_department_for_update(dept_id)
 
         # 子部门变顶级
-        children = await self.departments.get_children(dept_id)
+        children = await self.department_repo.get_children(dept_id)
         child_info = None
         if children:
             child_names = [c.name for c in children]
@@ -126,9 +126,9 @@ class DepartmentService:
                 child.parent_id = None
 
         # 统计受影响用户
-        user_count = await self.departments.count_users(dept_id)
+        user_count = await self.department_repo.count_users(dept_id)
 
-        await self.departments.delete(dept)
+        await self.department_repo.delete(dept)
         await self.session.commit()
 
         parts = []
@@ -151,7 +151,7 @@ class DepartmentService:
         if new_parent_id == dept_id:
             raise BusinessException(ErrorCode.CONFLICT, "部门不能将自己设为父部门")
 
-        if not await self.departments.get(new_parent_id):
+        if not await self.department_repo.get(new_parent_id):
             raise BusinessException(ErrorCode.DEPT_NOT_FOUND, f"父部门不存在: {new_parent_id}")
 
         if await self._would_create_cycle(dept_id, new_parent_id):
@@ -167,5 +167,5 @@ class DepartmentService:
             if current_id in visited:
                 break
             visited.add(current_id)
-            current_id = await self.departments.get_parent_id(current_id)
+            current_id = await self.department_repo.get_parent_id(current_id)
         return False

@@ -21,24 +21,24 @@ class PermissionService:
     def __init__(self, session: AsyncSession, redis_client: Redis | None = None):
         self.session = session
         self.redis = redis_client
-        self.permissions = PermissionRepository(session)
+        self.permission_repo = PermissionRepository(session)
 
     # 查询
 
     async def list_permissions(self) -> list[Permission]:
         """返回全部权限（按 resource + action 排序）。权限码是固定枚举，一次全量返回，前端分组展示。"""
-        return await self.permissions.list_permissions()
+        return await self.permission_repo.list_permissions()
 
     async def get_permission_for_update(self, perm_id: int) -> Permission:
         """带行级锁获取权限。"""
-        perm = await self.permissions.get_for_update(perm_id)
+        perm = await self.permission_repo.get_for_update(perm_id)
         if not perm:
             raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
         return perm
 
     async def get_permission(self, perm_id: int) -> Permission:
         """查询单个权限（编辑回显用）。"""
-        perm = await self.permissions.get(perm_id)
+        perm = await self.permission_repo.get(perm_id)
         if not perm:
             raise BusinessException(ErrorCode.PERM_NOT_FOUND, f"权限不存在: {perm_id}")
         return perm
@@ -47,7 +47,7 @@ class PermissionService:
 
     async def create_permission(self, body: PermissionCreate) -> Permission:
         """创建权限 — 双重唯一性保护。"""
-        if await self.permissions.get_by_code(body.code):
+        if await self.permission_repo.get_by_code(body.code):
             raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
 
         perm = Permission(
@@ -57,7 +57,7 @@ class PermissionService:
             action=body.action,
             description=body.description,
         )
-        self.permissions.add(perm)
+        self.permission_repo.add(perm)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -74,7 +74,7 @@ class PermissionService:
         code_changed = False
 
         if body.code != perm.code:
-            if await self.permissions.get_by_code(body.code):
+            if await self.permission_repo.get_by_code(body.code):
                 raise BusinessException(ErrorCode.PERM_CODE_EXISTS, "权限编码已存在")
             perm.code = body.code
             code_changed = True
@@ -101,7 +101,7 @@ class PermissionService:
         perm = await self.get_permission_for_update(perm_id)
 
         await self._clear_perm_cache(perm_id)  # 先清缓存
-        await self.permissions.delete(perm)  # 再删记录
+        await self.permission_repo.delete(perm)  # 再删记录
         await self.session.commit()
         return "删除成功"
 
@@ -113,7 +113,7 @@ class PermissionService:
         查询路径：perm_id → role_permissions → user_roles → user_id
         """
         try:
-            rows = await self.permissions.get_user_ids(perm_id)
+            rows = await self.permission_repo.get_user_ids(perm_id)
         except SQLAlchemyError:
             logger.warning("查询权限关联用户失败，跳过缓存清除")
             return

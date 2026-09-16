@@ -211,24 +211,24 @@ class MenuService:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.menus = MenuRepository(session)
+        self.menu_repo = MenuRepository(session)
 
     # 查询
 
     async def list_menus(self) -> list[Menu]:
         """返回全部菜单（扁平列表，前端用 parent_id 转树）。"""
-        return await self.menus.list_menus()
+        return await self.menu_repo.list_menus()
 
     async def get_menu_for_update(self, menu_id: int) -> Menu:
         """带行级锁获取菜单。"""
-        menu = await self.menus.get_for_update(menu_id)
+        menu = await self.menu_repo.get_for_update(menu_id)
         if not menu:
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
         return menu
 
     async def get_menu(self, menu_id: int) -> Menu:
         """查询单个菜单（编辑回显用）。"""
-        menu = await self.menus.get(menu_id)
+        menu = await self.menu_repo.get(menu_id)
         if not menu:
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"菜单不存在: {menu_id}")
         return menu
@@ -237,11 +237,11 @@ class MenuService:
 
     async def create_menu(self, body: MenuCreate) -> Menu:
         """创建菜单 — 验证父菜单 + 双重唯一性保护。"""
-        if await self.menus.get_by_code(body.code):
+        if await self.menu_repo.get_by_code(body.code):
             raise BusinessException(ErrorCode.MENU_CODE_EXISTS, "菜单编码已存在")
 
         if body.parent_id is not None:
-            if not await self.menus.get(body.parent_id):
+            if not await self.menu_repo.get(body.parent_id):
                 raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {body.parent_id}")
 
         menu = Menu(
@@ -253,7 +253,7 @@ class MenuService:
             parent_id=body.parent_id,
             sort_order=body.sort_order,
         )
-        self.menus.add(menu)
+        self.menu_repo.add(menu)
         try:
             await self.session.commit()
         except IntegrityError:
@@ -288,7 +288,7 @@ class MenuService:
         menu = await self.get_menu_for_update(menu_id)
 
         # 子菜单变顶级
-        children = await self.menus.get_children(menu_id)
+        children = await self.menu_repo.get_children(menu_id)
         child_info = None
         if children:
             child_names = [c.name for c in children]
@@ -296,7 +296,7 @@ class MenuService:
             for child in children:
                 child.parent_id = None
 
-        await self.menus.delete(menu)
+        await self.menu_repo.delete(menu)
         await self.session.commit()
 
         if child_info:
@@ -313,7 +313,7 @@ class MenuService:
         if new_parent_id == menu_id:
             raise BusinessException(ErrorCode.CONFLICT, "菜单不能将自己设为父菜单")
 
-        if not await self.menus.get(new_parent_id):
+        if not await self.menu_repo.get(new_parent_id):
             raise BusinessException(ErrorCode.MENU_NOT_FOUND, f"父菜单不存在: {new_parent_id}")
 
         if await self._would_create_cycle(menu_id, new_parent_id):
@@ -330,5 +330,5 @@ class MenuService:
                 logger.warning(f"菜单表存在循环引用: menu_id={menu_id} 的祖先链中出现重复节点 {current_id}")
                 break
             visited.add(current_id)
-            current_id = await self.menus.get_parent_id(current_id)
+            current_id = await self.menu_repo.get_parent_id(current_id)
         return False
