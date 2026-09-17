@@ -13,6 +13,7 @@
 import traceback
 
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 
@@ -38,6 +39,26 @@ async def business_exception_handler(request: Request, exc: BusinessException):
     return JSONResponse(
         status_code=200, content=result.model_dump()
     )  # pydantic实例转 dict 用 model_dump()，而不是 dict(result)，否则会丢失字段描述信息
+
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Pydantic 入参校验失败 → HTTP 200 + 业务错误码（前端统一读 code，不区分 422/500）。
+
+    只取第一条错误：errors[0]。loc 的末位元素就是字段名，msg 直接用，
+    不拼 Pydantic 的技术前缀（前端只需要一句能展示的中文）。
+    """
+    errors = exc.errors()
+    detail = errors[0] if errors else {}
+    msg = detail.get("msg", "参数校验失败")
+    field = detail.get("loc", ["unknown"])[-1] if detail.get("loc") else "unknown"
+    logger.bind(path=request.url.path).warning(f"参数校验失败: {field} — {msg}")
+    return JSONResponse(
+        status_code=200,
+        content=ApiResponse.fail(
+            code=int(ErrorCode.VALIDATION_ERROR),
+            message=msg,
+        ).model_dump(),
+    )
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception):

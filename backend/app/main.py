@@ -23,10 +23,10 @@ from app.core.error_handler import (
     business_exception_handler,
     db_operational_error_handler,
     unhandled_exception_handler,
+    validation_exception_handler,
 )
-from app.core.exceptions import BusinessException, ErrorCode
+from app.core.exceptions import BusinessException
 from app.core.logger import logger
-from app.core.response import ApiResponse
 from app.core.storage import async_engine, create_redis
 from app.system.api.v1.router import v1_router
 
@@ -74,22 +74,6 @@ app = FastAPI(
     lifespan=lifespan,
     request_max_size=10 * 1024 * 1024,
 )
-
-
-# Pydantic 校验失败 → HTTP 200 + 业务错误码（前端统一读 code，不区分 422/500）
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = exc.errors()
-    detail = errors[0] if errors else {}
-    msg = detail.get("msg", "参数校验失败")  # 只给中文文案，不带 Pydantic 技术前缀
-    field = detail.get("loc", ["unknown"])[-1] if detail.get("loc") else "unknown"
-    logger.bind(path=request.url.path).warning(f"参数校验失败: {field} — {msg}")
-    return JSONResponse(
-        status_code=200,
-        content=ApiResponse.fail(
-            code=int(ErrorCode.VALIDATION_ERROR),
-            message=msg,
-        ).model_dump(),
-    )
 
 
 # 注册异常处理器（具体类型必须在 Exception 前面）
