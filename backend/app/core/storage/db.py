@@ -62,9 +62,13 @@ class Base(DeclarativeBase):
 # 时间戳混入 — 为所有表自动添加 created_at / updated_at
 #
 #    每个表继承 TimestampMixin，自动获得两个时间字段。
-#    双重保障：
-#      server_default / server_onupdate → 数据库层面，raw SQL 也生效
-#      onupdate                         → ORM 层面，Python 代码也能自动更新
+#    两个参数分工不同，不是「双重保障」：
+#      server_default → 进 DDL（DEFAULT (now())），DB 层填值，raw SQL INSERT 也生效
+#      onupdate       → 只在 ORM 层，UPDATE 时把 updated_at 写进 SET 子句
+#
+#    别写 server_onupdate：它不产生任何 DDL，等于没写。
+#    真要 MySQL 的 ON UPDATE CURRENT_TIMESTAMP，得用
+#    server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")。
 #
 class TimestampMixin:
     """时间戳混入类 — 不要单独实例化，只用于继承。"""
@@ -73,8 +77,7 @@ class TimestampMixin:
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        server_default=func.now(),  # 第一次插入时的默认值
-        server_onupdate=func.now(),  # DB 层 UPDATE 时自动更新
-        onupdate=func.now(),  # ORM 层 UPDATE 时自动更新
+        server_default=func.now(),  # DB 层：INSERT 时的默认值
+        onupdate=func.now(),  # ORM 层：UPDATE 时自动刷新
         comment="更新时间",
     )
