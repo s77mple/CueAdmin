@@ -56,7 +56,10 @@ const wrapperEnv = (envConf: Recordable): ViteEnv => {
     VITE_ROUTER_HISTORY: "",
     VITE_CDN: false,
     VITE_HIDE_HOME: "false",
-    VITE_COMPRESSION: "none"
+    VITE_COMPRESSION: "none",
+    // 兜底空串：三个 .env 都会覆盖它。真漏配时前端会退化成相对路径请求（生产必 404），
+    // 用来暴露配置错误，而不是悄悄指向某个后端
+    VITE_API_BASE_URL: ""
   };
 
   for (const envName of Object.keys(envConf)) {

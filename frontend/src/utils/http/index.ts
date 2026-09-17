@@ -16,8 +16,8 @@ import { router } from "@/router";
 import { ErrorCode } from "@/constants/error-code";
 
 const defaultConfig: AxiosRequestConfig = {
-  // 后端地址：读环境变量 VITE_API_BASE_URL；未配置则为空字符串 → 请求保持相对路径，走 Vite dev proxy（开发）/ nginx 反代（生产）
-  baseURL: import.meta.env.VITE_API_BASE_URL || "",
+  // 后端地址：三个 .env 里都配了完整地址，请求带域名直连 → 跨域由后端 CORS 放行
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000,
   headers: {
     Accept: "application/json, text/plain, */*",

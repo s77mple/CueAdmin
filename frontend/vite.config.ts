@@ -23,15 +23,8 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
       // 端口号
       port: VITE_PORT,
       host: "0.0.0.0",
-      // 本地跨域代理 — /api 开头的请求转发到 FastAPI 后端
-      // 注意：必须用 127.0.0.1 而非 localhost —— Windows 下 localhost 会优先解析成 ::1（IPv6），
-      //       而后端只监听 IPv4，每次新建连接都白等 ~2s 才回退 127.0.0.1
-      proxy: {
-        "/api": {
-          target: "http://127.0.0.1:8000",
-          changeOrigin: true
-        }
-      },
+      // 不配 proxy：前端用 VITE_API_BASE_URL 带完整域名直连后端，跨域由后端 CORS 放行。
+      // 好处是 dev 和 build 走同一套寻址方式，打包产物不需要 nginx 反代 /api。
       // 预热文件以提前转换和缓存结果，降低启动期间的初始页面加载时长并防止转换瀑布
       warmup: {
         clientFiles: ["./index.html", "./src/{views,components}/*"]

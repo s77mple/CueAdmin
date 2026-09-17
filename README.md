@@ -117,6 +117,22 @@ pnpm install
 pnpm dev
 ```
 
+#### 前端怎么找到后端
+
+前端**带完整域名直连后端**，地址写在 `.env` 里，dev 和 build 走同一套寻址方式：
+
+| 文件 | 用途 | 值 |
+|------|------|-----|
+| `.env.development` | `pnpm dev` | `http://127.0.0.1:8000` |
+| `.env.production` | `pnpm build` | **部署前必须替换成真实域名** |
+| `.env.staging` | `pnpm build:staging` | **部署前必须替换** |
+
+> - 后端不在 `127.0.0.1:8000`？改 `.env.development` 里的 `VITE_API_BASE_URL`
+> - `.env.production` / `.env.staging` 里现在是占位符 `https://api.example.com`，**不替换的话打包产物所有接口都会失败**
+> - 地址会被**写死进构建产物**，同一份 `dist` 不能指向不同后端 —— 要多环境就用 `build:staging` 单独构建
+
+**这就要求后端允许跨域**（`app/main.py` 的 `CORSMiddleware`）。当前配置是 `allow_origins=["*"]` + `allow_credentials=False`，开箱可用；如果哪天把 token 改存 cookie，两项都必须改（`*` 不能和 `credentials=True` 共存）。
+
 ### 4. 安装提交钩子
 
 提交前自动检查代码，不合格直接拒绝提交。**在仓库根目录执行**：
