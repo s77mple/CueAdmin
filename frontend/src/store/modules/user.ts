@@ -45,28 +45,25 @@ export const useUserStore = defineStore("pure-user", {
       this.currentPage = value;
     },
     /** 登录 */
-    async loginByUsername(data) {
-      return new Promise<LoginResult>((resolve, reject) => {
-        getLogin(data)
-          .then(res => {
-            if (res.code === 0) {
-              setToken({
-                accessToken: res.data.access_token,
-                refreshToken: res.data.refresh_token,
-                username:
-                  res.data.user?.display_name ?? res.data.user?.username,
-                permissions: res.data.permissions ?? [],
-                roles: res.data.roles?.map((r: any) => r.code) ?? []
-              });
-              resolve(res);
-            } else {
-              reject(res.message || `登录失败 (code: ${res.code})`);
-            }
-          })
-          .catch(error => {
-            reject(error);
-          });
+    async loginByUsername(data: {
+      username: string;
+      password: string;
+    }): Promise<LoginResult> {
+      const res = await getLogin(data);
+
+      if (res.code !== 0) {
+        throw new Error(res.message || `登录失败 (code: ${res.code})`);
+      }
+
+      setToken({
+        accessToken: res.data.access_token,
+        refreshToken: res.data.refresh_token,
+        username: res.data.user?.display_name ?? res.data.user?.username,
+        permissions: res.data.permissions ?? [],
+        roles: res.data.roles?.map(r => r.code) ?? []
       });
+
+      return res;
     },
     /** 前端登出（调用接口使 token 失效） */
     logOut() {
