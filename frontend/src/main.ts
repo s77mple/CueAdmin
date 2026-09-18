@@ -1,6 +1,6 @@
 import App from "./App.vue";
 import router from "./router";
-import { setupStore } from "@/store";
+import { store } from "@/store";
 import { useI18n } from "@/plugins/i18n";
 import { getPlatformConfig } from "./config";
 import { MotionPlugin } from "@vueuse/motion";
@@ -55,7 +55,7 @@ import VueTippy from "vue-tippy";
 app.use(VueTippy);
 
 getPlatformConfig(app).then(async config => {
-  setupStore(app);
+  app.use(store);
   app.use(router);
   await router.isReady();
   injectResponsiveStorage(app, config);
