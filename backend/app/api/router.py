@@ -1,4 +1,7 @@
-"""路由汇总 — 把所有子模块的路由收集到一个总路由。
+"""路由汇总 — 把各版本的模块路由收集成总路由。
+
+本文件放在版本目录之外（app/api/ 下、与 v1/ 平级）：它汇总的是"当前有哪几个
+版本、每版包含哪些模块"，这件事本身不属于任何一个版本。端点模块仍在 v1/ 里。
 
 URL 三层结构（从外到内）：
 
@@ -7,9 +10,11 @@ URL 三层结构（从外到内）：
   /users /roles   资源前缀      —— 各模块自己的 APIRouter 里声明
 
 换 v2 的做法：
-  1. 复制 app/api/v1/ 整个目录为 v2/
-  2. main.py 里再 app.include_router(v2_router, prefix="/api/v2")
-  /system 分组结构不变，各模块前缀不变，只要这两步。
+  1. 复制 app/api/v1/ 整个目录为 v2/ —— 复制出来的是纯端点模块，汇总不跟着走
+  2. 在本文件里加一个 v2_router，include app.api.v2 的各模块
+     （import 要和上面 v1 那批分开写，别混在一行）
+  3. main.py 里再 app.include_router(v2_router, prefix="/api/v2")
+  /system 分组结构不变，各模块前缀不变。
 
 登录（/auth）和动态路由（/routes）不属于"系统管理"，
 直接挂在 v1_router 下、不带 /system —— 对应若依顶层的 /login、/getRouters。

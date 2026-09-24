@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from app.api.v1.router import v1_router
+from app.api.router import v1_router
 from app.core.config import settings
 from app.core.dependencies import RedisDep
 from app.core.error_handler import (

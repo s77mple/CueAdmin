@@ -14,7 +14,7 @@
   api/v1/purchase.py  services/purchase_service.py  repositories/purchase.py
   models/purchase.py  schemas/purchase.py
 
-再在 api/v1/router.py 里 include 一次。
+再在 api/router.py 里 include 一次。
 
 一处有意为之的例外：core/dependencies.py 为了鉴权直接 import 了 models。
 单应用下不做模块隔离，这条依赖是刻意保留的，不是待修的坏味道。
