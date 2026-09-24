@@ -1,8 +1,4 @@
-"""
-角色业务逻辑 — 角色的 CRUD + 权限/菜单关联 + 缓存主动失效。
-
-数据访问收口到 Repository，本层只做业务校验 + 事务提交 + 缓存清除。
-"""
+"""角色业务逻辑 — 角色的 CRUD + 权限/菜单关联 + 缓存主动失效。"""
 
 from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError

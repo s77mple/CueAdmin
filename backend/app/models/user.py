@@ -1,11 +1,4 @@
-"""用户表 — 系统核心实体。
-
-为什么 department_id 用 SET NULL 而非 CASCADE：删部门时用户还在，只是变"无部门"，
-CASCADE 会把用户一起删掉。is_active 加索引是因为登录/列表筛选都按它过滤。
-
-角色与岗位都是 M2M 挂在用户下（RuoYi 的两张独立表 sys_user_role / sys_user_post）：
-角色管权限（登录鉴权要读），岗位只是职位标签，都不参与本表列。
-"""
+"""用户表 — 系统核心实体。"""
 
 from sqlalchemy import BigInteger, Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship

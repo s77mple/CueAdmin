@@ -1,19 +1,4 @@
-"""
-用户管理 API — 薄控制器，业务逻辑全部委托给 UserService。
-
-每个端点职责：
-  1. 提取请求参数
-  2. 注入依赖（DB、Redis、当前用户）
-  3. 调 UserService 方法
-  4. 包装 ApiResponse 返回
-
-安全设计要点：
-  - 行级锁 .with_for_update()：防止并发修改同一行
-  - TOCTOU 防护：唯一性校验 + IntegrityError 双保险
-  - admin 保护：不能禁用/删除最后一个管理员
-  - 不能操作自己：防止把自己锁在外面
-  - 权限缓存主动失效：角色变更 → 删除 Redis perm:{uid}
-"""
+"""用户管理 API — 薄控制器，业务逻辑全部委托给 UserService。"""
 
 from typing import Annotated
 

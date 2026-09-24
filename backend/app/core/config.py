@@ -1,18 +1,4 @@
-"""
-全局配置 — 通过 pydantic-settings 从 .env 文件读取。
-
-配置读取优先级（后者覆盖前者）：
-  .env 文件  →  系统环境变量  →  代码默认值
-
-用法：
-  from app.core.config import settings
-  settings.database_url  # 自动从 .env 读取
-
-为什么用 pydantic-settings 而不是 os.environ？
-  - 类型校验（database_url 必须是合法连接串）
-  - 启动时 validate_secrets() 兜底检查
-  - .env 文件自动加载，开发/部署时改配置文件就行
-"""
+"""全局配置 — 通过 pydantic-settings 从 .env 文件读取。"""
 
 import os
 

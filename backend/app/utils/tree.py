@@ -1,7 +1,4 @@
-"""通用工具 — 扁平(parent_id)列表 → 树。纯函数，无 IO/ORM 依赖。
-
-由部门树（GET /departments/tree）使用；若以后菜单等也要树，直接复用。
-"""
+"""通用工具 — 扁平(parent_id)列表 → 树。纯函数，无 IO/ORM 依赖。"""
 
 from collections.abc import Callable
 

@@ -1,11 +1,4 @@
-"""模型汇总 — 导入此模块即可访问所有模型。
-
-用法：
-  from app.models import User, Role, Permission, Menu, Department, Post
-  from app.models.associations import user_roles, user_posts, role_permissions, role_menus
-
-Base 类不在这里导出 — 从 app.core.storage 导入。
-"""
+"""模型汇总 — 导入此模块即可访问所有模型。"""
 
 from app.models.department import Department as Department
 from app.models.menu import Menu as Menu

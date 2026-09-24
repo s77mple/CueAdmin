@@ -1,9 +1,4 @@
-"""
-岗位管理 API — 薄控制器，业务逻辑全部委托给 PostService。
-
-岗位与角色同构（都是挂用户的 M2M 维度），但不参与权限判断，
-因此不需要注入 Redis（改岗位不用清任何用户的权限缓存）。
-"""
+"""岗位管理 API — 薄控制器，业务逻辑全部委托给 PostService。"""
 
 from typing import Annotated
 

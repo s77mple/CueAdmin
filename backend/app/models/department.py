@@ -1,8 +1,4 @@
-"""部门表 — 树形结构（自引用），组织架构管理。
-
-与菜单表同模式：parent_id 自引用 + ondelete="SET NULL"（删父部门 → 子部门变顶级）。
-Department.users 一对多关联 User，删部门不删用户（SET NULL）。
-"""
+"""部门表 — 树形结构（自引用），组织架构管理。"""
 
 from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship

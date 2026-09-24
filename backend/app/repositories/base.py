@@ -1,12 +1,4 @@
-"""Repository 基类 — 通用数据访问方法。
-
-职责边界（轻量数据访问层）：
-  - 只做「查/存」：查询、session.add/delete 的对象准备
-  - 不 commit、不 rollback、不抛业务异常
-  - 查不到返回 None，由 Service 判断并抛 BusinessException
-
-子类用 `model = Xxx` 指定实体，继承通用方法，再按需加语义化查询。
-"""
+"""Repository 基类 — 通用数据访问方法。"""
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

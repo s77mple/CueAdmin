@@ -1,8 +1,4 @@
-"""安全工具 — 密码哈希 + JWT 签发/验证。
-
-bcrypt 是纯 CPU 计算，若在异步线程里同步执行会阻塞事件循环，
-所以 hash/verify_password 用 asyncio.to_thread 丢线程池执行。
-"""
+"""安全工具 — 密码哈希 + JWT 签发/验证。"""
 
 import asyncio
 import uuid

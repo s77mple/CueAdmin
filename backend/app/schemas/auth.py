@@ -1,18 +1,4 @@
-"""认证相关 Schema — 登录/登出的请求和响应数据结构。
-
-Schema 层的作用：
-  - 定义 API 接受/返回什么字段、类型、校验规则
-  - Pydantic 自动校验 + 自动生成 OpenAPI 文档
-  - 不涉及数据库操作（那是 Model 的职责）
-
-登录流程的数据形状：
-  请求 → LoginRequest { username, password }
-  响应 → ApiResponse<LoginResponse> {
-           data: { access_token, user, permissions, roles }
-         }
-
-注意：登录响应不含 menus —— 动态路由/菜单统一走 GET /api/v1/routes。
-"""
+"""认证相关 Schema — 登录/登出的请求和响应数据结构。"""
 
 from typing import Annotated
 

@@ -1,9 +1,4 @@
-"""岗位表 — 职位标签，与角色维度正交（学 RuoYi sys_post）。
-
-RuoYi 模型：sys_user_role（用户↔角色）与 sys_user_post（用户↔岗位）是两条独立的 M2M，
-角色管权限/数据范围，岗位只管"在公司担什么职"，岗位不参与权限判断、不影响登录。
-删除岗位 → user_posts 关联交给 DB CASCADE（用户保留，只是没了这个岗位）。
-"""
+"""岗位表 — 职位标签，与角色维度正交（学 RuoYi sys_post）。"""
 
 from sqlalchemy import BigInteger, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship

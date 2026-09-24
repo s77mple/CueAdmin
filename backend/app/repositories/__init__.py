@@ -1,7 +1,4 @@
-"""Repository 层 — 数据访问收口，供 Service 调用。
-
-每个实体一个 Repository，只做「查/存」数据访问，不 commit、不抛业务异常。
-"""
+"""Repository 层 — 数据访问收口，供 Service 调用。"""
 
 from app.repositories.base import BaseRepository
 from app.repositories.department import DepartmentRepository

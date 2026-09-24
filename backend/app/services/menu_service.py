@@ -1,11 +1,4 @@
-"""
-菜单公共服务 — 用户菜单收集 & 路由树构建。
-
-本模块提供两个核心函数，供 /routes 接口使用（登录响应不再下发菜单）：
-
-  collect_user_menus() → 扁平菜单列表（含父级自动补全）
-  build_routes()       → 扁平列表 → Pure Admin 路由树
-"""
+"""菜单公共服务 — 用户菜单收集 & 路由树构建。"""
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession

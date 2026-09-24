@@ -1,13 +1,4 @@
-"""FastAPI 依赖注入模块 — 认证 + 鉴权 + 会话/Redis 依赖。
-
-每个需要登录的请求都会经过 get_current_user：解析 Bearer token → 验证 JWT →
-查 Redis 黑名单 → 加载用户/角色/权限 → 可选校验 scopes。权限缓存 TTL 见
-core.cache_keys.PERM_CACHE_TTL，角色/权限变更时由 service 主动失效。
-
-两种使用方式：
-  需要鉴权：user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])]
-  仅需认证：user: CurrentUser  （/routes 等只需知道"是谁"的接口）
-"""
+"""FastAPI 依赖注入模块 — 认证 + 鉴权 + 会话/Redis 依赖。"""
 
 from collections.abc import AsyncGenerator
 from typing import Annotated

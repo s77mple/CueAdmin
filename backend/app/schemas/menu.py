@@ -1,13 +1,4 @@
-"""菜单 Schema — 创建/更新/查询的数据结构。
-
-菜单的两种类型：
-  目录菜单：component=null, path=/system    → 纯文件夹，不可点击
-  页面菜单：component=system/users/index   → 对应 src/views/ 下的 Vue 文件
-
-前端动态路由匹配：
-  addAsyncRoutes() 中 component 字符串匹配 import.meta.glob 的 key
-  例 component="system/users/index" → /src/views/system/users/index.vue
-"""
+"""菜单 Schema — 创建/更新/查询的数据结构。"""
 
 from typing import Annotated
 

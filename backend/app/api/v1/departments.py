@@ -1,6 +1,4 @@
-"""
-部门管理 API — 薄控制器，业务逻辑全部委托给 DepartmentService。
-"""
+"""部门管理 API — 薄控制器，业务逻辑全部委托给 DepartmentService。"""
 
 from typing import Annotated
 

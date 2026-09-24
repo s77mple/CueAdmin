@@ -1,9 +1,4 @@
-"""
-菜单管理 API — 薄控制器，业务逻辑全部委托给 MenuService。
-
-注意：动态路由端点（GET /routes）在 routes.py（当前用户模块），
-因为 /routes 返回的是当前用户的路由 + 权限 + 角色，属于"当前用户"而非"菜单管理"。
-"""
+"""菜单管理 API — 薄控制器，业务逻辑全部委托给 MenuService。"""
 
 from typing import Annotated
 

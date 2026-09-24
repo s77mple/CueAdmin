@@ -1,11 +1,4 @@
-"""
-角色管理 API — 薄控制器，业务逻辑全部委托给 RoleService。
-
-角色变更的特殊处理：
-  修改角色的权限/菜单 → 需要清除所有关联用户的权限缓存
-  为什么？因为用户的权限在 Redis 里缓存了 5 分钟，
-  角色改了权限，缓存里的数据就过期了，需要主动 invalidate。
-"""
+"""角色管理 API — 薄控制器，业务逻辑全部委托给 RoleService。"""
 
 from typing import Annotated
 

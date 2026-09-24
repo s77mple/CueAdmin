@@ -1,8 +1,4 @@
-"""
-权限码业务逻辑 — 权限的 CRUD + 关联用户缓存主动失效。
-
-数据访问收口到 Repository，本层只做业务校验 + 事务提交 + 缓存清除。
-"""
+"""权限码业务逻辑 — 权限的 CRUD + 关联用户缓存主动失效。"""
 
 from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError

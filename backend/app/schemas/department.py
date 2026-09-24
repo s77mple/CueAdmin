@@ -1,11 +1,4 @@
-"""部门 Schema — 创建/更新/查询的数据结构。
-
-部门管理的特点：
-  - 树形结构（与菜单相同的自引用模式）
-  - 删除部门 → 子部门变顶级（SET NULL）
-  - 删除部门 → 用户的 department_id 变 NULL（SET NULL）
-  - 不允许产生循环引用
-"""
+"""部门 Schema — 创建/更新/查询的数据结构。"""
 
 from typing import Annotated
 

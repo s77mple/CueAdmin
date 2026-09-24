@@ -1,10 +1,4 @@
-"""角色 Schema — 创建/更新/查询的数据结构。
-
-角色管理的特殊性：
-  - permission_codes 用 code 而不是 id（因为权限 code 有语义，id 无意义）
-  - menu_ids 用 id（菜单 id 更稳定，code 可能重复）
-  - is_system 角色不允许删除和修改 code
-"""
+"""角色 Schema — 创建/更新/查询的数据结构。"""
 
 from typing import Annotated
 

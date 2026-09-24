@@ -1,11 +1,4 @@
-"""动态路由 API — 当前用户的动态路由 + 权限 + 角色（前端 initRouter 的数据源）。
-
-只需认证、无需鉴权（登录后 / 刷新页面都会调）。
-
-与 menus.py 的"菜单 CRUD 管理"区分：
-  menus.py  → 管理员维护菜单（需要 menu:list / menu:create 等权限）
-  routes.py → 当前用户自己的路由（只需登录，不需要任何权限）
-"""
+"""动态路由 API — 当前用户的动态路由 + 权限 + 角色（前端 initRouter 的数据源）。"""
 
 from typing import Annotated
 

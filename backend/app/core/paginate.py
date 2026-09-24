@@ -1,13 +1,4 @@
-"""通用分页查询工具 — 对任意 SQLAlchemy SELECT 做 COUNT + 分页。
-
-用法：
-  stmt = select(User).options(selectinload(User.roles))
-  result = await paginate(session, stmt, page=1, page_size=20)
-  # result = PageData(items=[...], total=50, page=1, page_size=20, has_more=True)
-
-COUNT 和数据查询都用 DISTINCT：JOIN（如按角色筛用户）会让一行变多行，
-先 DISTINCT 去重再计数/取数，避免重复。参数兜底：page < 1 → 1；page_size > 100 → 100。
-"""
+"""通用分页查询工具 — 对任意 SQLAlchemy SELECT 做 COUNT + 分页。"""
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession

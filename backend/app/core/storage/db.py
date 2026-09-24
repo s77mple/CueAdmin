@@ -1,19 +1,4 @@
-"""
-数据库连接 + ORM 基座 — 异步引擎、Session 工厂、模型基类。
-
-FastAPI 的数据库访问模式：
-  1. 收到请求 → 从连接池拿一个连接
-  2. 创建 Session（一个请求一个 Session，自动开启事务）
-  3. API 函数用这个 Session 执行 SQL
-  4. 响应返回 → Session 自动提交/回滚 → 连接还回池子
-
-为什么用异步？因为 FastAPI 是异步框架，同步数据库驱动会阻塞事件循环。
-为什么用 aiomysql 而不是 pymysql？aiomysql 是异步驱动，pymysql 是同步的。
-
-本文件只放「数据库连接 + ORM 基座」，不含依赖注入；
-依赖注入（get_db_session / SessionDep）在 core/dependencies.py，
-Redis 连接在 core/storage/redis.py。
-"""
+"""数据库连接 + ORM 基座 — 异步引擎、Session 工厂、模型基类。"""
 
 from datetime import datetime
 

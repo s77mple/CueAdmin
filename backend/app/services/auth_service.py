@@ -1,12 +1,4 @@
-"""认证业务逻辑 — 登录 + 刷新令牌。
-
-用户不存在时也对假哈希跑一次 bcrypt，防止通过响应时间差枚举用户名。
-登录响应不含 menus —— 菜单统一收口到 collect_user_menus()，由 /routes 下发。
-
-refresh token 采用「一次性轮换 + 复用检测」：
-  - 每换一次票，旧 refresh 作废、签发新 refresh（接力棒一次性）
-  - 若有人拿已作废的 refresh 再来换票 → 判定被盗 → 撤销整个会话（复用检测）
-"""
+"""认证业务逻辑 — 登录 + 刷新令牌。"""
 
 import uuid
 from datetime import timedelta

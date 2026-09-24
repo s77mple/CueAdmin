@@ -1,12 +1,4 @@
-"""存储基础设施 — 数据库 + Redis 连接。
-
-对外统一从 app.core.storage 导入，内部按存储类型拆文件：
-  db.py    数据库引擎、Session 工厂、ORM 基类（Base / TimestampMixin）
-  redis.py Redis 客户端工厂（create_redis）；依赖注入是 get_redis，在 dependencies.py
-
-本包只放「连接资源 + ORM 基座」，不含依赖注入；
-依赖注入统一在 core/dependencies.py。
-"""
+"""存储基础设施 — 数据库 + Redis 连接。"""
 
 from app.core.storage.db import AsyncSessionLocal, Base, TimestampMixin, async_engine
 from app.core.storage.redis import create_redis

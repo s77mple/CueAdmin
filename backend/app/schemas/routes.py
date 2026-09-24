@@ -1,10 +1,4 @@
-"""动态路由 Schema — 与 api/routes.py 对应。
-
-RoutesResponse 是 GET /api/v1/routes 返回的数据结构（前端 initRouter() 的数据源）：
-  routes      → 动态路由树
-  permissions → 权限码列表（回写 pinia）
-  roles       → 角色列表（回写 pinia）
-"""
+"""动态路由 Schema — 与 api/v1/routes.py 对应。"""
 
 from typing import Annotated
 

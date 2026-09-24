@@ -1,8 +1,4 @@
-"""角色表 — 权限体系的枢纽（RBAC）。
-
-角色是用户/权限/菜单之间的桥：改一个角色的权限，所有拥有该角色的用户自动生效。
-is_system=True 的角色不允许删除和修改 code（种子创建的 admin），防止误删系统关键角色。
-"""
+"""角色表 — 权限体系的枢纽（RBAC）。"""
 
 from sqlalchemy import BigInteger, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship

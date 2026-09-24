@@ -1,8 +1,4 @@
-"""应用入口 — FastAPI 启动、中间件、异常处理。
-
-所有异常（业务异常或程序崩溃）都被全局 handler 捕获，转成统一的 { code, message, data }，
-前端不用区分 HTTP 状态码。
-"""
+"""应用入口 — FastAPI 启动、中间件、异常处理。"""
 
 import os
 import sys

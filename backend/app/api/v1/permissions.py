@@ -1,6 +1,4 @@
-"""
-权限码管理 API — 薄控制器，业务逻辑全部委托给 PermissionService。
-"""
+"""权限码管理 API — 薄控制器，业务逻辑全部委托给 PermissionService。"""
 
 from typing import Annotated
 

@@ -1,9 +1,4 @@
-"""用户 Schema — 请求体（入参）与响应体（出参）。
-
-全项目命名约定：XxxCreate / XxxUpdate / XxxPatch 是请求体；
-XxxRead 是响应体基名，具体响应按接口职责派生 —— 本文件：
-UserRead（回显）/ UserListItem（列表行）/ UserDetail（编辑回显）。
-"""
+"""用户 Schema — 请求体（入参）与响应体（出参）。"""
 
 from datetime import datetime
 from typing import Annotated

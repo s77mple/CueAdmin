@@ -1,9 +1,4 @@
-"""
-用户业务逻辑 — 用户的 CRUD + 校验 + 权限缓存管理。
-
-数据访问收口到 Repository（见 app/repositories/user.py 等），
-本层只做业务校验 + 事务提交 + 缓存清除。
-"""
+"""用户业务逻辑 — 用户的 CRUD + 校验 + 权限缓存管理。"""
 
 from redis.asyncio import Redis, RedisError
 from sqlalchemy.exc import IntegrityError

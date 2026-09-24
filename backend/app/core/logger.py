@@ -1,14 +1,4 @@
-"""日志配置 — 基于 loguru，比标准库 logging 更简洁。
-
-输出目标：
-  stderr（终端）：开发模式 DEBUG 级别 + 彩色；生产模式 WARNING 级别
-  logs/app.log：完整日志，50MB 自动切割，保留 30 天
-
-用法：
-  from app.core.logger import logger
-  logger.info("用户 {} 登录成功", username)
-  logger.bind(user_id=42).warning("权限不足")
-"""
+"""日志配置 — 基于 loguru，比标准库 logging 更简洁。"""
 
 import sys
 

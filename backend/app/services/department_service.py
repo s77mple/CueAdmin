@@ -1,8 +1,4 @@
-"""
-部门业务逻辑 — 部门的树形 CRUD + 循环检测。
-
-数据访问收口到 Repository，本层只做业务校验 + 事务提交。
-"""
+"""部门业务逻辑 — 部门的树形 CRUD + 循环检测。"""
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession

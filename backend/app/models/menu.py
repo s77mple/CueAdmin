@@ -1,8 +1,4 @@
-"""菜单表 — 树形结构（自引用），定义前端左侧导航。
-
-目录菜单（component=null）只有子菜单不渲染页面；页面菜单（component=...）对应 views 下的 Vue 文件。
-parent_id 自引用 + ondelete="SET NULL"：删父菜单后子菜单变顶级。
-"""
+"""菜单表 — 树形结构（自引用），定义前端左侧导航。"""
 
 from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship

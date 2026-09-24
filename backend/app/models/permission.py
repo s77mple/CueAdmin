@@ -1,7 +1,4 @@
-"""权限表 — 细粒度操作权限。
-
-权限 code 格式 {resource}:{action}（如 user:list），前端 v-perms 判断按钮显隐，后端 Security scopes 鉴权。
-"""
+"""权限表 — 细粒度操作权限。"""
 
 from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship

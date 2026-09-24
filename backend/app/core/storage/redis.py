@@ -1,12 +1,4 @@
-"""
-Redis 客户端工厂 — 连接参数在这里，客户端由 main.py 的 lifespan 创建/关闭。
-
-注意：Redis.from_url() 不建立实际连接，只构造客户端对象；
-      真正开 TCP 连接是第一次发命令（ping / get / set ...）时。
-
-本文件只放「Redis 客户端构造」，不含依赖注入；
-依赖注入（get_redis / RedisDep）在 core/dependencies.py。
-"""
+"""Redis 客户端工厂 — 客户端由 main.py 的 lifespan 创建/关闭。"""
 
 from redis.asyncio import Redis
 

@@ -1,12 +1,4 @@
-"""
-元数据接口 — 数据字典。
-
-接口文档（/docs）告诉你"每个接口怎么调"，数据字典（/meta/error-codes）
-告诉你"错误码是什么意思"。两者配合，前端联调时不用翻后端源码。
-
-目前只提供错误码对照表，后续如果出现"性别/状态/类型"这类业务字典，
-也统一放这里，前端一套接口拉全。
-"""
+"""元数据接口 — 数据字典。"""
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field

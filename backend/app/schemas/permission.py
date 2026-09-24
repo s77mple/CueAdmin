@@ -1,13 +1,4 @@
-"""权限 Schema — 创建/更新/查询的数据结构。
-
-权限码格式：{resource}:{action}
-  resource: user, role, menu, permission, department
-  action:   list, create, update, delete
-  → 5 资源 × 4 操作 = 20 个权限码
-
-前端用法：
-  v-perms="['user:create']" → 检查当前用户是否有此权限
-"""
+"""权限 Schema — 创建/更新/查询的数据结构。"""
 
 from typing import Annotated
 

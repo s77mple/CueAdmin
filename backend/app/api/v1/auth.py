@@ -1,15 +1,4 @@
-"""
-认证 API — 登录 / 登出。
-
-前端登录的完整交互流程：
-  - 用户在登录页输入用户名密码
-  - POST /api/v1/auth/login → 成功返回 { access_token, user, permissions, roles }
-  - 前端把 access_token 存 localStorage
-  - 后续请求，axios 拦截器自动加 Authorization: Bearer <token>
-  - 路由跳转时，vue-router 守卫调用 initRouter()，从 GET /api/v1/routes 拿动态路由（菜单不随登录下发）
-  - 管理页面通过 v-perms="['user:list']" 控制按钮显隐
-  - 登出 → POST /api/v1/auth/logout → token 加入 Redis 黑名单 + 清除权限缓存
-"""
+"""认证 API — 登录 / 登出。"""
 
 import time
 

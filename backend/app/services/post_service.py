@@ -1,12 +1,4 @@
-"""
-岗位业务逻辑 — 岗位的 CRUD。
-
-岗位是纯"职位标签"，比角色简单：
-  - 不参与权限判断 → 无 is_system 保护、无关联用户权限缓存失效
-  - 删除岗位 → user_posts 关联由 DB CASCADE，只在返回消息里告知受影响用户数
-
-数据访问收口到 Repository，本层只做业务校验 + 事务提交。
-"""
+"""岗位业务逻辑 — 岗位的 CRUD。"""
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession

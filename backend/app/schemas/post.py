@@ -1,8 +1,4 @@
-"""岗位 Schema — 请求体（入参）与响应体（出参）。
-
-命名约定（同 user.py）：XxxCreate / XxxUpdate 是请求体；
-响应：PostItem（列表/单查行）嵌用户响应（UserDetail.posts 全量下拉）用 PostBrief。
-"""
+"""岗位 Schema — 请求体（入参）与响应体（出参）。"""
 
 from typing import Annotated
 
