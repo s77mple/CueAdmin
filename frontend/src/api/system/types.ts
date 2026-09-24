@@ -1,4 +1,4 @@
-// system 模块实体类型 — 对应后端 app/system/schemas/
+// system 模块实体类型 — 对应后端 app/schemas/
 
 // ===== 简要类型（嵌套在其他实体里，字段少）=====
 

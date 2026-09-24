@@ -10,7 +10,7 @@
 
 from app.core.exceptions import ErrorCode
 from app.core.security import hash_password
-from app.system.models import Role, User
+from app.models import Role, User
 
 # ============ 登录 ============
 

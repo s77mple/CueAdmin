@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
+from app.api.v1.router import v1_router
 from app.core.config import settings
 from app.core.dependencies import RedisDep
 from app.core.error_handler import (
@@ -28,7 +29,6 @@ from app.core.error_handler import (
 from app.core.exceptions import BusinessException
 from app.core.logger import logger
 from app.core.storage import async_engine, create_redis
-from app.system.api.v1.router import v1_router
 
 
 def _docs_base_url() -> str:

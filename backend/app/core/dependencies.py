@@ -1,8 +1,8 @@
 """FastAPI 依赖注入模块 — 认证 + 鉴权 + 会话/Redis 依赖。
 
 每个需要登录的请求都会经过 get_current_user：解析 Bearer token → 验证 JWT →
-查 Redis 黑名单 → 加载用户/角色/权限 → 可选校验 scopes。权限缓存（perm:{user_id}）
-TTL 5 分钟，角色/权限变更时由 service 主动失效。
+查 Redis 黑名单 → 加载用户/角色/权限 → 可选校验 scopes。权限缓存 TTL 见
+core.cache_keys.PERM_CACHE_TTL，角色/权限变更时由 service 主动失效。
 
 两种使用方式：
   需要鉴权：user: Annotated[User, Security(get_current_user, scopes=[UserScope.LIST])]
@@ -20,11 +20,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.cache_keys import PERM_CACHE_TTL, blacklist_key, perm_key
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
 from app.core.security import decode_token
 from app.core.storage import AsyncSessionLocal
-from app.system.models import Role, User
+from app.models import Role, User
 
 
 # 数据库会话依赖 — 每个请求自动创建 + 自动关闭 Session
@@ -78,7 +79,7 @@ async def get_current_user(
     if not jti:
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
     try:
-        if await redis_client.exists(f"blacklist:{jti}"):
+        if await redis_client.exists(blacklist_key(jti)):
             raise BusinessException(ErrorCode.AUTH_TOKEN_REVOKED, "令牌已作废")
     except RedisError:
         logger.warning("Redis 不可用，跳过黑名单检查（已登出 token 可能仍有效）")
@@ -93,11 +94,11 @@ async def get_current_user(
         raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "令牌无效")
 
     # ---- 5.尝试 Redis 权限缓存（只有需要鉴权的请求才读）----
-    perm_key = f"perm:{user_id}"
+    cache_key = perm_key(user_id)
     cached_perms: set[str] | None = None
     if security_scopes.scopes:
         try:
-            raw = await redis_client.get(perm_key)
+            raw = await redis_client.get(cache_key)
             if raw:
                 cached_perms = set(raw.split(","))  # 缓存格式：逗号分隔的权限 code
         except RedisError:
@@ -120,11 +121,11 @@ async def get_current_user(
     if not user.roles:
         raise BusinessException(ErrorCode.AUTH_NO_ROLES, "该账号未分配角色")
 
-    # ---- 8.写入权限缓存（TTL 5 分钟）----
+    # ---- 8.写入权限缓存 ----
     if cached_perms is None and security_scopes.scopes:
         perms = {p.code for role in user.roles for p in role.permissions}
         try:
-            await redis_client.setex(perm_key, 300, ",".join(sorted(perms)))
+            await redis_client.setex(cache_key, PERM_CACHE_TTL, ",".join(sorted(perms)))
             # 5 分钟内权限变更要等缓存过期；角色/权限变更时 service 会主动 invalidate
         except RedisError:
             pass  # 写缓存失败不影响请求

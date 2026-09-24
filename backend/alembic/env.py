@@ -22,7 +22,7 @@ from sqlalchemy.engine.url import make_url  # URL 结构化解析 / 安全替换
 from alembic import context  # Alembic 运行时上下文（全局注入的模块对象）
 from app.core.config import settings  # 项目配置（读 .env）
 from app.core.storage import Base  # ORM 基类，其 metadata 汇总所有模型表结构
-from app.system.models import *  # noqa: F401, F403              # 触发所有模型类定义，自动注册到 Base.metadata
+from app.models import *  # noqa: F401, F403              # 触发所有模型类定义，自动注册到 Base.metadata
 
 # ---- 配置对象 ----
 # context.config 封装了 alembic.ini 的所有配置项
