@@ -27,7 +27,8 @@ class Department(Base, TimestampMixin):
         back_populates="parent",
         foreign_keys=[parent_id],
         order_by="Department.sort_order",
-    )
+        passive_deletes=True,
+    )  # 删父部门 → 子部门 parent_id 交给 DB 的 ON DELETE SET NULL
     parent = relationship(
         "Department",
         back_populates="children",

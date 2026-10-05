@@ -30,7 +30,8 @@ class Menu(Base, TimestampMixin):
         back_populates="parent",
         foreign_keys=[parent_id],
         order_by="Menu.sort_order",
-    )
+        passive_deletes=True,
+    )  # 删父菜单 → 子菜单 parent_id 交给 DB 的 ON DELETE SET NULL
     parent = relationship(
         "Menu",
         back_populates="children",
