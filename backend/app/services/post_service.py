@@ -21,7 +21,14 @@ class PostService:
 
     async def list_posts(self, page: int = 1, page_size: int = 100) -> PageData[PostItem]:
         """分页岗位列表（按 sort_order 排序）。"""
-        return await self.post_repo.list_posts(page, page_size)
+        page_data = await self.post_repo.list_posts(page, page_size)
+        return PageData[PostItem](
+            items=[PostItem.model_validate(post) for post in page_data.items],
+            total=page_data.total,
+            page=page_data.page,
+            page_size=page_data.page_size,
+            has_more=page_data.has_more,
+        )
 
     async def get_post_for_update(self, post_id: int) -> Post:
         """带行级锁获取岗位。"""

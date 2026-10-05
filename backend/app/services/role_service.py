@@ -33,7 +33,14 @@ class RoleService:
 
     async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData[RoleItem]:
         """分页返回角色（预加载权限和菜单）。角色数量少，默认 page_size=100 一次返回全部。"""
-        return await self.role_repo.list_roles(page, page_size)
+        page_data = await self.role_repo.list_roles(page, page_size)
+        return PageData[RoleItem](
+            items=[RoleItem.model_validate(role) for role in page_data.items],
+            total=page_data.total,
+            page=page_data.page,
+            page_size=page_data.page_size,
+            has_more=page_data.has_more,
+        )
 
     async def get_role_for_update(self, role_id: int) -> Role:
         """带行级锁获取角色。"""

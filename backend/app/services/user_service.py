@@ -59,12 +59,19 @@ class UserService:
                 get_id=lambda d: d.id,
                 get_parent_id=lambda d: d.parent_id,
             )
-        return await self.user_repo.list_users(
+        page_data = await self.user_repo.list_users(
             role_id=role_id,
             is_active=is_active,
             dept_ids=dept_ids,
             page=page,
             page_size=page_size,
+        )
+        return PageData[UserListItem](
+            items=[UserListItem.model_validate(user) for user in page_data.items],
+            total=page_data.total,
+            page=page_data.page,
+            page_size=page_data.page_size,
+            has_more=page_data.has_more,
         )
 
     async def get_user_for_update(self, user_id: int) -> User:
