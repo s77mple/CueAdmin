@@ -42,7 +42,7 @@ async def list_permissions(
 # GET /permissions/{perm_id} — 权限详情（编辑回显）
 
 
-@router.get("/{perm_id}", response_model=ApiResponse[PermissionItem], summary="权限详情")
+@router.get("/{perm_id:int}", response_model=ApiResponse[PermissionItem], summary="权限详情")
 async def get_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     session: SessionDep,
@@ -68,7 +68,7 @@ async def create_permission(
 # PUT /permissions/{perm_id} — 全量更新
 
 
-@router.put("/{perm_id}", response_model=ApiResponse[PermissionBrief], summary="全量更新权限")
+@router.put("/{perm_id:int}", response_model=ApiResponse[PermissionBrief], summary="全量更新权限")
 async def update_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     body: PermissionUpdate,
@@ -83,7 +83,7 @@ async def update_permission(
 # DELETE /permissions/{perm_id} — 删除权限
 
 
-@router.delete("/{perm_id}", response_model=ApiResponse, summary="删除权限")
+@router.delete("/{perm_id:int}", response_model=ApiResponse, summary="删除权限")
 async def delete_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     session: SessionDep,

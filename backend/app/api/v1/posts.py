@@ -37,7 +37,7 @@ async def list_posts(
 # GET /posts/{post_id} — 岗位详情（单查回显）
 
 
-@router.get("/{post_id}", response_model=ApiResponse[PostItem], summary="岗位详情")
+@router.get("/{post_id:int}", response_model=ApiResponse[PostItem], summary="岗位详情")
 async def get_post(
     post_id: Annotated[int, Path(description="岗位 ID")],
     session: SessionDep,
@@ -63,7 +63,7 @@ async def create_post(
 # PUT /posts/{post_id} — 全量更新
 
 
-@router.put("/{post_id}", response_model=ApiResponse[PostBrief], summary="全量更新岗位")
+@router.put("/{post_id:int}", response_model=ApiResponse[PostBrief], summary="全量更新岗位")
 async def update_post(
     post_id: Annotated[int, Path(description="岗位 ID")],
     body: PostUpdate,
@@ -77,7 +77,7 @@ async def update_post(
 # DELETE /posts/{post_id} — 删除岗位
 
 
-@router.delete("/{post_id}", response_model=ApiResponse, summary="删除岗位")
+@router.delete("/{post_id:int}", response_model=ApiResponse, summary="删除岗位")
 async def delete_post(
     post_id: Annotated[int, Path(description="岗位 ID")],
     session: SessionDep,

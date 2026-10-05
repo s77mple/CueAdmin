@@ -42,7 +42,7 @@ async def list_menus(
 # GET /menus/{menu_id} — 菜单详情（编辑回显）
 
 
-@router.get("/{menu_id}", response_model=ApiResponse[MenuItem], summary="菜单详情")
+@router.get("/{menu_id:int}", response_model=ApiResponse[MenuItem], summary="菜单详情")
 async def get_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
     session: SessionDep,
@@ -68,7 +68,7 @@ async def create_menu(
 # PUT /menus/{menu_id} — 全量更新
 
 
-@router.put("/{menu_id}", response_model=ApiResponse[MenuBrief], summary="全量更新菜单")
+@router.put("/{menu_id:int}", response_model=ApiResponse[MenuBrief], summary="全量更新菜单")
 async def update_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
     body: MenuUpdate,
@@ -82,7 +82,7 @@ async def update_menu(
 # DELETE /menus/{menu_id} — 删除菜单
 
 
-@router.delete("/{menu_id}", response_model=ApiResponse, summary="删除菜单")
+@router.delete("/{menu_id:int}", response_model=ApiResponse, summary="删除菜单")
 async def delete_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
     session: SessionDep,

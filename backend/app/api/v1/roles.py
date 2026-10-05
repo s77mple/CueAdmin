@@ -42,7 +42,7 @@ async def list_roles(
 # GET /roles/{role_id} — 角色详情（编辑回显）
 
 
-@router.get("/{role_id}", response_model=ApiResponse[RoleItem], summary="角色详情")
+@router.get("/{role_id:int}", response_model=ApiResponse[RoleItem], summary="角色详情")
 async def get_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     session: SessionDep,
@@ -68,7 +68,7 @@ async def create_role(
 # PUT /roles/{role_id} — 全量更新
 
 
-@router.put("/{role_id}", response_model=ApiResponse[RoleBrief], summary="全量更新角色")
+@router.put("/{role_id:int}", response_model=ApiResponse[RoleBrief], summary="全量更新角色")
 async def update_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     body: RoleUpdate,
@@ -83,7 +83,7 @@ async def update_role(
 # DELETE /roles/{role_id} — 删除角色
 
 
-@router.delete("/{role_id}", response_model=ApiResponse, summary="删除角色")
+@router.delete("/{role_id:int}", response_model=ApiResponse, summary="删除角色")
 async def delete_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     session: SessionDep,

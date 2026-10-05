@@ -41,7 +41,6 @@ async def list_departments(
 
 
 # GET /departments/tree — 部门组织架构树（children 嵌套）
-# 注意：必须声明在 GET /departments/{dept_id} 之前，否则 "tree" 会被 int 路径参数吞掉 → 422
 
 
 @router.get("/tree", response_model=ApiResponse[list[DepartmentTreeNode]], summary="部门树")
@@ -56,7 +55,7 @@ async def get_department_tree(
 # GET /departments/{dept_id} — 部门详情（编辑回显）
 
 
-@router.get("/{dept_id}", response_model=ApiResponse[DepartmentItem], summary="部门详情")
+@router.get("/{dept_id:int}", response_model=ApiResponse[DepartmentItem], summary="部门详情")
 async def get_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
     session: SessionDep,
@@ -82,7 +81,7 @@ async def create_department(
 # PUT /departments/{dept_id} — 全量更新
 
 
-@router.put("/{dept_id}", response_model=ApiResponse[DepartmentBrief], summary="全量更新部门")
+@router.put("/{dept_id:int}", response_model=ApiResponse[DepartmentBrief], summary="全量更新部门")
 async def update_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
     body: DepartmentUpdate,
@@ -96,7 +95,7 @@ async def update_department(
 # DELETE /departments/{dept_id} — 删除部门
 
 
-@router.delete("/{dept_id}", response_model=ApiResponse, summary="删除部门")
+@router.delete("/{dept_id:int}", response_model=ApiResponse, summary="删除部门")
 async def delete_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
     session: SessionDep,

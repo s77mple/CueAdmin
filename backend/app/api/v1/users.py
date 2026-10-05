@@ -42,8 +42,7 @@ async def list_users(
     page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 20,
 ) -> ApiResponse[PageData[UserListItem]]:
-    svc = UserService(session)
-    result = await svc.list_users(
+    result = await UserService(session).list_users(
         role_id=role_id,
         is_active=is_active,
         dept_id=dept_id,
@@ -56,7 +55,7 @@ async def list_users(
 # GET /users/{user_id} — 用户详情（编辑回显）
 
 
-@router.get("/{user_id}", response_model=ApiResponse[UserDetail], summary="用户详情")
+@router.get("/{user_id:int}", response_model=ApiResponse[UserDetail], summary="用户详情")
 async def get_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     session: SessionDep,
@@ -82,7 +81,7 @@ async def create_user(
 # PUT /users/{user_id} — 全量更新
 
 
-@router.put("/{user_id}", response_model=ApiResponse[UserRead], summary="全量更新用户")
+@router.put("/{user_id:int}", response_model=ApiResponse[UserRead], summary="全量更新用户")
 async def update_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     body: UserUpdate,
@@ -97,7 +96,7 @@ async def update_user(
 # PATCH /users/{user_id} — 部分更新
 
 
-@router.patch("/{user_id}", response_model=ApiResponse[UserRead], summary="部分更新用户")
+@router.patch("/{user_id:int}", response_model=ApiResponse[UserRead], summary="部分更新用户")
 async def patch_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     body: UserPatch,
@@ -112,7 +111,7 @@ async def patch_user(
 # DELETE /users/{user_id} — 软禁用 / 硬删除
 
 
-@router.delete("/{user_id}", response_model=ApiResponse, summary="禁用/删除用户")
+@router.delete("/{user_id:int}", response_model=ApiResponse, summary="禁用/删除用户")
 async def delete_user(
     user_id: Annotated[int, Path(description="用户 ID")],
     session: SessionDep,
