@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     # ---- 应用 ----
     app_name: str = "CueAdmin"
     app_env: str = "development"  # development → DEBUG 日志；production → WARNING+
-    debug: bool = True
 
     model_config = {
         "env_file": _ENV_FILE,  # .env 文件路径
