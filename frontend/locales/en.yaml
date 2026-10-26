@@ -209,6 +209,7 @@ login:
   pureVerifyCode: VerifyCode
   pureRemember: days no need to login
   pureRememberInfo: After checking and logging in, will automatically log in to the system without entering your username and password within the specified number of days.
+  pureRememberPassword: Remember password
   pureSure: Sure Password
   pureForget: Forget Password?
   pureLogin: Login
@@ -263,3 +264,7 @@ tableBar:
   purePinLeft: Pin Left
   purePinRight: Pin Right
   pureUnpin: Unpin
+
+updateNotice:
+  title: What's New
+  confirm: Got it

@@ -4,6 +4,7 @@ import { emitter } from "@/utils/mitt";
 import { onClickOutside } from "@vueuse/core";
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
+import { useUserStoreHook } from "@/store/modules/user";
 import CloseIcon from "~icons/ep/close";
 
 const target = ref(null);
@@ -25,6 +26,15 @@ const iconClass = computed(() => {
 
 const { t } = useI18n();
 const { onReset } = useDataThemeChange();
+
+/**
+ * 直接退出：走 store 的 logOut()，它会调后端 `/auth/logout` 把 token 拉黑。
+ *
+ * ⚠️ 与下面的「清空缓存」不是一回事：`onReset` 只删本地 token + 清空 localStorage，
+ * **不通知后端** —— 那个 token 在自然过期前仍然有效。真要退出登录（尤其是公用电脑），
+ * 用这个。
+ */
+const onLogout = () => useUserStoreHook().logOut();
 
 onClickOutside(target, (event: any) => {
   if (event.clientX > target.value.offsetLeft) return;
@@ -79,6 +89,9 @@ onBeforeUnmount(() => {
       <div
         class="flex justify-end p-3 border-0 border-l border-solid border-(--pure-border-color)"
       >
+        <el-button type="primary" text bg @click="onLogout">
+          {{ t("buttons.pureLoginOut") }}
+        </el-button>
         <el-button
           v-tippy="{
             content: t('panel.pureClearCacheAndToLogin'),

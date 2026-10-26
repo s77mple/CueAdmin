@@ -25,6 +25,7 @@ import {
 } from "@pureadmin/utils";
 
 import LayTag from "./components/lay-tag/index.vue";
+import UpdateNotice from "@/components/UpdateNotice/index.vue";
 import LayNavbar from "./components/lay-navbar/index.vue";
 import LayContent from "./components/lay-content/index.vue";
 import LaySetting from "./components/lay-setting/index.vue";
@@ -200,6 +201,8 @@ const LayHeader = defineComponent({
     </div>
     <!-- 系统设置 -->
     <LaySetting />
+    <!-- 版本更新公告：每个版本首次进入时弹一次 -->
+    <UpdateNotice />
   </div>
 </template>
 

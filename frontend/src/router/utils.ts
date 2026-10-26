@@ -428,10 +428,18 @@ function handleTopMenu(route) {
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
 function getTopMenu(tag = false): menuType {
+  // ⚠️ 第二层必须也写 `?.`：后端某个「目录」菜单如果丢了子菜单，
+  // to_route 会把它当叶子节点吐出来，这条路由就没有 children。
+  // 而 filterChildrenTree 判的是 `children?.length !== 0` —— children 是 undefined 时
+  // 该条件为真，残缺路由会被放过去，于是这里 `undefined[0]` 抛 TypeError。
+  // 登录页的 getTopMenu() 是同步调用，抛错会被那条 .catch 吞成「登录失败」，
+  // 表现为「提示登录失败、但 F5 刷新又能进系统」。
   const topMenu = handleTopMenu(
-    usePermissionStoreHook().wholeMenus[0]?.children[0]
+    usePermissionStoreHook().wholeMenus[0]?.children?.[0]
   );
-  tag && useMultiTagsStoreHook().handleTags("push", topMenu);
+  // topMenu 为 undefined 时要跳过 handleTags —— 它内部会直接取 tagVal.path
+  //（路由守卫刷新路径里 getTopMenu(true) 就是带着这个可能抛的）
+  tag && topMenu && useMultiTagsStoreHook().handleTags("push", topMenu);
   return topMenu;
 }
 

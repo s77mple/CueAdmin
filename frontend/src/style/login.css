@@ -1,35 +1,18 @@
-.wave {
-  position: fixed;
-  height: 100%;
-  width: 80%;
-  left: 0;
-  bottom: 0;
-  z-index: -1;
-}
-
 .login-container {
   width: 100vw;
   height: 100vh;
   max-width: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-gap: 18rem;
-  padding: 0 2rem;
-}
-
-.img {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-}
-
-.img img {
-  width: 500px;
+  padding: 0 2rem;
 }
 
 .login-box {
   display: flex;
+  flex: 1;
   align-items: center;
+  /* 水平居中；垂直居中靠外层 .login-container 的 align-items: center */
+  justify-content: center;
   text-align: center;
   overflow: hidden;
 }
@@ -55,10 +38,6 @@
 }
 
 @media screen and (max-width: 1180px) {
-  .login-container {
-    grid-gap: 9rem;
-  }
-
   .login-form {
     width: 290px;
   }
@@ -68,30 +47,8 @@
     margin: 8px 0;
   }
 
-  .img img {
-    width: 360px;
-  }
-
   .avatar {
     width: 80px;
     height: 80px;
-  }
-}
-
-@media screen and (max-width: 968px) {
-  .wave {
-    display: none;
-  }
-
-  .img {
-    display: none;
-  }
-
-  .login-container {
-    grid-template-columns: 1fr;
-  }
-
-  .login-box {
-    justify-content: center;
   }
 }
