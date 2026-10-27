@@ -102,7 +102,7 @@ cp .env.example .env
 mysql -u root -p -e "CREATE DATABASE cueadmin CHARACTER SET utf8mb4"
 
 # 初始化表结构 + 种子数据（24 权限 / 14 菜单 / 4 部门 / 4 岗位 / admin 用户）
-python seed.py
+alembic upgrade head
 
 # 启动服务 (默认 http://localhost:8000)
 uvicorn app.main:app --reload
@@ -166,7 +166,7 @@ pre-commit install
 
 ## 改表结构（数据库迁移）
 
-`python seed.py` 只负责**首次建库**（内部是 `Base.metadata.create_all`）。**已有表要改结构，必须走 Alembic**，不要重新跑 seed。
+种子数据（权限/菜单/角色/部门/岗位/admin 用户）也在 Alembic 迁移里（`alembic/versions/dd2f0f6553cd_seed_initial_data.py`），`alembic upgrade head` 会一并写入，重复执行不会产生重复数据。**改表结构走 `revision --autogenerate`；改种子数据新建一个数据迁移**，不要修改已经执行过的历史迁移。
 
 ```bash
 cd backend
@@ -242,7 +242,6 @@ CueAdmin/
 │   │   └── main.py                 # FastAPI 入口：lifespan、中间件、异常处理
 │   ├── alembic/                    # 数据库迁移脚本
 │   ├── tests/                      # pytest 测试
-│   ├── seed.py                     # 种子数据（权限/菜单/角色/部门/岗位/admin 用户）
 │   ├── requirements.txt            # 生产依赖
 │   ├── requirements-dev.txt        # 测试 + 钩子依赖
 │   └── .env.example

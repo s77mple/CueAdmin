@@ -60,7 +60,6 @@ cueadmin/
 │   │
 │   └── main.py        # FastAPI 入口
 │
-├── seed.py            # 种子数据（管理员 + 角色 + 权限）
 ├── requirements.txt   # 框架依赖：fastapi sqlalchemy redis loguru 等
 ├── .env.example       # 配置模板：数据库、JWT、Redis（不含业务配置）
 ├── alembic.ini        # 数据库迁移配置
@@ -109,7 +108,7 @@ api_router.include_router(patients.router, prefix="/patients", tags=["患者"])
 | 2. 数据层 | ORM 模型 | `models/base.py` `associations.py` `user.py` `role.py` `permission.py` `menu.py` | 步骤 1 |
 | 3. 认证 | JWT、依赖注入、登录 | `core/security.py` `core/dependencies.py` `schemas/auth.py` `schemas/user.py` `services/auth_service.py` `api/auth.py` | 步骤 2 |
 | 4. 权限管理 | 用户/角色/菜单/权限 CRUD | `api/roles.py` `api/permissions.py` `api/menus.py` `api/users.py` | 步骤 2、3 |
-| 5. 入口 & 种子 | 路由聚合、启动、种子数据 | `api/router.py` `main.py` `seed.py` `requirements.txt` `.env.example` `alembic.ini` `alembic/` | 全部 |
+| 5. 入口 & 种子 | 路由聚合、启动、种子数据 | `api/router.py` `main.py` `alembic/versions/*_seed_initial_data.py` `requirements.txt` `.env.example` `alembic.ini` `alembic/` | 全部 |
 
 ---
 
@@ -129,4 +128,3 @@ api_router.include_router(patients.router, prefix="/patients", tags=["患者"])
 | `core/config.py` | `wx_appid` `wx_secret` |
 | `api/auth.py` | `POST /wechat-login` 整个接口 |
 | `api/auth.py` | `import requests` `from app.core.config import settings` |
-| `seed.py` | 微信相关注释或示例 |
