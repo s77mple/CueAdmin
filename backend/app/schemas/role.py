@@ -1,5 +1,6 @@
 """角色 Schema — 创建/更新/查询的数据结构。"""
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -24,7 +25,12 @@ class RoleCreate(BaseModel):
         list[str], Field(default_factory=list, max_length=200, description="权限 code 列表")
     ]  # 权限用 code（语义化）
     menu_ids: Annotated[
-        list[int], Field(default_factory=list, max_length=200, description="菜单 ID 列表")
+        list[int],
+        Field(
+            default_factory=list,
+            max_length=200,
+            description="菜单 ID 列表（必须父子完整：选了子菜单就要带上父级，目录至少要有一个子菜单）",
+        ),
     ]  # 菜单用 id（更稳定）
 
 
@@ -34,13 +40,19 @@ class RoleUpdate(BaseModel):
     name: Annotated[str, Field(min_length=2, max_length=50, description="角色名称")]
     description: Annotated[str | None, Field(max_length=200, description="描述")]
     permission_codes: Annotated[list[str], Field(max_length=200, description="权限 code 列表")]
-    menu_ids: Annotated[list[int], Field(max_length=200, description="菜单 ID 列表")]
+    menu_ids: Annotated[
+        list[int],
+        Field(
+            max_length=200,
+            description="菜单 ID 列表（必须父子完整：选了子菜单就要带上父级，目录至少要有一个子菜单）",
+        ),
+    ]
 
 
 # 响应 Schema
 
 
-class RoleItem(BaseModel):
+class RoleRead(BaseModel):
     """角色列表项 — 带权限和菜单的子列表。"""
 
     id: Annotated[int, Field(description="角色 ID")]
@@ -50,6 +62,8 @@ class RoleItem(BaseModel):
     is_system: Annotated[bool, Field(description="是否系统内置角色")]
     permissions: Annotated[list[PermissionBrief], Field(description="权限列表")]
     menus: Annotated[list[MenuBrief], Field(description="菜单列表")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
 

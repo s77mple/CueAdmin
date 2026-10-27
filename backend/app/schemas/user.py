@@ -20,6 +20,20 @@ def _validate_username(v: str) -> str:
     return v
 
 
+# bcrypt 5.x 对超过 72 字节的密码直接抛 ValueError（不截断）→ 不拦住会变成 500
+_MAX_PASSWORD_BYTES = 72
+
+
+def validate_password_length(v: str) -> str:
+    """密码 — bcrypt 只处理前 72 字节，超长在这里拦成参数校验错误。"""
+    if len(v.encode("utf-8")) > _MAX_PASSWORD_BYTES:
+        raise PydanticCustomError(
+            "password_too_long",
+            "密码不能超过 72 字节（约 24 个汉字或 72 个英文字符）",
+        )
+    return v
+
+
 # ===== 请求体（入参）=====
 
 # UserCreate — POST 新建
@@ -38,6 +52,11 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_username(cls, v: str) -> str:
         return _validate_username(v)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_password_length(v)
 
 
 # UserUpdate — PUT 全量覆盖
@@ -93,7 +112,7 @@ class UserPatch(BaseModel):
 #   UserRead     回显（详情.user / 写返回 / 登录 user）— 纯列镜像，无 role_ids / post_ids
 #   UserListItem 列表行 — 表格渲染要的 department 名字对象 + 行内 department_id（学 RuoYi 列表行不下发角色）
 #   UserDetail   编辑回显 — user + 全量下拉 roles/posts + 已分配 role_ids/post_ids（getInfo 顶层同款）
-# role_ids / post_ids 装配只在 get_user_detail 一处现算；role 完整对象用 RoleItem，post 用 PostItem。
+# role_ids / post_ids 装配只在 get_user_detail 一处现算；role 完整对象用 RoleRead，post 用 PostRead。
 #
 # 纪律：response 字段一律不加 = None / default_factory → OpenAPI 里全部必返；可空用类型表达（str | None、list[T]）
 

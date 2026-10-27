@@ -10,8 +10,7 @@ from app.models import User
 from app.schemas.menu import (
     MenuBrief,
     MenuCreate,
-    MenuItem,
-    MenuListResponse,
+    MenuRead,
     MenuUpdate,
 )
 from app.services.menu_service import MenuService
@@ -29,25 +28,24 @@ class MenuScope:
 # GET /menus — 菜单列表
 
 
-@router.get("", response_model=ApiResponse[MenuListResponse], summary="菜单列表")
+@router.get("", response_model=ApiResponse[list[MenuRead]], summary="菜单列表")
 async def list_menus(
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
-) -> ApiResponse[MenuListResponse]:
+) -> ApiResponse[list[MenuRead]]:
     menus = await MenuService(session).list_menus()
-    data = MenuListResponse(items=menus, total=len(menus))
-    return ApiResponse.ok(data=data)
+    return ApiResponse.ok(data=menus)
 
 
 # GET /menus/{menu_id} — 菜单详情（编辑回显）
 
 
-@router.get("/{menu_id:int}", response_model=ApiResponse[MenuItem], summary="菜单详情")
+@router.get("/{menu_id:int}", response_model=ApiResponse[MenuRead], summary="菜单详情")
 async def get_menu(
     menu_id: Annotated[int, Path(description="菜单 ID")],
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[MenuScope.LIST])],
-) -> ApiResponse[MenuItem]:
+) -> ApiResponse[MenuRead]:
     menu = await MenuService(session).get_menu(menu_id)
     return ApiResponse.ok(data=menu)
 

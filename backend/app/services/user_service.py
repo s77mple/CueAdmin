@@ -13,7 +13,6 @@ from app.repositories import DepartmentRepository, PostRepository, RoleRepositor
 from app.schemas.user import (
     UserCreate,
     UserDetail,
-    UserListItem,
     UserPatch,
     UserUpdate,
 )
@@ -46,7 +45,7 @@ class UserService:
         dept_id: int | None = None,
         page: int = 1,
         page_size: int = 20,
-    ) -> PageData[UserListItem]:
+    ) -> PageData:
         """分页用户列表，支持按角色、启用状态、部门（含全部子孙）筛选。"""
         dept_ids = None
         if dept_id is not None:
@@ -66,13 +65,7 @@ class UserService:
             page=page,
             page_size=page_size,
         )
-        return PageData[UserListItem](
-            items=[UserListItem.model_validate(user) for user in page_data.items],
-            total=page_data.total,
-            page=page_data.page,
-            page_size=page_data.page_size,
-            has_more=page_data.has_more,
-        )
+        return page_data
 
     async def get_user_for_update(self, user_id: int) -> User:
         """带行级锁获取用户（用于更新/删除操作）。"""
@@ -169,8 +162,9 @@ class UserService:
         user.display_name = body.display_name
         user.phone = body.phone
 
-        # 禁用保护（superadmin 已在上方校验过，这里只需确保不删最后一个管理员）
-        if not body.is_active:
+        # 禁用保护：只有目标是 admin 角色时才可能「禁用最后一个管理员」
+        # （普通用户被禁用不影响管理员数量，误拦会让唯一 admin 的系统下无法禁用任何人）
+        if not body.is_active and any(r.code == "admin" for r in user.roles):
             await self._guard_last_admin()
 
         user.is_active = body.is_active
@@ -223,7 +217,7 @@ class UserService:
             user.phone = data["phone"]
 
         if "is_active" in data:
-            if not data["is_active"]:
+            if not data["is_active"] and any(r.code == "admin" for r in user.roles):
                 await self._guard_last_admin()
             user.is_active = data["is_active"]
 

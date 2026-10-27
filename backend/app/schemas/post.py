@@ -1,5 +1,6 @@
 """岗位 Schema — 请求体（入参）与响应体（出参）。"""
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -37,13 +38,13 @@ class PostUpdate(BaseModel):
 
 # ===== 响应体（出参）=====
 
-#   PostItem  岗位行（列表 + 单查回显）
+#   PostRead  岗位行（列表 + 单查回显）
 #   PostBrief 岗位简要（嵌用户响应 UserDetail.posts，下拉选项用）
 #
 # 纪律：response 字段一律不加 = None / default_factory → OpenAPI 里全部必返；可空用类型表达（str | None）
 
 
-class PostItem(BaseModel):
+class PostRead(BaseModel):
     """岗位行 — GET /posts 列表项 + GET /posts/{id} 回显共用。"""
 
     id: Annotated[int, Field(description="岗位 ID")]
@@ -51,6 +52,8 @@ class PostItem(BaseModel):
     name: Annotated[str, Field(description="岗位名称")]
     sort_order: Annotated[int, Field(description="排序号")]
     description: Annotated[str | None, Field(description="描述")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
 

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Path, Query, Security
 from app.core.dependencies import SessionDep, get_current_user
 from app.core.response import ApiResponse, PageData
 from app.models import User
-from app.schemas.post import PostBrief, PostCreate, PostItem, PostUpdate
+from app.schemas.post import PostBrief, PostCreate, PostRead, PostUpdate
 from app.services.post_service import PostService
 
 router = APIRouter(prefix="/posts", tags=["岗位管理"])
@@ -23,13 +23,13 @@ class PostScope:
 # GET /posts — 岗位列表
 
 
-@router.get("", response_model=ApiResponse[PageData[PostItem]], summary="岗位列表")
+@router.get("", response_model=ApiResponse[PageData[PostRead]], summary="岗位列表")
 async def list_posts(
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PostScope.LIST])],
     page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 100,
-) -> ApiResponse[PageData[PostItem]]:
+) -> ApiResponse[PageData[PostRead]]:
     result = await PostService(session).list_posts(page, page_size)
     return ApiResponse.ok(data=result)
 
@@ -37,12 +37,12 @@ async def list_posts(
 # GET /posts/{post_id} — 岗位详情（单查回显）
 
 
-@router.get("/{post_id:int}", response_model=ApiResponse[PostItem], summary="岗位详情")
+@router.get("/{post_id:int}", response_model=ApiResponse[PostRead], summary="岗位详情")
 async def get_post(
     post_id: Annotated[int, Path(description="岗位 ID")],
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PostScope.LIST])],
-) -> ApiResponse[PostItem]:
+) -> ApiResponse[PostRead]:
     post = await PostService(session).get_post(post_id)
     return ApiResponse.ok(data=post)
 

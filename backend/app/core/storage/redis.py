@@ -11,6 +11,9 @@ def create_redis() -> Redis:
         settings.redis_url,
         decode_responses=True,  # 自动把 bytes 转成 str
         socket_connect_timeout=3,  # 3 秒连不上就报错
+        # 没连上只是「连不上」，连上了不响应才是更常见的卡死：不设这个，
+        # 一个挂住的 Redis 会让每个请求的黑名单/权限缓存查询无限等待（fail-open 变 fail-hang）
+        socket_timeout=3,
         socket_keepalive=True,  # 保持长连接
         retry_on_timeout=True,  # 超时自动重试
         health_check_interval=30,  # 每 30 秒检测连接是否存活

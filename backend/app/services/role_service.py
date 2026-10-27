@@ -8,9 +8,9 @@ from app.core.cache_keys import perm_key
 from app.core.exceptions import BusinessException, ErrorCode
 from app.core.logger import logger
 from app.core.response import PageData
-from app.models import Role
+from app.models import Menu, Role
 from app.repositories import MenuRepository, PermissionRepository, RoleRepository
-from app.schemas.role import RoleCreate, RoleItem, RoleUpdate
+from app.schemas.role import RoleCreate, RoleUpdate
 
 
 class RoleService:
@@ -31,16 +31,9 @@ class RoleService:
 
     # 查询
 
-    async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData[RoleItem]:
+    async def list_roles(self, page: int = 1, page_size: int = 100) -> PageData:
         """分页返回角色（预加载权限和菜单）。角色数量少，默认 page_size=100 一次返回全部。"""
-        page_data = await self.role_repo.list_roles(page, page_size)
-        return PageData[RoleItem](
-            items=[RoleItem.model_validate(role) for role in page_data.items],
-            total=page_data.total,
-            page=page_data.page,
-            page_size=page_data.page_size,
-            has_more=page_data.has_more,
-        )
+        return await self.role_repo.list_roles(page, page_size)
 
     async def get_role_for_update(self, role_id: int) -> Role:
         """带行级锁获取角色。"""
@@ -140,7 +133,38 @@ class RoleService:
                 found = {m.id for m in menus}
                 invalid = [mid for mid in menu_ids if mid not in found]
                 raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单 ID 不存在: {invalid}")
+            await self._validate_menu_selection(menus)
             role.menus = menus
+
+    async def _validate_menu_selection(self, menus: list[Menu]) -> None:
+        """菜单必须「父级完整、目录有子」——不允许只勾子菜单，也不允许只勾空目录。
+
+        与前端角色树的父子联动一致：勾子会带上父级，勾目录会带上子菜单。
+        放过残缺集合的后果：缺父级的页面在侧边栏挂不上；没有子菜单的目录会生成
+        一条既无 children 也无 component 的空路由，登录后 getTopMenu() 取不到落地页。
+        """
+        all_menus = await self.menu_repo.list_menus()
+        by_id = {m.id: m for m in all_menus}
+        selected = {m.id for m in menus}
+
+        missing_parents = sorted(
+            {m.parent_id for m in menus if m.parent_id is not None and m.parent_id not in selected}
+        )
+        if missing_parents:
+            names = "、".join(by_id[pid].name if pid in by_id else f"id={pid}" for pid in missing_parents)
+            raise BusinessException(ErrorCode.VALIDATION_ERROR, f"菜单必须同时选中父级: {names}")
+
+        child_ids: dict[int, set[int]] = {}
+        for m in all_menus:
+            if m.parent_id is not None:
+                child_ids.setdefault(m.parent_id, set()).add(m.id)
+
+        empty_dirs = [m.name for m in menus if child_ids.get(m.id) and not (child_ids[m.id] & selected)]
+        if empty_dirs:
+            raise BusinessException(
+                ErrorCode.VALIDATION_ERROR,
+                f"目录菜单必须至少选中一个子菜单: {'、'.join(empty_dirs)}",
+            )
 
     async def _clear_role_users_cache(self, role_id: int, role_code: str) -> None:
         """角色权限/菜单变更后，清除所有关联用户的 Redis 权限缓存。"""

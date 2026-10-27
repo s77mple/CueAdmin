@@ -82,6 +82,67 @@ async def test_create_role_invalid_menu(client, admin_headers):
     assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
 
 
+async def _create_parent_child_menus(client, headers):
+    """建一对父子菜单，返回 (parent_id, child_id)。"""
+    parent = await client.post(
+        "/api/v1/system/menus",
+        headers=headers,
+        json={"code": "report", "name": "报表", "path": "/report"},
+    )
+    parent_id = parent.json()["data"]["id"]
+    child = await client.post(
+        "/api/v1/system/menus",
+        headers=headers,
+        json={
+            "code": "report-list",
+            "name": "报表列表",
+            "path": "/report/list",
+            "component": "system/users/index",
+            "parent_id": parent_id,
+        },
+    )
+    return parent_id, child.json()["data"]["id"]
+
+
+async def test_create_role_child_without_parent(client, admin_headers):
+    """只选子菜单不给父级 → 拒绝（侧边栏挂不上，登录后取不到落地页）。"""
+    _, child_id = await _create_parent_child_menus(client, admin_headers)
+
+    resp = await client.post(
+        "/api/v1/system/roles",
+        headers=admin_headers,
+        json={"code": "report_viewer", "name": "报表访客", "menu_ids": [child_id]},
+    )
+    assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
+
+
+async def test_create_role_directory_without_children(client, admin_headers):
+    """只选目录不给任何子菜单 → 拒绝（会生成没有 component 的空路由）。"""
+    parent_id, _ = await _create_parent_child_menus(client, admin_headers)
+
+    resp = await client.post(
+        "/api/v1/system/roles",
+        headers=admin_headers,
+        json={"code": "report_dir", "name": "报表目录", "menu_ids": [parent_id]},
+    )
+    assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
+
+
+async def test_create_role_with_complete_menu_tree(client, admin_headers):
+    """父子一起选 → 允许。"""
+    parent_id, child_id = await _create_parent_child_menus(client, admin_headers)
+
+    resp = await client.post(
+        "/api/v1/system/roles",
+        headers=admin_headers,
+        json={"code": "report_editor", "name": "报表编辑", "menu_ids": [parent_id, child_id]},
+    )
+    assert resp.json()["code"] == 0
+
+    detail = await client.get(f"/api/v1/system/roles/{resp.json()['data']['id']}", headers=admin_headers)
+    assert {m["id"] for m in detail.json()["data"]["menus"]} == {parent_id, child_id}
+
+
 # ============ 更新 ============
 
 

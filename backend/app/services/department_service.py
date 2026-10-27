@@ -37,6 +37,8 @@ class DepartmentService:
                 parent_id=d.parent_id,
                 sort_order=d.sort_order,
                 description=d.description,
+                created_at=d.created_at,
+                updated_at=d.updated_at,
                 children=[],  # 空列表起点，nest_by_parent 会往里追加
             )
             for d in departments

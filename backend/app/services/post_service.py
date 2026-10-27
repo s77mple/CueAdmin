@@ -7,7 +7,7 @@ from app.core.exceptions import BusinessException, ErrorCode
 from app.core.response import PageData
 from app.models import Post
 from app.repositories import PostRepository
-from app.schemas.post import PostCreate, PostItem, PostUpdate
+from app.schemas.post import PostCreate, PostUpdate
 
 
 class PostService:
@@ -19,16 +19,9 @@ class PostService:
 
     # 查询
 
-    async def list_posts(self, page: int = 1, page_size: int = 100) -> PageData[PostItem]:
+    async def list_posts(self, page: int = 1, page_size: int = 100) -> PageData:
         """分页岗位列表（按 sort_order 排序）。"""
-        page_data = await self.post_repo.list_posts(page, page_size)
-        return PageData[PostItem](
-            items=[PostItem.model_validate(post) for post in page_data.items],
-            total=page_data.total,
-            page=page_data.page,
-            page_size=page_data.page_size,
-            has_more=page_data.has_more,
-        )
+        return await self.post_repo.list_posts(page, page_size)
 
     async def get_post_for_update(self, post_id: int) -> Post:
         """带行级锁获取岗位。"""

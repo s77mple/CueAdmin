@@ -43,7 +43,7 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
 
         # 自动补全缺失的父级菜单
         # 场景：角色分配了 /users/index 但没分配父菜单 /users
-        # 前端树形菜单需要完整的父子链才能正确渲染
+        # 新写入已被 role_service 的「父子完整」校验拦住，这里只是历史数据兜底
         while True:
             missing = {m["parent_id"] for m in menus if m["parent_id"] is not None and m["parent_id"] not in seen_ids}
             if not missing:
@@ -57,7 +57,7 @@ async def collect_user_menus(session: AsyncSession, user: User) -> list[dict]:
                 if p.id not in seen_ids:
                     seen_ids.add(p.id)
                     menus.append(_menu_to_dict(p))
-                    logger.debug("自动补全父级菜单: id=%d code=%s name=%s", p.id, p.code, p.name)
+                    logger.debug("自动补全父级菜单: id={} code={} name={}", p.id, p.code, p.name)
 
     menus.sort(key=lambda m: m["sort_order"])
     return menus
@@ -139,7 +139,7 @@ def build_routes(menus: list[dict]) -> list[dict]:
 
         if node_id in seen:
             logger.warning(
-                "菜单 parent_id 存在循环引用，已跳过该节点: id=%d code=%s name=%s",
+                "菜单 parent_id 存在循环引用，已跳过该节点: id={} code={} name={}",
                 node_id,
                 node.get("code"),
                 node.get("name"),
@@ -173,11 +173,14 @@ def build_routes(menus: list[dict]) -> list[dict]:
                 c["meta"]["showParent"] = True
             route["children"] = children_routes
             route["redirect"] = children_routes[0]["path"]
+        elif node.get("component"):
+            route["component"] = node["component"]
         else:
-            if node.get("component"):
-                route["component"] = node["component"]
-            else:
-                logger.warning("菜单 [%s] 为叶子节点但缺少 component，前端可能无法渲染", node.get("code"))
+            # component 为空 = 目录菜单（见 Menu 模型注释），连子菜单也没有就是空壳：
+            # 吐出去会变成一条既无 children 也无 component 的路由，前端 getTopMenu()
+            # 取不到落地页。直接跳过，侧边栏不显示这个空目录。
+            logger.warning("菜单 [{}] 是目录但没有任何子菜单，已跳过", node.get("code"))
+            return None
 
         return route
 

@@ -18,7 +18,7 @@ async def test_list_menus_empty(client, admin_headers):
     resp = await client.get("/api/v1/system/menus", headers=admin_headers)
     body = resp.json()
     assert body["code"] == 0
-    assert body["data"]["total"] == 0
+    assert body["data"] == []
 
 
 # ============ 创建 ============
@@ -158,7 +158,7 @@ async def test_delete_menu_with_child(client, admin_headers):
     assert resp.json()["code"] == 0
 
     resp = await client.get("/api/v1/system/menus", headers=admin_headers)
-    child = next(m for m in resp.json()["data"]["items"] if m["code"] == "child")
+    child = next(m for m in resp.json()["data"] if m["code"] == "child")
     assert child["parent_id"] is None
 
 

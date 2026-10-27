@@ -2,10 +2,10 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.role import RoleBrief
-from app.schemas.user import UserRead
+from app.schemas.user import UserRead, validate_password_length
 
 
 class LoginRequest(BaseModel):
@@ -14,6 +14,11 @@ class LoginRequest(BaseModel):
     username: Annotated[str, Field(min_length=1, max_length=50, description="用户名")]
     password: Annotated[str, Field(min_length=1, max_length=128, description="密码")]
     client: Annotated[str | None, Field(max_length=50, description="客户端标识（预留，暂时不用）")] = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_password_length(v)
 
 
 class LoginResponse(BaseModel):

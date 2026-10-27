@@ -10,8 +10,7 @@ from app.models import User
 from app.schemas.permission import (
     PermissionBrief,
     PermissionCreate,
-    PermissionItem,
-    PermissionListResponse,
+    PermissionRead,
     PermissionUpdate,
 )
 from app.services.permission_service import PermissionService
@@ -29,25 +28,24 @@ class PermissionScope:
 # GET /permissions — 权限列表
 
 
-@router.get("", response_model=ApiResponse[PermissionListResponse], summary="权限列表")
+@router.get("", response_model=ApiResponse[list[PermissionRead]], summary="权限列表")
 async def list_permissions(
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
-) -> ApiResponse[PermissionListResponse]:
+) -> ApiResponse[list[PermissionRead]]:
     perms = await PermissionService(session).list_permissions()
-    data = PermissionListResponse(items=perms, total=len(perms))
-    return ApiResponse.ok(data=data)
+    return ApiResponse.ok(data=perms)
 
 
 # GET /permissions/{perm_id} — 权限详情（编辑回显）
 
 
-@router.get("/{perm_id:int}", response_model=ApiResponse[PermissionItem], summary="权限详情")
+@router.get("/{perm_id:int}", response_model=ApiResponse[PermissionRead], summary="权限详情")
 async def get_permission(
     perm_id: Annotated[int, Path(description="权限 ID")],
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[PermissionScope.LIST])],
-) -> ApiResponse[PermissionItem]:
+) -> ApiResponse[PermissionRead]:
     perm = await PermissionService(session).get_permission(perm_id)
     return ApiResponse.ok(data=perm)
 

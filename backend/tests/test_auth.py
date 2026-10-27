@@ -8,6 +8,11 @@
 运行：cd backend && pytest
 """
 
+from datetime import UTC, datetime, timedelta
+
+from jose import jwt
+
+from app.core.config import settings
 from app.core.exceptions import ErrorCode
 from app.core.security import hash_password
 from app.models import Role, User
@@ -178,3 +183,34 @@ async def test_logout_blacklists_access_token(client):
     # 用同一个 access token 访问受保护接口 → 被黑名单拦截
     resp = await client.get("/api/v1/system/users", headers=headers)
     assert resp.json()["code"] == ErrorCode.AUTH_TOKEN_REVOKED.value
+
+
+async def test_login_password_over_72_bytes(client):
+    """bcrypt 5 对 >72 字节密码抛 ValueError —— 必须拦成 17001，不能变成 500。"""
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "admin", "password": "a" * 73},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
+
+
+async def test_logout_with_expired_access_revokes_refresh(client):
+    """access 已过期时登出，仍要撤销 refresh 会话（否则能一直换票到 7 天后）。"""
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"username": "admin", "password": "admin123"},
+    )
+    access_token = login.json()["data"]["access_token"]
+    refresh_token = login.json()["data"]["refresh_token"]
+
+    # 用同一密钥重签一张「已过期」的 access（payload 原样，只把 exp 改到过去）
+    payload = jwt.decode(access_token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    payload["exp"] = int((datetime.now(UTC) - timedelta(minutes=1)).timestamp())
+    expired = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+    logout = await client.post("/api/v1/auth/logout", headers={"Authorization": f"Bearer {expired}"})
+    assert logout.json()["code"] == 0
+
+    resp = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert resp.json()["code"] == ErrorCode.AUTH_TOKEN_EXPIRED.value

@@ -10,8 +10,7 @@ from app.models import User
 from app.schemas.department import (
     DepartmentBrief,
     DepartmentCreate,
-    DepartmentItem,
-    DepartmentListResponse,
+    DepartmentRead,
     DepartmentTreeNode,
     DepartmentUpdate,
 )
@@ -30,14 +29,13 @@ class DeptScope:
 # GET /departments — 部门列表
 
 
-@router.get("", response_model=ApiResponse[DepartmentListResponse], summary="部门列表")
+@router.get("", response_model=ApiResponse[list[DepartmentRead]], summary="部门列表")
 async def list_departments(
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.LIST])],
-) -> ApiResponse[DepartmentListResponse]:
+) -> ApiResponse[list[DepartmentRead]]:
     departments = await DepartmentService(session).list_departments()
-    data = DepartmentListResponse(items=departments, total=len(departments))
-    return ApiResponse.ok(data=data)
+    return ApiResponse.ok(data=departments)
 
 
 # GET /departments/tree — 部门组织架构树（children 嵌套）
@@ -55,12 +53,12 @@ async def get_department_tree(
 # GET /departments/{dept_id} — 部门详情（编辑回显）
 
 
-@router.get("/{dept_id:int}", response_model=ApiResponse[DepartmentItem], summary="部门详情")
+@router.get("/{dept_id:int}", response_model=ApiResponse[DepartmentRead], summary="部门详情")
 async def get_department(
     dept_id: Annotated[int, Path(description="部门 ID")],
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[DeptScope.LIST])],
-) -> ApiResponse[DepartmentItem]:
+) -> ApiResponse[DepartmentRead]:
     dept = await DepartmentService(session).get_department(dept_id)
     return ApiResponse.ok(data=dept)
 

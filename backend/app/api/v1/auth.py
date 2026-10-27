@@ -96,9 +96,10 @@ async def logout(
     同时按 session_id 撤销 refresh 会话：登出后 refresh token 也一起失效，无法再换新票。
     """
     try:
-        payload = decode_token(credentials.credentials)
+        # 不校验过期：access 过期后登出，仍要读出 session_id 撤销 refresh 会话
+        payload = decode_token(credentials.credentials, verify_exp=False)
     except JWTError:
-        # Token 已无效（过期或损坏），无需加入黑名单
+        # 签名无效 / 令牌损坏 —— 无法信任其中内容，直接返回
         return ApiResponse.ok(message="已登出")
 
     jti = payload.get("jti")  # access token 唯一 ID

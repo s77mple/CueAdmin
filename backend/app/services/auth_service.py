@@ -123,7 +123,7 @@ class AuthService:
         # 校验用户仍存在且启用（封号即时生效，不被 refresh 绕过）
         try:
             user_id = int(payload["sub"])
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, KeyError):  # KeyError：payload 里没有 sub
             raise BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "刷新令牌无效")
 
         user = await self.user_repo.get_active(user_id)

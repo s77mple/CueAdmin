@@ -18,8 +18,7 @@ async def test_list_departments_empty(client, admin_headers):
     resp = await client.get("/api/v1/system/departments", headers=admin_headers)
     body = resp.json()
     assert body["code"] == 0
-    assert body["data"]["total"] == 0
-    assert body["data"]["items"] == []
+    assert body["data"] == []
 
 
 # ============ 创建 ============
@@ -155,7 +154,7 @@ async def test_delete_department_with_child(client, admin_headers):
 
     # 子部门还在，且变顶级（parent_id=None）
     resp = await client.get("/api/v1/system/departments", headers=admin_headers)
-    child = next(d for d in resp.json()["data"]["items"] if d["code"] == "child")
+    child = next(d for d in resp.json()["data"] if d["code"] == "child")
     assert child["parent_id"] is None
 
 
@@ -232,7 +231,7 @@ async def test_get_department_tree_nested(client, admin_headers):
 
     # 原扁平列表接口不带 children 键（无回归）
     flat = await client.get("/api/v1/system/departments", headers=admin_headers)
-    for item in flat.json()["data"]["items"]:
+    for item in flat.json()["data"]:
         assert "children" not in item
 
 

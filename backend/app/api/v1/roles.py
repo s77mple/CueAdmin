@@ -10,7 +10,7 @@ from app.models import User
 from app.schemas.role import (
     RoleBrief,
     RoleCreate,
-    RoleItem,
+    RoleRead,
     RoleUpdate,
 )
 from app.services.role_service import RoleService
@@ -28,13 +28,13 @@ class RoleScope:
 # GET /roles — 角色列表
 
 
-@router.get("", response_model=ApiResponse[PageData[RoleItem]], summary="角色列表")
+@router.get("", response_model=ApiResponse[PageData[RoleRead]], summary="角色列表")
 async def list_roles(
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
     page: Annotated[int, Query(ge=1, description="页码，从 1 开始")] = 1,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页条数，最大 100")] = 100,
-) -> ApiResponse[PageData[RoleItem]]:
+) -> ApiResponse[PageData[RoleRead]]:
     result = await RoleService(session).list_roles(page, page_size)
     return ApiResponse.ok(data=result)
 
@@ -42,12 +42,12 @@ async def list_roles(
 # GET /roles/{role_id} — 角色详情（编辑回显）
 
 
-@router.get("/{role_id:int}", response_model=ApiResponse[RoleItem], summary="角色详情")
+@router.get("/{role_id:int}", response_model=ApiResponse[RoleRead], summary="角色详情")
 async def get_role(
     role_id: Annotated[int, Path(description="角色 ID")],
     session: SessionDep,
     user: Annotated[User, Security(get_current_user, scopes=[RoleScope.LIST])],
-) -> ApiResponse[RoleItem]:
+) -> ApiResponse[RoleRead]:
     role = await RoleService(session).get_role(role_id)
     return ApiResponse.ok(data=role)
 

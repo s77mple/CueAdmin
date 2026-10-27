@@ -1,5 +1,6 @@
 """菜单 Schema — 创建/更新/查询的数据结构。"""
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -29,7 +30,7 @@ class MenuUpdate(BaseModel):
 # 响应 Schema
 
 
-class MenuItem(BaseModel):
+class MenuRead(BaseModel):
     """菜单列表项 — 扁平列表，前端转树。"""
 
     id: Annotated[int, Field(description="菜单 ID")]
@@ -40,13 +41,10 @@ class MenuItem(BaseModel):
     component: Annotated[str | None, Field(description="组件路径")]
     parent_id: Annotated[int | None, Field(description="父菜单 ID")]
     sort_order: Annotated[int, Field(description="排序号")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
-
-
-class MenuListResponse(BaseModel):
-    items: Annotated[list[MenuItem], Field(description="菜单列表")]
-    total: Annotated[int, Field(description="总条数")]
 
 
 class MenuBrief(BaseModel):

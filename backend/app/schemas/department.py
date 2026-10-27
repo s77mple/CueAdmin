@@ -1,5 +1,6 @@
 """部门 Schema — 创建/更新/查询的数据结构。"""
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -33,7 +34,7 @@ class DepartmentUpdate(BaseModel):
 # 响应 Schema
 
 
-class DepartmentItem(BaseModel):
+class DepartmentRead(BaseModel):
     """部门列表项 — 扁平列表，前端转树。"""
 
     id: Annotated[int, Field(description="部门 ID")]
@@ -42,13 +43,10 @@ class DepartmentItem(BaseModel):
     parent_id: Annotated[int | None, Field(description="父部门 ID")]
     sort_order: Annotated[int, Field(description="排序号")]
     description: Annotated[str | None, Field(description="描述")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
-
-
-class DepartmentListResponse(BaseModel):
-    items: Annotated[list[DepartmentItem], Field(description="部门列表")]
-    total: Annotated[int, Field(description="总条数")]
 
 
 class DepartmentBrief(BaseModel):
@@ -77,6 +75,8 @@ class DepartmentTreeNode(BaseModel):
     parent_id: Annotated[int | None, Field(description="父部门 ID")]
     sort_order: Annotated[int, Field(description="排序号")]
     description: Annotated[str | None, Field(description="描述")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
     children: Annotated[
         list["DepartmentTreeNode"],
         Field(description="子部门，叶子为空列表"),

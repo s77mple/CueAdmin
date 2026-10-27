@@ -18,8 +18,16 @@ def _hash_password_sync(password: str) -> str:
 
 
 def _verify_password_sync(plain_password: str, hashed_password: str) -> bool:
-    """同步版 — 用哈希值里的 salt 重新哈希明文再比对。"""
-    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    """同步版 — 用哈希值里的 salt 重新哈希明文再比对。
+
+    bcrypt 对「超过 72 字节的密码」和「格式损坏的哈希」都会抛 ValueError
+    （bcrypt 5.x 不再静默截断）——这两种情况一律按「密码错误」处理，
+    不能让脏数据把登录变成 500。
+    """
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 async def hash_password(password: str) -> str:
@@ -82,10 +90,20 @@ def create_refresh_token(user_id: int, username: str, session_id: str) -> tuple[
     )
 
 
-def decode_token(token: str) -> dict:
-    """解码 JWT — 验证签名 + 检查过期。调用方需自行区分 ExpiredSignatureError / JWTError。"""
+def decode_token(token: str, *, verify_exp: bool = True) -> dict:
+    """解码 JWT — 验证签名（默认也检查过期）。
+
+    verify_exp=False 只给登出用：access 过期后用户点登出，仍要能读出
+    session_id 去撤销 refresh 会话，否则这张 refresh 会一直活到 7 天后。
+    """
+    options = {"verify_exp": False} if not verify_exp else None
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+            options=options,
+        )
     except JWTError:
         raise  # 原样抛出（含 ExpiredSignatureError），由上层区分过期 vs 无效
     except Exception as e:

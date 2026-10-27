@@ -18,7 +18,7 @@ async def test_list_permissions_empty(client, admin_headers):
     resp = await client.get("/api/v1/system/permissions", headers=admin_headers)
     body = resp.json()
     assert body["code"] == 0
-    assert body["data"]["total"] == 0
+    assert body["data"] == []
 
 
 # ============ 创建 ============

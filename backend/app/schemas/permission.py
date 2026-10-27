@@ -1,5 +1,6 @@
 """权限 Schema — 创建/更新/查询的数据结构。"""
 
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, Field
@@ -26,7 +27,7 @@ class PermissionUpdate(BaseModel):
 # 响应 Schema
 
 
-class PermissionItem(BaseModel):
+class PermissionRead(BaseModel):
     """权限列表项。"""
 
     id: Annotated[int, Field(description="权限 ID")]
@@ -35,6 +36,8 @@ class PermissionItem(BaseModel):
     resource: Annotated[str, Field(description="资源标识")]
     action: Annotated[str, Field(description="操作标识")]
     description: Annotated[str | None, Field(description="描述")]
+    created_at: Annotated[datetime, Field(description="创建时间")]
+    updated_at: Annotated[datetime, Field(description="更新时间")]
 
     model_config = {"from_attributes": True}
 
@@ -48,10 +51,3 @@ class PermissionBrief(BaseModel):
     resource: Annotated[str, Field(description="资源标识")]
 
     model_config = {"from_attributes": True}
-
-
-class PermissionListResponse(BaseModel):
-    """权限列表响应 — 扁平列表，前端按 resource 分组转树。"""
-
-    items: Annotated[list[PermissionItem], Field(description="权限列表")]
-    total: Annotated[int, Field(description="总条数")]

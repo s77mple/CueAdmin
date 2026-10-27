@@ -482,3 +482,34 @@ async def test_update_user_assign_posts(client, admin_headers):
     assert resp.json()["code"] == 0
     detail = (await client.get(f"/api/v1/system/users/{uid}", headers=admin_headers)).json()["data"]
     assert detail["post_ids"] == [post_a["id"]]
+
+
+# ============ 管理员保护边界 ============
+
+
+async def test_disable_non_admin_with_single_admin(client, admin_headers):
+    """只有 1 个启用 admin 时，禁用普通用户不该被「最后一个管理员」保护误拦。"""
+    created = await client.post(
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={"username": "nick", "password": "nick1234", "display_name": "尼克"},
+    )
+    user_id = created.json()["data"]["id"]
+
+    resp = await client.patch(
+        f"/api/v1/system/users/{user_id}",
+        headers=admin_headers,
+        json={"is_active": False},
+    )
+    assert resp.json()["code"] == 0
+    assert resp.json()["data"]["is_active"] is False
+
+
+async def test_create_user_password_over_72_bytes(client, admin_headers):
+    """bcrypt 5 只认前 72 字节且超长直接抛错 —— schema 必须拦成 17001。"""
+    resp = await client.post(
+        "/api/v1/system/users",
+        headers=admin_headers,
+        json={"username": "longpw", "password": "a" * 73, "display_name": "长密码"},
+    )
+    assert resp.json()["code"] == ErrorCode.VALIDATION_ERROR.value
