@@ -69,7 +69,8 @@ const rules = reactive<FormRules>({
   username: [
     { required: true, message: "请输入用户名", trigger: "blur" },
     { min: 3, message: "用户名至少 3 个字符", trigger: "blur" },
-    // 首尾空格校验已注释：后端 field_validator 会拦截，前端不再重复校验
+    { max: 50, message: "用户名最多 50 个字符", trigger: "blur" },
+    // 首尾空格前后端各拦一次：后端 field_validator 兜底，前端提前给中文提示
     {
       validator: (_rule, value, callback) => {
         if (value !== value.trim()) {
@@ -89,9 +90,30 @@ const rules = reactive<FormRules>({
         else callback();
       },
       trigger: "blur"
+    },
+    {
+      validator: (_rule, value, callback) => {
+        // bcrypt 只处理前 72 字节，超长后端会拦成 17001，这里提前用中文提示
+        if (value && new TextEncoder().encode(value).length > 72) {
+          callback(new Error("密码不能超过 72 字节（约 24 个汉字）"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur"
     }
   ],
-  display_name: [{ required: true, message: "请输入显示名", trigger: "blur" }]
+  display_name: [
+    { required: true, message: "请输入显示名", trigger: "blur" },
+    { max: 50, message: "显示名最多 50 个字符", trigger: "blur" }
+  ],
+  phone: [
+    {
+      pattern: /^1[3-9]\d{9}$/,
+      message: "请输入正确的手机号",
+      trigger: "blur"
+    }
+  ]
 });
 
 const columns: TableColumnList = [
@@ -470,6 +492,7 @@ onMounted(() => {
         >
           <el-input
             v-model="form.username"
+            maxlength="50"
             @input="fieldErrors.username = ''"
           />
         </el-form-item>
@@ -477,10 +500,10 @@ onMounted(() => {
           <el-input v-model="form.password" type="password" show-password />
         </el-form-item>
         <el-form-item label="显示名" prop="display_name">
-          <el-input v-model="form.display_name" />
+          <el-input v-model="form.display_name" maxlength="50" />
         </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="form.phone" />
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="form.phone" maxlength="11" />
         </el-form-item>
         <el-form-item label="部门">
           <!-- 学 RuoYi：部门选项不打包进 getUser，用页面初始化拉好的 deptTree 现渲。
@@ -539,18 +562,18 @@ onMounted(() => {
 /* 左树右表：左侧部门树固定 220px，右侧表格弹性占满剩余 */
 .users-page {
   display: flex;
-  align-items: flex-start;
   gap: 12px;
+  align-items: flex-start;
 }
 
 .dept-panel {
   flex-shrink: 0;
   width: 220px;
-  margin-top: 4px;
   padding: 10px 6px;
+  margin-top: 4px;
+  background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
-  background: var(--el-bg-color);
 }
 
 .dept-panel__header {

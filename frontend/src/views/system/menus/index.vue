@@ -86,7 +86,7 @@ async function onSearch() {
   loading.value = true;
   try {
     const res = await getMenuList();
-    if (res.code === 0) list.value = res.data?.items ?? [];
+    if (res.code === 0) list.value = res.data ?? [];
     else ElMessage.error(res.message || "加载菜单失败");
   } finally {
     loading.value = false;
@@ -332,20 +332,33 @@ onMounted(onSearch);
           prop="code"
           :error="fieldErrors.code"
         >
-          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
+          <el-input
+            v-model="form.code"
+            maxlength="50"
+            @input="fieldErrors.code = ''"
+          />
         </el-form-item>
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" maxlength="50" />
         </el-form-item>
         <el-form-item label="图标">
-          <el-input v-model="form.icon" placeholder="如 fa-solid:users" />
+          <el-input
+            v-model="form.icon"
+            maxlength="50"
+            placeholder="如 fa-solid:users"
+          />
         </el-form-item>
         <el-form-item label="路径">
-          <el-input v-model="form.path" placeholder="如 /users" />
+          <el-input
+            v-model="form.path"
+            maxlength="100"
+            placeholder="如 /users"
+          />
         </el-form-item>
         <el-form-item label="组件">
           <el-input
             v-model="form.component"
+            maxlength="200"
             placeholder="如 system/users/index"
           />
         </el-form-item>
@@ -400,17 +413,30 @@ onMounted(onSearch);
               >
             </div>
             <el-form-item label="编码" style="margin-bottom: 12px">
-              <el-input v-model="child.code" placeholder="子菜单编码" />
+              <el-input
+                v-model="child.code"
+                maxlength="50"
+                placeholder="子菜单编码"
+              />
             </el-form-item>
             <el-form-item label="名称" style="margin-bottom: 12px">
-              <el-input v-model="child.name" placeholder="子菜单名称" />
+              <el-input
+                v-model="child.name"
+                maxlength="50"
+                placeholder="子菜单名称"
+              />
             </el-form-item>
             <el-form-item label="路径" style="margin-bottom: 12px">
-              <el-input v-model="child.path" placeholder="如 /users/index" />
+              <el-input
+                v-model="child.path"
+                maxlength="100"
+                placeholder="如 /users/index"
+              />
             </el-form-item>
             <el-form-item label="组件" style="margin-bottom: 12px">
               <el-input
                 v-model="child.component"
+                maxlength="200"
                 placeholder="如 system/users/index"
               />
             </el-form-item>

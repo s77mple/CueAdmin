@@ -59,7 +59,14 @@ const formRef = ref<FormInstance>();
 const fieldErrors = reactive({ code: "" });
 
 const rules: FormRules = {
-  code: [{ required: true, message: "请输入部门编码", trigger: "blur" }],
+  code: [
+    { required: true, message: "请输入部门编码", trigger: "blur" },
+    {
+      pattern: /^[a-z][a-z0-9_]*$/,
+      message: "小写字母开头，只能包含小写字母、数字、下划线",
+      trigger: "blur"
+    }
+  ],
   name: [{ required: true, message: "请输入部门名称", trigger: "blur" }]
 };
 
@@ -67,7 +74,7 @@ async function onSearch() {
   loading.value = true;
   try {
     const res = await getDepartmentList();
-    if (res.code === 0) list.value = res.data?.items ?? [];
+    if (res.code === 0) list.value = res.data ?? [];
     else ElMessage.error(res.message || "加载部门列表失败");
   } finally {
     loading.value = false;
@@ -259,10 +266,14 @@ onMounted(onSearch);
           prop="code"
           :error="fieldErrors.code"
         >
-          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
+          <el-input
+            v-model="form.code"
+            maxlength="50"
+            @input="fieldErrors.code = ''"
+          />
         </el-form-item>
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" maxlength="50" />
         </el-form-item>
         <el-form-item label="父部门">
           <el-select v-model="form.parent_id" clearable placeholder="顶级部门">
@@ -278,7 +289,11 @@ onMounted(onSearch);
           <el-input-number v-model="form.sort_order" :min="0" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            maxlength="500"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

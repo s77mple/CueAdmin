@@ -39,7 +39,14 @@ const formRef = ref<FormInstance>();
 const fieldErrors = reactive({ code: "" });
 
 const rules = reactive<FormRules>({
-  code: [{ required: true, message: "请输入岗位编码", trigger: "blur" }],
+  code: [
+    { required: true, message: "请输入岗位编码", trigger: "blur" },
+    {
+      pattern: /^[a-z][a-z0-9_]*$/,
+      message: "小写字母开头，只能包含小写字母、数字、下划线",
+      trigger: "blur"
+    }
+  ],
   name: [{ required: true, message: "请输入岗位名称", trigger: "blur" }]
 });
 
@@ -231,16 +238,24 @@ onMounted(() => {
           prop="code"
           :error="fieldErrors.code"
         >
-          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
+          <el-input
+            v-model="form.code"
+            maxlength="50"
+            @input="fieldErrors.code = ''"
+          />
         </el-form-item>
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" maxlength="50" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sort_order" :min="0" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            maxlength="200"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

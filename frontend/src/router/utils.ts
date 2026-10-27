@@ -18,6 +18,7 @@ import {
 } from "@pureadmin/utils";
 import { getConfig } from "@/config";
 import { buildHierarchyTree } from "@/utils/tree";
+import { message } from "@/utils/message";
 import { userKey, type DataInfo, updateUserAuth } from "@/utils/auth";
 import { type menuType, routerArrays } from "@/layout/types";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
@@ -202,6 +203,14 @@ function handleAsyncRoutes(routeList) {
   addPathMatch();
 }
 
+/** 动态路由获取失败 — 给出可见提示 + 补注册全屏 404，别让用户面对白屏 */
+function onAsyncRoutesFailed(error?: unknown) {
+  console.error("获取动态路由失败", error);
+  message("菜单加载失败，请刷新页面后重试", { type: "error" });
+  addPathMatch();
+  return router;
+}
+
 /** 初始化路由（`new Promise` 写法防止在异步请求中造成无限循环）*/
 function initRouter() {
   if (getConfig()?.CachingAsyncRoutes) {
@@ -216,40 +225,38 @@ function initRouter() {
     } else {
       return new Promise(resolve => {
         getAsyncRoutes()
-          .then(({ code, data }) => {
-            if (code === 0) {
-              handleAsyncRoutes(cloneDeep(data.routes));
-              storageLocal().setItem(key, data.routes);
-              updateUserAuth({
-                permissions: data.permissions,
-                roles: data.roles.map(r => r.code)
-              });
+          .then(res => {
+            if (res.code !== 0) {
+              resolve(onAsyncRoutesFailed(res.message));
+              return;
             }
+            handleAsyncRoutes(cloneDeep(res.data.routes));
+            storageLocal().setItem(key, res.data.routes);
+            updateUserAuth({
+              permissions: res.data.permissions,
+              roles: res.data.roles.map(r => r.code)
+            });
             resolve(router);
           })
-          .catch(err => {
-            console.error("获取动态路由失败，降级使用静态路由", err);
-            resolve(router);
-          });
+          .catch(err => resolve(onAsyncRoutesFailed(err)));
       });
     }
   } else {
     return new Promise(resolve => {
       getAsyncRoutes()
-        .then(({ code, data }) => {
-          if (code === 0) {
-            handleAsyncRoutes(cloneDeep(data.routes));
-            updateUserAuth({
-              permissions: data.permissions,
-              roles: data.roles.map(r => r.code)
-            });
+        .then(res => {
+          if (res.code !== 0) {
+            resolve(onAsyncRoutesFailed(res.message));
+            return;
           }
+          handleAsyncRoutes(cloneDeep(res.data.routes));
+          updateUserAuth({
+            permissions: res.data.permissions,
+            roles: res.data.roles.map(r => r.code)
+          });
           resolve(router);
         })
-        .catch(err => {
-          console.error("获取动态路由失败，降级使用静态路由", err);
-          resolve(router);
-        });
+        .catch(err => resolve(onAsyncRoutesFailed(err)));
     });
   }
 }
@@ -428,15 +435,17 @@ function handleTopMenu(route) {
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
 function getTopMenu(tag = false): menuType {
-  // ⚠️ 第二层必须也写 `?.`：后端某个「目录」菜单如果丢了子菜单，
-  // to_route 会把它当叶子节点吐出来，这条路由就没有 children。
-  // 而 filterChildrenTree 判的是 `children?.length !== 0` —— children 是 undefined 时
-  // 该条件为真，残缺路由会被放过去，于是这里 `undefined[0]` 抛 TypeError。
-  // 登录页的 getTopMenu() 是同步调用，抛错会被那条 .catch 吞成「登录失败」，
-  // 表现为「提示登录失败、但 F5 刷新又能进系统」。
-  const topMenu = handleTopMenu(
-    usePermissionStoreHook().wholeMenus[0]?.children?.[0]
-  );
+  // ⚠️ 两条兜底缺一不可：
+  // 1. 顶级菜单本身可能是页面而不是目录（后端允许不带组件的目录，也允许顶级页面；
+  //    删掉父目录后子页面也会变成顶级）—— 这时它自己就是落地页，不能再取 children[0]，
+  //    否则拿到 undefined，登录后跳到 "/" 一片空白。
+  // 2. wholeMenus 可能为空（用户没有任何菜单）—— 此时返回 undefined，调用方用 ?? "/"。
+  // 历史事故：这条路由没有 children 时 `undefined[0]` 抛 TypeError，登录页的 .catch
+  // 把它吞成「登录失败」，表现为「提示登录失败、但 F5 刷新又能进系统」。
+  const firstMenu = usePermissionStoreHook().wholeMenus[0];
+  const topMenu = firstMenu?.children?.length
+    ? handleTopMenu(firstMenu.children[0])
+    : firstMenu;
   // topMenu 为 undefined 时要跳过 handleTags —— 它内部会直接取 tagVal.path
   //（路由守卫刷新路径里 getTopMenu(true) 就是带着这个可能抛的）
   tag && topMenu && useMultiTagsStoreHook().handleTags("push", topMenu);

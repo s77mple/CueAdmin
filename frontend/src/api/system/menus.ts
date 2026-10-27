@@ -1,9 +1,9 @@
 import { http } from "@/utils/http";
-import type { ApiResult, ListData } from "../types";
+import type { ApiResult } from "../types";
 import type { Menu, MenuBrief } from "./types";
 
 export const getMenuList = () =>
-  http.get<ApiResult<ListData<Menu>>>("/api/v1/system/menus");
+  http.get<ApiResult<Menu[]>>("/api/v1/system/menus");
 export const getMenu = (id: number) =>
   http.get<ApiResult<Menu>>(`/api/v1/system/menus/${id}`);
 export const createMenu = (data?: object) =>

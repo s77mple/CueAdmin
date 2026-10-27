@@ -12,7 +12,7 @@ import type {
 import { stringify } from "qs";
 import { message } from "@/utils/message";
 import { getToken, formatToken, removeToken, updateToken } from "@/utils/auth";
-import { router } from "@/router";
+import { router, resetRouter } from "@/router";
 import { ErrorCode } from "@/constants/error-code";
 
 const defaultConfig: AxiosRequestConfig = {
@@ -42,7 +42,24 @@ let pendingQueue: Array<{
 /** 清空登录态并跳登录页（刷新失败 / 令牌作废时调用） */
 function forceLogout() {
   removeToken();
+  // 必须复位动态路由：与手动登出（user store 的 logOut）保持一致，
+  // 否则同一标签页换账号登录后，上一个账号的路由还留在 router 里能直接打开
+  resetRouter();
   router.push("/login");
+}
+
+// 跨标签页刷新锁 —— 同一浏览器的标签页共享 cookie 里的 refresh token，
+// 各自刷新时后到的请求会被后端判定为「复用」并撤销整个会话。
+// 用 Web Locks 把刷新串行化；不支持该 API 的浏览器退化为原行为（各刷各的）。
+const REFRESH_LOCK = "cueadmin-token-refresh";
+
+type LockManagerLike = {
+  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
+};
+
+async function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
+  const locks = (navigator as unknown as { locks?: LockManagerLike }).locks;
+  return locks ? locks.request(REFRESH_LOCK, run) : run();
 }
 
 class PureHttp {
@@ -131,7 +148,8 @@ class PureHttp {
       return Promise.reject(new Error("登录已过期，请重新登录"));
     }
 
-    const refreshToken = getToken()?.refreshToken;
+    const usedToken = getToken();
+    const refreshToken = usedToken?.refreshToken;
     if (!refreshToken) {
       message("登录已过期，请重新登录", { type: "warning" });
       forceLogout();
@@ -153,23 +171,38 @@ class PureHttp {
     }
 
     isRefreshing = true;
+    let tokens: { access_token: string; refresh_token?: string };
     try {
-      const res = await refreshHttp.post("/api/v1/auth/refresh", {
-        refresh_token: refreshToken
+      tokens = await withRefreshLock(async () => {
+        // 拿到锁后先看其他标签页是不是已经刷好了：token 变了就直接复用，
+        // 不再拿同一张旧 refresh 去换票（那会被后端按「复用」撤销整个会话）
+        const latest = getToken();
+        if (
+          latest?.accessToken &&
+          latest.accessToken !== usedToken?.accessToken
+        ) {
+          return {
+            access_token: latest.accessToken,
+            refresh_token: latest.refreshToken
+          };
+        }
+        const res = await refreshHttp.post("/api/v1/auth/refresh", {
+          refresh_token: refreshToken
+        });
+        if (res.data.code !== 0) {
+          throw new Error(res.data.message || "刷新令牌失败");
+        }
+        const data = res.data.data as {
+          access_token: string;
+          refresh_token?: string;
+        };
+        // 必须在锁内回写：等锁释放后再写，下一个标签页可能已经拿着旧 token 去换票了
+        updateToken({
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token
+        });
+        return data;
       });
-      const data = res.data;
-      if (data.code === 0) {
-        const { access_token, refresh_token } = data.data;
-        updateToken({ accessToken: access_token, refreshToken: refresh_token });
-        // 唤醒排队的请求，用新 token 各自重试
-        pendingQueue.forEach(({ resolve }) => resolve(access_token));
-        pendingQueue = [];
-        // 重试原请求
-        originalConfig.headers["Authorization"] = formatToken(access_token);
-        originalConfig._retry = true;
-        return PureHttp.axiosInstance.request(originalConfig);
-      }
-      throw new Error(data.message || "刷新令牌失败");
     } catch (e) {
       // 刷新失败（refresh 也过期/被撤销/被盗）→ 清空登录态，排队的请求全部拒绝
       message("登录已过期，请重新登录", { type: "warning" });
@@ -180,6 +213,14 @@ class PureHttp {
     } finally {
       isRefreshing = false;
     }
+
+    // 唤醒排队的请求，用新 token 各自重试
+    pendingQueue.forEach(({ resolve }) => resolve(tokens.access_token));
+    pendingQueue = [];
+    // 重试原请求放在 try 外：重试本身失败（网络抖动）不该被当成「刷新失败」再登出一次
+    originalConfig.headers["Authorization"] = formatToken(tokens.access_token);
+    originalConfig._retry = true;
+    return PureHttp.axiosInstance.request(originalConfig);
   }
 
   public request<T>(

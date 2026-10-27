@@ -93,7 +93,7 @@ async function onSearch() {
   loading.value = true;
   try {
     const res = await getPermissionList();
-    if (res.code === 0) list.value = res.data?.items ?? [];
+    if (res.code === 0) list.value = res.data ?? [];
     else ElMessage.error(res.message || "加载权限列表失败");
   } finally {
     loading.value = false;
@@ -285,21 +285,26 @@ onMounted(onSearch);
         <el-form-item label="权限码" prop="code" :error="fieldErrors.code">
           <el-input
             v-model="form.code"
+            maxlength="100"
             placeholder="如 user:list"
             @input="fieldErrors.code = ''"
           />
         </el-form-item>
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" maxlength="100" />
         </el-form-item>
         <el-form-item label="资源" prop="resource">
-          <el-input v-model="form.resource" />
+          <el-input v-model="form.resource" maxlength="50" />
         </el-form-item>
         <el-form-item label="操作" prop="action">
-          <el-input v-model="form.action" />
+          <el-input v-model="form.action" maxlength="50" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            maxlength="200"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

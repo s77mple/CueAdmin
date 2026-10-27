@@ -1,9 +1,9 @@
 import { http } from "@/utils/http";
-import type { ApiResult, ListData } from "../types";
+import type { ApiResult } from "../types";
 import type { Department, DepartmentBrief, DepartmentTreeNode } from "./types";
 
 export const getDepartmentList = (params?: object) =>
-  http.get<ApiResult<ListData<Department>>>("/api/v1/system/departments", {
+  http.get<ApiResult<Department[]>>("/api/v1/system/departments", {
     params
   });
 export const getDepartmentTree = () =>

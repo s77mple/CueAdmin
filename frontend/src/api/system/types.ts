@@ -48,6 +48,8 @@ export interface DepartmentTreeNode {
   parent_id: number | null;
   sort_order: number;
   description: string | null;
+  created_at: string;
+  updated_at: string;
   children: DepartmentTreeNode[];
 }
 
@@ -97,7 +99,7 @@ export interface UserDetail {
   post_ids: number[];
 }
 
-/** 角色 */
+/** 角色 — 对应后端 RoleRead */
 export interface Role {
   id: number;
   code: string;
@@ -106,9 +108,11 @@ export interface Role {
   is_system: boolean;
   permissions: PermissionBrief[];
   menus: MenuBrief[];
+  created_at: string;
+  updated_at: string;
 }
 
-/** 部门 */
+/** 部门 — 对应后端 DepartmentRead */
 export interface Department {
   id: number;
   code: string;
@@ -116,9 +120,11 @@ export interface Department {
   parent_id: number | null;
   sort_order: number;
   description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-/** 菜单 */
+/** 菜单 — 对应后端 MenuRead */
 export interface Menu {
   id: number;
   code: string;
@@ -128,9 +134,11 @@ export interface Menu {
   component: string | null;
   parent_id: number | null;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
-/** 权限 */
+/** 权限 — 对应后端 PermissionRead */
 export interface Permission {
   id: number;
   code: string;
@@ -138,15 +146,19 @@ export interface Permission {
   resource: string;
   action: string;
   description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-/** 岗位 */
+/** 岗位 — 对应后端 PostRead */
 export interface Post {
   id: number;
   code: string;
   name: string;
   sort_order: number;
   description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ===== 请求类型（POST/PUT/PATCH 的请求体，对应后端 XxxCreate/Update/Patch）=====

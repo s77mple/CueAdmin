@@ -42,8 +42,7 @@ const form = reactive({
   code: "",
   name: "",
   description: "",
-  permission_codes: [] as string[],
-  menu_ids: [] as number[]
+  permission_codes: [] as string[]
 });
 const formRef = ref<FormInstance>();
 
@@ -78,8 +77,19 @@ function openMenuDetail(m: any, e: MouseEvent) {
 }
 
 const rules: FormRules = {
-  code: [{ required: true, message: "请输入角色编码", trigger: "blur" }],
-  name: [{ required: true, message: "请输入角色名称", trigger: "blur" }]
+  code: [
+    { required: true, message: "请输入角色编码", trigger: "blur" },
+    { min: 2, message: "角色编码至少 2 个字符", trigger: "blur" },
+    {
+      pattern: /^[a-z][a-z0-9_]*$/,
+      message: "小写字母开头，只能包含小写字母、数字、下划线",
+      trigger: "blur"
+    }
+  ],
+  name: [
+    { required: true, message: "请输入角色名称", trigger: "blur" },
+    { min: 2, message: "角色名称至少 2 个字符", trigger: "blur" }
+  ]
 };
 
 const menuTreeRef = ref();
@@ -146,21 +156,25 @@ function handleCurrentChange(val: number) {
   onSearch();
 }
 
-// 懒加载：首次打开弹窗时才请求，之后复用缓存
-const optionsLoaded = ref(false);
+// 懒加载：首次打开弹窗时才请求，成功后才标记，失败下次打开会重试
+const permOptionsLoaded = ref(false);
+const menuOptionsLoaded = ref(false);
 
 async function loadOptions() {
-  if (optionsLoaded.value) return;
+  if (permOptionsLoaded.value && menuOptionsLoaded.value) return;
   try {
     const [pRes, mRes] = await Promise.all([
       getPermissionList(),
       getMenuList()
     ]);
-    if (pRes.code === 0) permOptions.value = pRes.data?.items ?? [];
-    else ElMessage.warning("权限数据加载失败");
-    if (mRes.code === 0) menuOptions.value = mRes.data?.items ?? [];
-    else ElMessage.warning("菜单数据加载失败");
-    optionsLoaded.value = true;
+    if (pRes.code === 0) {
+      permOptions.value = pRes.data ?? [];
+      permOptionsLoaded.value = true;
+    } else ElMessage.warning("权限数据加载失败");
+    if (mRes.code === 0) {
+      menuOptions.value = mRes.data ?? [];
+      menuOptionsLoaded.value = true;
+    } else ElMessage.warning("菜单数据加载失败");
   } catch {
     ElMessage.warning("加载选项数据失败，请检查网络连接");
   }
@@ -173,8 +187,7 @@ async function openCreate() {
     code: "",
     name: "",
     description: "",
-    permission_codes: [],
-    menu_ids: []
+    permission_codes: []
   });
   fieldErrors.code = "";
   dialogVisible.value = true;
@@ -197,13 +210,21 @@ async function openEdit(row: Role) {
     code: detail.code,
     name: detail.name,
     description: detail.description ?? "",
-    permission_codes: permCodes,
-    menu_ids: menuIds
+    permission_codes: permCodes
   });
   fieldErrors.code = "";
   dialogVisible.value = true;
   await loadOptions();
-  nextTick(() => menuTreeRef.value?.setCheckedKeys(menuIds));
+  // 父子联动模式下只能回填叶子节点：setCheckedKeys 传了父节点会把它**所有**子菜单
+  // 一起勾上，等于静默授权了没分配给该角色的兄弟菜单。叶子勾全后父节点会自动全选/半选
+  const leafIds = new Set(
+    menuOptions.value
+      .filter(m => !menuOptions.value.some(x => x.parent_id === m.id))
+      .map(m => m.id)
+  );
+  nextTick(() =>
+    menuTreeRef.value?.setCheckedKeys(menuIds.filter(id => leafIds.has(id)))
+  );
 }
 
 async function handleSubmit() {
@@ -213,13 +234,21 @@ async function handleSubmit() {
   fieldErrors.code = "";
   try {
     await formRef.value.validate();
-    const checkedMenuIds =
-      (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
+    // 菜单树没加载成功时禁止提交：此时 getCheckedKeys() 是空数组，
+    // 后端对「空菜单」是合法的，会把角色原有菜单静默清空
+    if (!menuOptionsLoaded.value) {
+      ElMessage.warning("菜单数据未加载成功，暂不能保存，请关闭弹窗后重试");
+      return;
+    }
+    // 联动模式下 getCheckedKeys 只返回全选节点，半选的父目录不在里面 ——
+    // 后端要求菜单「父级完整」（只给子会被 17001 拒绝），所以要把半选父一并提交
+    const checked = (menuTreeRef.value?.getCheckedKeys() as number[]) ?? [];
+    const half = (menuTreeRef.value?.getHalfCheckedKeys() as number[]) ?? [];
     const data = {
       name: form.name,
       description: form.description || null,
       permission_codes: form.permission_codes,
-      menu_ids: checkedMenuIds
+      menu_ids: [...checked, ...half]
     };
     if (form.id) {
       const res = await updateRole(form.id, data);
@@ -453,13 +482,21 @@ onMounted(() => {
           prop="code"
           :error="fieldErrors.code"
         >
-          <el-input v-model="form.code" @input="fieldErrors.code = ''" />
+          <el-input
+            v-model="form.code"
+            maxlength="50"
+            @input="fieldErrors.code = ''"
+          />
         </el-form-item>
         <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" />
+          <el-input v-model="form.name" maxlength="50" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            maxlength="200"
+          />
         </el-form-item>
         <el-form-item label="权限">
           <div class="perm-group-list">
@@ -499,11 +536,12 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="菜单">
           <div class="menu-tree-wrapper">
+            <!-- 父子联动（不开 check-strictly）：勾子自动带上父级，勾目录自动勾全部子菜单。
+                 后端强制「父级完整、目录有子」，关掉联动就会出现只勾子/只勾目录的无效组合 -->
             <el-tree
               ref="menuTreeRef"
               :data="menuTree"
               show-checkbox
-              check-strictly
               node-key="id"
               default-expand-all
               :props="{ label: 'name', children: 'children' }"
