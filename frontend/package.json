@@ -18,6 +18,7 @@
     "lint:prettier": "prettier --write  \"src/**/*.{js,ts,json,tsx,css,scss,vue,html,md}\"",
     "lint:stylelint": "stylelint --cache --fix \"**/*.{html,vue,css,scss}\" --cache-location node_modules/.cache/stylelint/",
     "lint": "pnpm lint:eslint && pnpm lint:prettier && pnpm lint:stylelint",
+    "lint:ci": "eslint --max-warnings 0 src mock build && prettier --check \"src/**/*.{js,ts,json,tsx,css,scss,vue,html,md}\" && stylelint \"**/*.{html,vue,css,scss}\"",
     "preinstall": "npx only-allow pnpm"
   },
   "keywords": [
