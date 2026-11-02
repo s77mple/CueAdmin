@@ -17,6 +17,14 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # .env 被 gitignore，CI 里不存在；而 storage/db.py 在 import 时就会
+    # create_async_engine(settings.database_url)，空串会直接抛 ArgumentError。
+    # 这里给一套假值即可 —— 测试本身用 SQLite 内存库 + fakeredis，
+    # 这些只是让模块能正常 import（引擎是懒连接，不会真的去连 MySQL）。
+    env:
+      DATABASE_URL: mysql+aiomysql://root:password@127.0.0.1:3306/cueadmin_ci
+      JWT_SECRET: ci-only-secret-not-used-in-production
+      REDIS_URL: redis://127.0.0.1:6379/0
     steps:
       - uses: actions/checkout@v4
 
